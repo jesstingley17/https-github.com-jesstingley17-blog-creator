@@ -138,7 +138,7 @@ export const geminiService = {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Analyze the following content for SEO performance against keywords: ${keywords.join(', ')}. 
-      Provide a score (0-100), readability level, keyword density analysis, and improvement suggestions.
+      Provide a score (0-100), readability level, keyword density analysis, improvement suggestions, and specific keyword-focused actionable suggestions.
       
       Content: ${text.substring(0, 5000)}`,
       config: {
@@ -152,7 +152,19 @@ export const geminiService = {
                 type: Type.OBJECT,
                 properties: keywords.reduce((acc, k) => ({...acc, [k]: {type: Type.NUMBER}}), {})
             },
-            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } }
+            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            keywordSuggestions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  keyword: { type: Type.STRING },
+                  action: { type: Type.STRING },
+                  explanation: { type: Type.STRING }
+                },
+                required: ['keyword', 'action', 'explanation']
+              }
+            }
           }
         }
       }

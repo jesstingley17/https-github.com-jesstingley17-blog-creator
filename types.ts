@@ -22,11 +22,18 @@ export interface ContentOutline {
   }[];
 }
 
+export interface KeywordSuggestion {
+  keyword: string;
+  action: string;
+  explanation: string;
+}
+
 export interface SEOAnalysis {
   score: number;
   readability: string;
   keywordDensity: Record<string, number>;
   suggestions: string[];
+  keywordSuggestions: KeywordSuggestion[];
 }
 
 export interface ScheduledPost {

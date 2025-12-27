@@ -26,7 +26,9 @@ import {
   Link as LinkIcon,
   ExternalLink,
   X,
-  BookOpen
+  BookOpen,
+  Key,
+  Tag as TagIcon
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis } from '../types';
@@ -49,6 +51,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   const [showSourcesModal, setShowSourcesModal] = useState(false);
   
+  // Tag State
+  const [tags, setTags] = useState<string[]>(brief.targetKeywords || []);
+  const [tagInput, setTagInput] = useState('');
+
   // Hero Image State
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
 
@@ -145,6 +151,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     return `A professional, high-end editorial blog header image for an article titled "${title}". 
 The scene should conceptually represent "${topic}" with subtle visual motifs of ${keyThemes}. 
 Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of field, 8k resolution, photorealistic textures, corporate-modern color palette, premium magazine quality.`;
+  };
+
+  // Tag helper functions
+  const addTag = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const cleanTag = tagInput.trim().toLowerCase();
+    if (cleanTag && !tags.includes(cleanTag)) {
+      setTags([...tags, cleanTag]);
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(t => t !== tagToRemove));
   };
 
   // Outline helper functions
@@ -347,6 +367,44 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                 </button>
               </div>
 
+              {/* Tag Input Field */}
+              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 block flex items-center gap-2">
+                  <TagIcon className="w-3.5 h-3.5 text-indigo-400" /> Content Taxonomy & Tags
+                </label>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {tags.map((tag, i) => (
+                    <span 
+                      key={i} 
+                      className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-2 animate-in zoom-in-95 duration-200"
+                    >
+                      {tag}
+                      <button 
+                        onClick={() => removeTag(tag)}
+                        className="hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <form onSubmit={addTag} className="relative">
+                  <input
+                    type="text"
+                    placeholder="Add a custom tag and press Enter..."
+                    className="w-full px-5 py-3 bg-gray-50 border border-transparent focus:border-indigo-100 focus:bg-white rounded-xl outline-none text-sm transition-all"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                  />
+                  <button 
+                    type="submit"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-indigo-400 hover:text-indigo-600 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
+
               <div className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100/50">
                  <ImageGenerator 
                     defaultPrompt={heroImagePrompt} 
@@ -451,6 +509,15 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-8 pb-20">
+              {/* Show Tags in generated view */}
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, i) => (
+                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-500 rounded-md text-[10px] font-bold uppercase tracking-widest">
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+
               {/* Show the Hero Image inside the actual content area */}
               {heroImageUrl && (
                 <div className="rounded-3xl overflow-hidden shadow-2xl border border-gray-100 aspect-[21/9] relative group animate-in fade-in duration-700">
@@ -574,7 +641,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               <span className="text-gray-500">Readability</span>
               <span className="font-bold text-gray-900">{analysis?.readability || 'Analyzing...'}</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 border-t pt-4">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Keyword Density</span>
               {brief.targetKeywords.map((k, i) => (
                 <div key={i} className="space-y-1">
@@ -594,6 +661,26 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
           </div>
         </div>
 
+        {/* New Keyword Optimization Section */}
+        {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 animate-in slide-in-from-right-4 duration-500">
+            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Key className="w-5 h-5 text-purple-600" /> Keyword Optimization
+            </h3>
+            <div className="space-y-4">
+              {analysis.keywordSuggestions.map((suggestion, idx) => (
+                <div key={idx} className="bg-purple-50/50 border border-purple-100 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded uppercase tracking-wider">{suggestion.keyword}</span>
+                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">{suggestion.action}</span>
+                  </div>
+                  <p className="text-xs text-purple-900/80 leading-snug">{suggestion.explanation}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Unified Image Generator in Sidebar */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
           <ImageGenerator 
@@ -606,7 +693,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
         {/* Suggestions Section */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6">
           <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-500" /> Suggestions
+            <Trophy className="w-5 h-5 text-yellow-500" /> Improvement Tips
           </h3>
           <div className="space-y-3">
             {analysis?.suggestions.map((s, i) => (
