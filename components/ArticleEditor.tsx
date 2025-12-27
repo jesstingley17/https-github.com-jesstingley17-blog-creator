@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
   Save, 
@@ -34,7 +34,9 @@ import {
   Facebook,
   Layout,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Tag as TagIcon,
+  Quote
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -63,6 +65,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [showScoreTooltip, setShowScoreTooltip] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
+  const [showSourcesModal, setShowSourcesModal] = useState(false);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -75,6 +78,79 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
 
+  // Tags State
+  const [tags, setTags] = useState<string[]>(brief.tags || []);
+  const [tagInput, setTagInput] = useState('');
+
+  // Autosave State
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const autosaveTimerRef = useRef<number | null>(null);
+
+  // Load draft from localStorage on mount
+  useEffect(() => {
+    const draftKey = `zr_draft_${brief.id || brief.topic}`;
+    const savedDraft = localStorage.getItem(draftKey);
+    if (savedDraft) {
+      try {
+        const { 
+          content: dContent, 
+          outline: dOutline, 
+          hasStarted: dHasStarted, 
+          heroImageUrl: dHeroImageUrl,
+          tags: dTags 
+        } = JSON.parse(savedDraft);
+        if (dContent) setContent(dContent);
+        if (dOutline) setLocalOutline(dOutline);
+        if (dHasStarted) setHasStarted(dHasStarted);
+        if (dHeroImageUrl) setHeroImageUrl(dHeroImageUrl);
+        if (dTags) setTags(dTags);
+        
+        // If it was already generating or finished, we might want to trigger analysis
+        if (dContent) performAnalysis(dContent);
+      } catch (e) {
+        console.error("Failed to load draft", e);
+      }
+    }
+  }, [brief.id, brief.topic]);
+
+  // Autosave Trigger Effect
+  useEffect(() => {
+    if (!content && !localOutline.title && tags.length === 0) return;
+
+    // Clear existing timer
+    if (autosaveTimerRef.current) {
+      window.clearTimeout(autosaveTimerRef.current);
+    }
+
+    setSaveStatus('saving');
+
+    autosaveTimerRef.current = window.setTimeout(() => {
+      const draftKey = `zr_draft_${brief.id || brief.topic}`;
+      const draftData = {
+        content,
+        outline: localOutline,
+        hasStarted,
+        heroImageUrl,
+        tags,
+        timestamp: Date.now()
+      };
+
+      try {
+        localStorage.setItem(draftKey, JSON.stringify(draftData));
+        setSaveStatus('saved');
+        // Reset to idle after 3 seconds
+        setTimeout(() => setSaveStatus('idle'), 3000);
+      } catch (e) {
+        console.error("Autosave failed", e);
+        setSaveStatus('idle');
+      }
+    }, 5000); // 5-second debounce
+
+    return () => {
+      if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    };
+  }, [content, localOutline, hasStarted, heroImageUrl, tags, brief.id, brief.topic]);
+
   const saveVersion = () => {
     const newVersion: ArticleVersion = {
       id: Math.random().toString(36).substring(2, 9),
@@ -83,14 +159,16 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       outline: JSON.parse(JSON.stringify(localOutline))
     };
     setVersions(prev => [newVersion, ...prev]);
-  };
-
-  const restoreVersion = (version: ArticleVersion) => {
-    if (confirm("Restore this version? Unsaved changes will be lost.")) {
-      setContent(version.content);
-      setLocalOutline(JSON.parse(JSON.stringify(version.outline)));
-      performAnalysis(version.content);
-    }
+    // Also trigger an immediate save for the main draft
+    const draftKey = `zr_draft_${brief.id || brief.topic}`;
+    localStorage.setItem(draftKey, JSON.stringify({
+      content,
+      outline: localOutline,
+      hasStarted,
+      heroImageUrl,
+      tags,
+      timestamp: Date.now()
+    }));
   };
 
   const startGeneration = async () => {
@@ -168,6 +246,28 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         setShowScheduleModal(false);
         setIsScheduled(false);
       }, 1500);
+    }
+  };
+
+  // Tag Handlers
+  const addTag = () => {
+    const trimmed = tagInput.trim().toLowerCase();
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags([...tags, trimmed]);
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setTags(tags.filter(t => t !== tagToRemove));
+  };
+
+  const handleTagKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag();
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      removeTag(tags[tags.length - 1]);
     }
   };
 
@@ -329,6 +429,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             ) : (
               <h2 className="font-bold text-gray-900 line-clamp-1">{localOutline.title}</h2>
             )}
+            
+            {/* Autosave Status Indicator */}
+            {saveStatus !== 'idle' && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 rounded-full border border-gray-100 animate-in fade-in slide-in-from-left-2 ml-2">
+                {saveStatus === 'saving' ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
+                ) : (
+                  <Check className="w-3 h-3 text-green-500" />
+                )}
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">
+                  {saveStatus === 'saving' ? 'Autosaving...' : 'Draft Saved'}
+                </span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -364,11 +478,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 >
                   <Calendar className="w-4 h-4" /> Schedule
                 </button>
-                <button onClick={handleDownload} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
+                <button onClick={handleDownload} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors" title="Download Markdown">
                   <Download className="w-5 h-5" />
                 </button>
                 <button onClick={saveVersion} className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-                  <Save className="w-4 h-4" /> Save
+                  <Save className="w-4 h-4" /> Save Snapshot
                 </button>
               </>
             )}
@@ -474,12 +588,25 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   <textarea className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl" value={content} onChange={(e) => setContent(e.target.value)} />
                 )}
               </div>
+
+              {/* Cite Sources Button */}
+              {sources.length > 0 && !isGenerating && (
+                <div className="flex justify-center pt-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <button 
+                    onClick={() => setShowSourcesModal(true)}
+                    className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-100 text-gray-600 rounded-2xl font-bold hover:bg-gray-50 hover:text-indigo-600 hover:border-indigo-100 transition-all shadow-sm"
+                  >
+                    <Quote className="w-4 h-4" /> Cite Generated Sources ({sources.length})
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
+        {/* SEO Intelligence Card */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-900 flex items-center gap-2"><BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Intelligence</h3>
@@ -507,7 +634,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Global Score</span>
             </div>
             
-            {/* ENHANCED TOOLTIP */}
             {showScoreTooltip && analysis && (
               <div className="absolute top-0 right-full mr-6 w-72 bg-white/95 backdrop-blur-md border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl p-6 z-[100] animate-in fade-in slide-in-from-right-6 duration-300">
                 <div className="mb-5 border-b border-gray-100 pb-3 flex items-center justify-between">
@@ -581,6 +707,55 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
         </div>
 
+        {/* Taxonomy & Tags Card */}
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm uppercase tracking-tight">
+              <TagIcon className="w-4 h-4 text-indigo-600" /> Content Taxonomy
+            </h3>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{tags.length} Tags</span>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2 mb-2 min-h-[40px]">
+              {tags.map((tag) => (
+                <span 
+                  key={tag} 
+                  className="group flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold border border-indigo-100 animate-in zoom-in-95"
+                >
+                  {tag}
+                  <button 
+                    onClick={() => removeTag(tag)}
+                    className="p-0.5 hover:bg-indigo-200 rounded-full transition-colors"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ))}
+              {tags.length === 0 && (
+                <p className="text-[10px] text-gray-400 italic">No tags assigned yet. Use tags for better organization.</p>
+              )}
+            </div>
+
+            <div className="relative">
+              <input 
+                type="text" 
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder="Add tag (press Enter)..."
+                className="w-full pl-4 pr-10 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-gray-300"
+              />
+              <button 
+                onClick={addTag}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-indigo-500 hover:text-indigo-700 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
           <ImageGenerator 
             defaultPrompt={defaultImagePrompt} 
@@ -606,6 +781,56 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
         )}
       </div>
+
+      {/* Sources Modal */}
+      {showSourcesModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
+            <div className="px-8 py-6 border-b flex items-center justify-between bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-xl">
+                  <Quote className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 text-xl tracking-tight">Research & Citations</h3>
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Grounding Sources used for this synthesis</p>
+                </div>
+              </div>
+              <button onClick={() => setShowSourcesModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-8 space-y-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              {sources.map((s, idx) => (
+                <div key={idx} className="group p-5 bg-gray-50 rounded-2xl border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{s.title}</h4>
+                      <p className="text-sm text-gray-500 mt-1 truncate font-mono">{s.uri}</p>
+                    </div>
+                    <a 
+                      href={s.uri} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="p-3 bg-white border border-gray-100 rounded-xl text-indigo-600 hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex-shrink-0"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-6 border-t bg-gray-50/50 flex justify-end">
+              <button 
+                onClick={() => setShowSourcesModal(false)}
+                className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              >
+                Close Citations
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">

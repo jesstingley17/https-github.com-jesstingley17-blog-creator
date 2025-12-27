@@ -6,6 +6,7 @@ export interface ContentBrief {
   brandContext?: string;
   targetKeywords: string[];
   secondaryKeywords: string[];
+  tags?: string[];
   audience: string;
   tone: string;
   length: 'short' | 'medium' | 'long';
@@ -50,6 +51,7 @@ export interface GeneratedContent {
   title: string;
   body: string;
   analysis: SEOAnalysis;
+  tags?: string[];
   sources?: { uri: string; title: string }[];
   scheduledDate?: string;
 }
