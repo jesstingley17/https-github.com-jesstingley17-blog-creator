@@ -39,7 +39,11 @@ import {
   Quote,
   Terminal,
   Copy,
-  GripVertical
+  GripVertical,
+  Wand2,
+  Sparkles,
+  ArrowRight,
+  Replace
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -82,6 +86,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline || { title: '', sections: [] });
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
+
+  // AI Assistant State
+  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
+  const [aiAssistantOutput, setAiAssistantOutput] = useState('');
+  const [customInstruction, setCustomInstruction] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Drag and Drop State
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
@@ -252,6 +262,49 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  // AI Assistant Handlers
+  const handleAIAssistantTask = async (task: 'rephrase' | 'expand' | 'summarize' | 'draft' | 'custom') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+
+    if (!selectedText && task !== 'draft' && task !== 'custom') {
+      alert("Please select some text to refine.");
+      return;
+    }
+
+    setAiAssistantLoading(true);
+    setAiAssistantOutput('');
+    try {
+      const result = await geminiService.performWritingTask(
+        task, 
+        selectedText || (task === 'draft' ? "New Section" : "General Context"),
+        content,
+        customInstruction
+      );
+      setAiAssistantOutput(result);
+    } catch (e) {
+      console.error("Writing assistant failed", e);
+    } finally {
+      setAiAssistantLoading(false);
+    }
+  };
+
+  const applyAIAssistantResult = () => {
+    const textarea = textareaRef.current;
+    if (!textarea || !aiAssistantOutput) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+
+    const newContent = content.substring(0, start) + aiAssistantOutput + content.substring(end);
+    setContent(newContent);
+    setAiAssistantOutput('');
   };
 
   const handleDownload = () => {
@@ -698,7 +751,18 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                     <ReactMarkdown>{content || "*Preparing content stream...*"}</ReactMarkdown>
                   </div>
                 ) : (
-                  <textarea className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl" value={content} onChange={(e) => setContent(e.target.value)} />
+                  <div className="relative">
+                    <textarea 
+                      ref={textareaRef}
+                      className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl focus:ring-2 focus:ring-indigo-100 transition-all" 
+                      value={content} 
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="Start typing your Markdown here..."
+                    />
+                    <div className="absolute bottom-4 right-4 text-[10px] text-gray-400 font-bold bg-white/80 backdrop-blur-sm px-2 py-1 rounded border">
+                      Select text for AI Assistant
+                    </div>
+                  </div>
                 )}
               </div>
 
@@ -719,6 +783,79 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       </div>
 
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
+        {/* AI Writing Assistant Card */}
+        {viewMode === 'edit' && hasStarted && (
+          <div className="bg-white rounded-3xl border-2 border-indigo-100 shadow-xl p-6 flex-shrink-0 animate-in slide-in-from-right-4 duration-500 overflow-hidden relative isolate">
+            <div className="absolute -top-12 -right-12 w-24 h-24 bg-indigo-50 rounded-full blur-3xl -z-10" />
+            
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2"><Sparkles className="w-5 h-5 text-indigo-600" /> AI Assistant</h3>
+              {aiAssistantLoading && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => handleAIAssistantTask('rephrase')}
+                  className="flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-indigo-50 hover:border-indigo-200 transition-all group"
+                >
+                  <Replace className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 mb-1" />
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-indigo-700">Rephrase</span>
+                </button>
+                <button 
+                  onClick={() => handleAIAssistantTask('expand')}
+                  className="flex flex-col items-center justify-center p-3 rounded-2xl border border-gray-100 bg-gray-50 hover:bg-indigo-50 hover:border-indigo-200 transition-all group"
+                >
+                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 mb-1" />
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-indigo-700">Expand</span>
+                </button>
+              </div>
+
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Custom instruction..."
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 transition-all pr-10"
+                  value={customInstruction}
+                  onChange={(e) => setCustomInstruction(e.target.value)}
+                />
+                <button 
+                  onClick={() => handleAIAssistantTask('custom')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-indigo-500 hover:text-indigo-700"
+                >
+                  <Wand2 className="w-4 h-4" />
+                </button>
+              </div>
+
+              {aiAssistantOutput && (
+                <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">
+                  <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100 relative group">
+                    <p className="text-[11px] text-gray-700 italic leading-relaxed">{aiAssistantOutput}</p>
+                    <div className="mt-4 flex gap-2">
+                      <button 
+                        onClick={applyAIAssistantResult}
+                        className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Check className="w-3 h-3" /> Apply Selection
+                      </button>
+                      <button 
+                        onClick={() => setAiAssistantOutput('')}
+                        className="p-2 bg-white border border-gray-200 text-gray-400 rounded-lg hover:text-red-500 hover:border-red-100 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {!aiAssistantOutput && !aiAssistantLoading && (
+                <p className="text-[10px] text-gray-400 text-center italic">Highlight text in the editor to refine it with AI Intelligence.</p>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* SEO Intelligence Card */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">

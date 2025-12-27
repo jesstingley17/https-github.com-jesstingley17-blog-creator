@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./types";
 
@@ -114,6 +113,27 @@ export const geminiService = {
     for await (const chunk of responseStream) {
       yield chunk;
     }
+  },
+
+  async performWritingTask(task: 'rephrase' | 'expand' | 'summarize' | 'draft' | 'custom', text: string, context: string, customInstruction?: string): Promise<string> {
+    const ai = getAI();
+    const prompts = {
+      rephrase: `Rephrase the following text to be more professional, engaging, and SEO-friendly while maintaining the original meaning: "${text}"`,
+      expand: `Expand upon this idea with more detail, context, and expert-level insights. Use research if needed. Text: "${text}"`,
+      summarize: `Summarize the following text into a concise, high-impact paragraph: "${text}"`,
+      draft: `Draft a complete, high-quality section based on this heading: "${text}". Context of the article: "${context}"`,
+      custom: `${customInstruction}. Context: "${context}". Target text: "${text}"`
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompts[task],
+      config: {
+        tools: (task === 'expand' || task === 'draft') ? [{ googleSearch: {} }] : undefined,
+      }
+    });
+
+    return response.text || '';
   },
 
   async suggestSchedule(articles: {id: string, title: string, topic: string}[]): Promise<Partial<ScheduledPost>[]> {
