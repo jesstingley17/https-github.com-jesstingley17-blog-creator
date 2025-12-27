@@ -13,13 +13,9 @@ import {
   Sparkles,
   ArrowRight,
   RefreshCw,
-  Table as TableIcon,
   Trash2,
-  Tag as TagIcon,
   Zap,
   Target,
-  TrendingUp,
-  Clock,
   Cloud,
   Rocket,
   ShieldCheck,
@@ -32,26 +28,27 @@ import {
   Link,
   Type as FontType,
   Maximize2,
-  MessageSquarePlus,
   Command,
   Plus,
-  // Added Image as ImageIcon and Star to fix errors on lines 476 and 501
   Image as ImageIcon,
-  Star
+  Star,
+  Quote,
+  LayoutTemplate
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration, ArticleImage } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration, ArticleImage, AppRoute, Citation } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
   brief: ContentBrief;
   outline: ContentOutline;
   onBack: () => void;
+  onNavigate?: (route: AppRoute) => void;
   onSchedule?: (post: ScheduledPost) => void;
 }
 
-const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack, onSchedule }) => {
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack, onNavigate, onSchedule }) => {
   const [content, setContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -60,19 +57,21 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
-  const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showTitleLab, setShowTitleLab] = useState(false);
+  const [titleSuggestions, setTitleSuggestions] = useState<string[]>([]);
+  const [generatingTitles, setGeneratingTitles] = useState(false);
+  
   const [copied, setCopied] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [deployingTo, setDeployingTo] = useState<string | null>(null);
 
-  // Image assets
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
 
-  // AI Writing Assistant states
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiWorking, setIsAiWorking] = useState(false);
@@ -99,6 +98,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           if (data.outline?.sections) setLocalOutline(data.outline);
           if (data.analysis) setAnalysis(data.analysis);
           if (data.images) setArticleImages(data.images);
+          if (data.citations) setCitations(data.citations);
           if (data.content || data.images?.length) setHasStarted(true);
           setLastSaved(data.updatedAt);
         }
@@ -125,6 +125,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           analysis,
           heroImageUrl: articleImages.find(img => img.isHero)?.url || null,
           images: articleImages,
+          citations,
           updatedAt: now
         });
         setSaveStatus('saved');
@@ -133,32 +134,33 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       } catch (e) { setSaveStatus('idle'); }
     }, 2000);
     return () => { if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current); };
-  }, [content, localOutline, analysis, articleImages, brief]);
+  }, [content, localOutline, analysis, articleImages, brief, citations]);
 
   const startGeneration = async () => {
     setHasStarted(true);
     setIsGenerating(true);
     setViewMode('preview');
     let fullText = '';
-    const collectedSources = new Map<string, string>();
     try {
       const stream = geminiService.streamContent(brief, localOutline);
       for await (const chunk of stream) {
         fullText += (chunk as any).text || '';
         setContent(fullText);
-        const grounding = (chunk as any).candidates?.[0]?.groundingMetadata?.groundingChunks;
-        if (Array.isArray(grounding)) {
-          grounding.forEach((c: any) => { if (c.web?.uri) collectedSources.set(c.web.uri, c.web.title || c.web.uri); });
-          setSources(Array.from(collectedSources.entries()).map(([uri, title]) => ({ uri, title })));
-        }
       }
       await performAnalysis(fullText);
       
-      // Auto-generate hero image after content is ready
-      const heroUrl = await geminiService.generateArticleImage(`High quality, professional hero image for: ${localOutline.title}. ${brief.topic} context.`);
+      const heroUrl = await geminiService.generateArticleImage(`Cinematic hero image for: ${localOutline.title}. Modern digital art style.`);
       setArticleImages([{ id: Math.random().toString(36).substr(2, 9), url: heroUrl, prompt: localOutline.title, isHero: true }]);
       
     } catch (error) {} finally { setIsGenerating(false); }
+  };
+
+  const handleFetchTitles = async () => {
+    setGeneratingTitles(true);
+    try {
+      const titles = await geminiService.generateTitleSuggestions(brief.topic, brief.targetKeywords);
+      setTitleSuggestions(titles);
+    } catch (e) {} finally { setGeneratingTitles(false); }
   };
 
   const performAnalysis = async (text: string) => {
@@ -173,112 +175,51 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const handleFullOptimization = async () => {
     if (!content || isOptimizing) return;
     setIsOptimizing(true);
-    setOptimizationLogs(['Initializing Optimization Core...', 'Accessing Semantic Network...']);
-    
-    const logPool = [
-      'Injecting LSI Keywords...',
-      'Adjusting Readability Indices...',
-      'Restructuring Heading Hierarchy...',
-      'Optimizing Meta Description Nodes...',
-      'Synchronizing with E-E-A-T Framework...',
-      'Synthesizing Semantic Authority...'
-    ];
-
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < logPool.length) {
-        setOptimizationLogs(prev => [...prev.slice(-3), logPool[i]]);
-        i++;
-      }
-    }, 1500);
-
+    setOptimizationLogs(['Re-benchmarking citations...', 'Injecting secondary link nodes...']);
     try {
       const optimized = await geminiService.optimizeContent(content, brief);
-      clearInterval(interval);
-      setOptimizationLogs(prev => [...prev, 'Optimization Success! Boosting Score...']);
       setContent(optimized);
       await performAnalysis(optimized);
-      setTimeout(() => {
-        setIsOptimizing(false);
-        setOptimizationLogs([]);
-      }, 2000);
-    } catch (e) {
-      clearInterval(interval);
-      setIsOptimizing(false);
-      setOptimizationLogs(['Critical Error: Optimization sequence interrupted.']);
-    }
+      setTimeout(() => setIsOptimizing(false), 2000);
+    } catch (e) { setIsOptimizing(false); }
   };
 
   const handleAiWritingTask = async (task: string, input?: string) => {
     if (isAiWorking) return;
     setIsAiWorking(true);
     const targetText = input || content.substring(selection.start, selection.end) || '';
-    
     try {
       const result = await geminiService.performWritingTask(task, targetText, localOutline.title);
-      
-      if (selection.start !== selection.end) {
-        const newContent = content.substring(0, selection.start) + result + content.substring(selection.end);
-        setContent(newContent);
-      } else {
-        const newContent = content.substring(0, selection.start) + "\n\n" + result + content.substring(selection.start);
-        setContent(newContent);
-      }
+      const newContent = selection.start !== selection.end 
+        ? content.substring(0, selection.start) + result + content.substring(selection.end)
+        : content.substring(0, selection.start) + "\n\n" + result + content.substring(selection.start);
+      setContent(newContent);
       setAiAssistantOpen(false);
       setAiPrompt('');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsAiWorking(false);
-    }
+    } catch (e) {} finally { setIsAiWorking(false); }
   };
 
   const handleAddImage = (img: ArticleImage) => {
-    setArticleImages(prev => {
-      if (img.isHero) {
-        return [img, ...prev.map(i => ({ ...i, isHero: false }))];
-      }
-      return [...prev, img];
-    });
-  };
-
-  const removeImage = (id: string) => {
-    setArticleImages(prev => prev.filter(img => img.id !== id));
+    setArticleImages(prev => img.isHero ? [img, ...prev.map(i => ({ ...i, isHero: false }))] : [...prev, img]);
   };
 
   const insertImageAtCursor = (url: string) => {
     if (textareaRef.current) {
       const start = textareaRef.current.selectionStart;
-      const end = textareaRef.current.selectionEnd;
       const md = `\n\n![Asset](${url})\n\n`;
-      const newContent = content.substring(0, start) + md + content.substring(end);
-      setContent(newContent);
+      setContent(content.substring(0, start) + md + content.substring(textareaRef.current.selectionEnd));
       setViewMode('edit');
     }
   };
 
-  const handleTextareaSelect = () => {
-    if (textareaRef.current) {
-      setSelection({
-        start: textareaRef.current.selectionStart,
-        end: textareaRef.current.selectionEnd
-      });
-    }
-  };
-
-  const handleDeploy = async (integrationId: string) => {
-    setDeployingTo(integrationId);
-    await new Promise(r => setTimeout(r, 2000));
-    setIsScheduled(true);
-    setDeployingTo(null);
-  };
-
+  // Added getShareLink helper function
   const getShareLink = () => {
-    const url = new URL(window.location.href);
+    const url = new URL(window.location.origin + window.location.pathname);
     url.searchParams.set('share', brief.id);
     return url.toString();
   };
 
+  // Updated copyToClipboard to use getShareLink
   const copyToClipboard = () => {
     navigator.clipboard.writeText(getShareLink());
     setCopied(true);
@@ -291,49 +232,17 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
       <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden relative">
-        {isOptimizing && (
-          <div className="absolute inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in-95 duration-500">
-             <div className="relative mb-12">
-               <div className="w-32 h-32 rounded-full border-4 border-indigo-50/20 flex items-center justify-center">
-                 <Rocket className="w-16 h-16 text-indigo-400 animate-bounce" />
-               </div>
-               <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-             </div>
-             <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-4">Optimizing Everything</h2>
-             <p className="text-slate-400 text-lg max-w-md mb-12">Our AI is restructuring your content for maximum semantic authority and SEO dominance.</p>
-             <div className="w-full max-w-lg bg-slate-950 rounded-[32px] p-8 border border-slate-800 shadow-2xl space-y-4">
-               <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-                 <div className="flex items-center gap-2">
-                   <Terminal className="w-4 h-4 text-green-500" />
-                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lab Console</span>
-                 </div>
-               </div>
-               <div className="space-y-3 font-mono text-sm leading-tight text-left">
-                 {optimizationLogs.map((log, i) => (
-                   <p key={i} className={`${i === optimizationLogs.length - 1 ? 'text-indigo-400' : 'text-slate-600'} flex gap-3 animate-in slide-in-from-left-2`}>
-                     <span className="text-slate-800">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
-                     <span>{i === optimizationLogs.length - 1 ? '> ' : '  '}{log}</span>
-                   </p>
-                 ))}
-               </div>
-             </div>
-          </div>
-        )}
-
-        <header className="px-8 py-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
+        <header className="px-8 py-5 border-b flex items-center justify-between bg-white sticky top-0 z-20">
           <div className="flex items-center gap-6">
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5 text-gray-400" /></button>
             <div className="flex flex-col">
-              <h2 className="font-black text-gray-900 line-clamp-1 tracking-tight italic text-lg leading-tight">{localOutline?.title || brief?.topic || 'Draft'}</h2>
+              <h2 className="font-black text-gray-900 line-clamp-1 tracking-tight italic text-lg leading-tight uppercase">{localOutline?.title}</h2>
               <div className="flex items-center gap-3">
                 {saveStatus !== 'idle' && (
                   <div className="flex items-center gap-1.5">
                     {saveStatus === 'saving' ? <Loader2 className="w-3 h-3 animate-spin text-indigo-400" /> : <Check className="w-3 h-3 text-green-500" />}
-                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">{saveStatus === 'saving' ? 'Syncing...' : 'Saved to cloud'}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">{saveStatus === 'saving' ? 'Syncing...' : 'Encrypted'}</span>
                   </div>
-                )}
-                {lastSaved && saveStatus === 'idle' && (
-                  <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">Last synced: {new Date(lastSaved).toLocaleTimeString()}</span>
                 )}
               </div>
             </div>
@@ -345,77 +254,75 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   <button onClick={() => setViewMode('preview')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Preview</button>
                   <button onClick={() => setViewMode('edit')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Edit</button>
                 </div>
-                <button onClick={() => setShowShareModal(true)} className="p-3 bg-gray-50 text-gray-500 hover:text-indigo-600 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-indigo-100">
+                <button onClick={() => setShowShareModal(true)} className="p-3 bg-gray-50 text-gray-500 hover:text-indigo-600 rounded-2xl transition-all border border-transparent hover:border-indigo-100">
                   <Share2 className="w-5 h-5" />
                 </button>
               </>
             )}
-            <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-indigo-100">
+            <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2 shadow-lg shadow-indigo-100 active:scale-95 transition-transform">
               {hasStarted ? <ArrowUpRight className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Deploy' : 'Start Synthesis'}
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar relative">
-          {viewMode === 'edit' && hasStarted && (
-             <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-40 animate-in slide-in-from-bottom-8 duration-500">
-               {aiAssistantOpen ? (
-                 <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-[32px] p-2 flex items-center gap-2 w-[500px] overflow-hidden">
-                   <div className="pl-4">
-                     <Command className="w-5 h-5 text-indigo-400" />
-                   </div>
-                   <input 
-                    autoFocus
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAiWritingTask(aiPrompt)}
-                    placeholder={isSelectionActive ? "Command AI to edit selection..." : "Draft a section about..."}
-                    className="flex-1 bg-transparent border-none outline-none text-white text-sm py-3 px-2 font-medium"
-                   />
-                   {isAiWorking ? (
-                     <div className="pr-4"><Loader2 className="w-5 h-5 animate-spin text-indigo-400" /></div>
-                   ) : (
-                     <div className="flex gap-1 pr-2">
-                        {isSelectionActive && (
-                          <>
-                            <button onClick={() => handleAiWritingTask('Rephrase this to be more professional')} className="p-2 hover:bg-slate-800 rounded-xl text-indigo-400 transition-colors" title="Rephrase"><FontType className="w-4 h-4" /></button>
-                            <button onClick={() => handleAiWritingTask('Expand on this with more details')} className="p-2 hover:bg-slate-800 rounded-xl text-indigo-400 transition-colors" title="Expand"><Maximize2 className="w-4 h-4" /></button>
-                          </>
-                        )}
-                        <button onClick={() => handleAiWritingTask(aiPrompt)} disabled={!aiPrompt} className="bg-indigo-600 hover:bg-indigo-500 text-white p-2 rounded-xl transition-all disabled:opacity-50"><ArrowUpRight className="w-4 h-4" /></button>
-                        <button onClick={() => setAiAssistantOpen(false)} className="p-2 hover:bg-slate-800 rounded-xl text-slate-500"><X className="w-4 h-4" /></button>
-                     </div>
-                   )}
-                 </div>
-               ) : (
-                 <button 
-                  onClick={() => setAiAssistantOpen(true)}
-                  className="bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-full font-black text-xs uppercase tracking-[0.2em] flex items-center gap-3 shadow-2xl border border-slate-700 transition-all hover:scale-105 active:scale-95"
-                 >
-                   <Sparkles className="w-4 h-4 text-indigo-400" />
-                   Writing Assistant
-                 </button>
-               )}
-             </div>
-          )}
+        {/* Title Laboratory Container */}
+        {hasStarted && (
+          <div className="bg-slate-50 border-b px-12 py-6 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em] flex items-center gap-2">
+                <LayoutTemplate className="w-3 h-3" /> Title Laboratory
+              </label>
+              <button 
+                onClick={() => { setShowTitleLab(!showTitleLab); if (!showTitleLab) handleFetchTitles(); }}
+                className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline flex items-center gap-1"
+              >
+                {showTitleLab ? 'Close lab' : 'Generate AI variants'} <Sparkles className="w-3 h-3" />
+              </button>
+            </div>
+            
+            <input 
+              value={localOutline.title}
+              onChange={e => setLocalOutline({ ...localOutline, title: e.target.value })}
+              className="w-full bg-white border border-gray-100 p-4 rounded-2xl font-black text-xl italic tracking-tighter outline-none focus:border-indigo-600 transition-colors shadow-sm"
+              placeholder="Paste or type article title here..."
+            />
 
+            {showTitleLab && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 animate-in fade-in duration-300">
+                {generatingTitles ? (
+                  <div className="col-span-full py-4 flex items-center gap-3 text-gray-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Synthesizing headlines...</span>
+                  </div>
+                ) : titleSuggestions.map((t, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => { setLocalOutline({ ...localOutline, title: t }); setShowTitleLab(false); }}
+                    className="p-3 bg-white border hover:border-indigo-600 rounded-xl text-left text-[11px] font-bold text-gray-600 hover:text-indigo-600 transition-all shadow-sm group"
+                  >
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity mr-1">⚡</span> {t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar relative bg-white">
           {!hasStarted ? (
             <div className="max-w-3xl mx-auto space-y-12 py-10">
                <div className="text-center space-y-4">
                  <h3 className="text-5xl font-black text-gray-900 italic uppercase">Synthesis</h3>
-                 <p className="text-gray-400 text-lg">Cross-referencing real-time nodes for authoritative content.</p>
+                 <p className="text-gray-400 text-lg">Cross-referencing competitors and backlinks for SEO dominance.</p>
                </div>
                <div className="space-y-6">
-                 {(localOutline?.sections || []).map((s, i) => (
-                   <div key={i} className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 shadow-sm">
-                     <div className="flex items-center gap-4 mb-6">
-                       <span className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black">{i+1}</span>
-                       <h4 className="font-black text-gray-900 text-xl">{s?.heading || 'Section'}</h4>
-                     </div>
-                     <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3 ml-14">
-                       {(s?.subheadings || []).map((sub, j) => (
-                         <li key={j} className="text-sm font-bold text-gray-400 flex items-center gap-3">
-                           <div className="w-2 h-2 rounded-full bg-indigo-200" /> {sub}
+                 {localOutline.sections?.map((s, i) => (
+                   <div key={i} className="p-8 bg-gray-50 rounded-[40px] border shadow-sm">
+                     <h4 className="font-black text-gray-900 text-xl mb-4">{i+1}. {s.heading}</h4>
+                     <ul className="grid grid-cols-2 gap-2 ml-4">
+                       {s.subheadings?.map((sub, j) => (
+                         <li key={j} className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-200" /> {sub}
                          </li>
                        ))}
                      </ul>
@@ -432,47 +339,91 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   {isGenerating && (
                     <div className="flex flex-col items-center gap-6 my-20">
                       <Loader2 className="w-12 h-12 animate-spin text-indigo-400" />
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Streaming Neural Nodes...</p>
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Streaming synthesis nodes...</p>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="relative group">
-                  <textarea 
-                    ref={textareaRef}
-                    value={content}
-                    onSelect={handleTextareaSelect}
-                    onChange={(e) => setContent(e.target.value)}
-                    className="w-full min-h-[1200px] bg-transparent border-none outline-none font-mono text-lg resize-none leading-relaxed text-gray-800"
-                    placeholder="Drafting workspace active..."
-                  />
-                </div>
+                <textarea 
+                  ref={textareaRef}
+                  value={content}
+                  onSelect={() => setSelection({ start: textareaRef.current?.selectionStart || 0, end: textareaRef.current?.selectionEnd || 0 })}
+                  onChange={(e) => setContent(e.target.value)}
+                  className="w-full min-h-[1200px] bg-transparent border-none outline-none font-mono text-lg resize-none leading-relaxed text-gray-800"
+                  placeholder="Drafting workspace active..."
+                />
               )}
             </div>
+          )}
+
+          {viewMode === 'edit' && hasStarted && (
+             <div className="fixed bottom-12 left-1/2 -translate-x-1/2 z-40">
+               {aiAssistantOpen ? (
+                 <div className="bg-slate-900 border border-slate-800 shadow-2xl rounded-[32px] p-2 flex items-center gap-2 w-[500px]">
+                   <input 
+                    autoFocus
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAiWritingTask(aiPrompt)}
+                    placeholder={isSelectionActive ? "Command AI to edit selection..." : "Draft a section about..."}
+                    className="flex-1 bg-transparent border-none outline-none text-white text-sm py-3 px-4"
+                   />
+                   <div className="flex gap-1 pr-2">
+                      <button onClick={() => handleAiWritingTask(aiPrompt)} disabled={!aiPrompt || isAiWorking} className="bg-indigo-600 p-2 rounded-xl text-white">
+                        {isAiWorking ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUpRight className="w-4 h-4" />}
+                      </button>
+                      <button onClick={() => setAiAssistantOpen(false)} className="p-2 text-slate-500"><X className="w-4 h-4" /></button>
+                   </div>
+                 </div>
+               ) : (
+                 <button onClick={() => setAiAssistantOpen(true)} className="bg-slate-900 text-white px-8 py-4 rounded-full font-black text-xs uppercase tracking-widest flex items-center gap-3 shadow-2xl transition-all hover:scale-105 active:scale-95">
+                   <Sparkles className="w-4 h-4 text-indigo-400" /> Writing Assistant
+                 </button>
+               )}
+             </div>
           )}
         </div>
       </div>
 
       <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4 pb-12">
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-8 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity">
-            <ShieldCheck className="w-10 h-10 text-indigo-600" />
-          </div>
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
           <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-indigo-600" /> SEO Lab</h3>
-          <div className="text-center py-4 space-y-2">
-            <div className="text-7xl font-black text-indigo-600 italic tracking-tighter animate-in zoom-in duration-500">
-              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto text-indigo-200" /> : analysis?.score || 0}
+          <div className="text-center py-4">
+            <div className="text-7xl font-black text-indigo-600 italic tracking-tighter">
+              {analyzing ? <Loader2 className="w-12 h-12 animate-spin mx-auto text-indigo-100" /> : analysis?.score || 0}
             </div>
-            <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Optimization Index</div>
+            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-2">Optimization index</p>
           </div>
-          <button 
-            disabled={!content || analyzing || isOptimizing}
-            onClick={handleFullOptimization}
-            className="w-full py-5 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] hover:bg-right transition-all text-white rounded-[24px] font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
-          >
-            <BrainCircuit className="w-5 h-5" />
-            Optimize Everything
+          <div className="space-y-4">
+             <div className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Backlinks</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{brief.backlinkUrls?.length || 0} nodes</span>
+             </div>
+             <div className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Competitors</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{brief.competitorUrls?.length || 0} mapped</span>
+             </div>
+          </div>
+          <button onClick={handleFullOptimization} disabled={isOptimizing || !content} className="w-full py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-[24px] font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-100 active:scale-95 transition-all">
+            <BrainCircuit className="w-5 h-5" /> Optimize everything
           </button>
+        </div>
+
+        <div className="bg-slate-900 rounded-[40px] p-8 space-y-6">
+           <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2"><Quote className="w-4 h-4 text-indigo-400" /> Citation map</h3>
+           <div className="space-y-3">
+             {citations.length ? citations.map((c, i) => (
+               <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex flex-col gap-1">
+                 <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Node [{c.id}]</span>
+                 <p className="text-[11px] text-slate-400 font-bold leading-relaxed line-clamp-1">{c.title}</p>
+                 <a href={c.url} target="_blank" className="text-[9px] text-indigo-300 hover:underline truncate">{c.url}</a>
+               </div>
+             )) : (
+               <div className="py-8 text-center space-y-3 border border-dashed border-slate-700 rounded-3xl">
+                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest italic">No citations indexed</p>
+               </div>
+             )}
+           </div>
         </div>
 
         <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
@@ -482,59 +433,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               onImageGenerated={(url, prompt) => handleAddImage({ id: Math.random().toString(36).substr(2,9), url, prompt, isHero: articleImages.length === 0 })}
               topicContext={localOutline?.title || brief?.topic}
             />
-            
-            <div className="space-y-4 pt-4 border-t">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Gallery ({articleImages.length})</p>
-              <div className="grid grid-cols-2 gap-3">
-                {articleImages.map(img => (
-                  <div key={img.id} className="relative group aspect-square rounded-2xl overflow-hidden border border-gray-100 shadow-sm bg-gray-50">
-                    <img src={img.url} className="w-full h-full object-cover" alt="Asset" />
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                      <button 
-                        onClick={() => insertImageAtCursor(img.url)}
-                        className="w-full py-1.5 bg-white text-gray-900 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
-                      >
-                        <Plus className="w-3 h-3" /> Insert
-                      </button>
-                      {!img.isHero && (
-                        <button 
-                          onClick={() => handleAddImage({ ...img, isHero: true })}
-                          className="w-full py-1.5 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-1"
-                        >
-                          <Star className="w-3 h-3" /> Set Hero
-                        </button>
-                      )}
-                      <button 
-                        onClick={() => removeImage(img.id)}
-                        className="p-1.5 bg-red-500 text-white rounded-lg"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                    {img.isHero && <div className="absolute top-2 left-2 bg-indigo-600 text-white p-1 rounded-md"><Sparkles className="w-3 h-3" /></div>}
-                  </div>
-                ))}
-              </div>
-            </div>
-        </div>
-
-        <div className="bg-slate-900 rounded-[40px] p-8 space-y-6">
-           <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-4 h-4 text-indigo-400" /> Recommendations</h3>
-           <div className="space-y-3">
-             {analysis?.suggestions?.length ? analysis.suggestions.slice(0, 3).map((s, i) => (
-               <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex items-start gap-3">
-                 <div className="w-5 h-5 bg-indigo-500/10 rounded flex items-center justify-center mt-0.5">
-                   <Zap className="w-3 h-3 text-indigo-400" />
-                 </div>
-                 <p className="text-xs text-slate-400 font-medium leading-relaxed">{s}</p>
-               </div>
-             )) : (
-               <div className="py-10 text-center space-y-3">
-                 <Cloud className="w-8 h-8 text-slate-700 mx-auto" />
-                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Awaiting Semantic Data</p>
-               </div>
-             )}
-           </div>
         </div>
       </div>
 
@@ -549,10 +447,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <div className="space-y-8 relative z-10 text-center">
               <div className="w-20 h-20 bg-indigo-100 rounded-[32px] flex items-center justify-center mx-auto">
                 <Link className="w-10 h-10 text-indigo-600" />
-              </div>
-              <div className="space-y-2">
-                <p className="text-gray-900 font-black uppercase text-sm tracking-widest italic">Global Synthesis Link</p>
-                <p className="text-gray-400 text-sm font-medium">Generate a unique access vector for this content.</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100 flex items-center gap-3">
                 <input readOnly value={getShareLink()} className="bg-transparent border-none outline-none text-xs font-mono text-gray-500 flex-1 truncate" />

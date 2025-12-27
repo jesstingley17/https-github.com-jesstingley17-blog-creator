@@ -28,6 +28,7 @@ export const storageService = {
             analysis: article.analysis,
             hero_image_url: article.heroImageUrl || article.images?.find(img => img.isHero)?.url || null,
             images: article.images,
+            citations: article.citations,
             updated_at: new Date(article.updatedAt).toISOString()
           });
         
@@ -54,9 +55,10 @@ export const storageService = {
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        // Ensure images array exists for legacy drafts
+        // Ensure mandatory arrays exist for legacy drafts
         if (!parsed.images) parsed.images = [];
-        return parsed;
+        if (!parsed.citations) parsed.citations = [];
+        return parsed as GeneratedContent;
       } catch (e) {
         console.error("Failed to parse local article:", e);
       }
@@ -72,6 +74,7 @@ export const storageService = {
         
         if (error) throw error;
         if (data) {
+          // Added citations property mapping from Supabase result
           const article: GeneratedContent = {
             id: data.id,
             brief: data.brief,
@@ -80,6 +83,7 @@ export const storageService = {
             analysis: data.analysis,
             heroImageUrl: data.hero_image_url,
             images: data.images || [],
+            citations: data.citations || [],
             updatedAt: new Date(data.updated_at).getTime()
           };
           localStorage.setItem(`${ARTICLE_PREFIX}${id}`, JSON.stringify(article));

@@ -132,6 +132,7 @@ const App: React.FC = () => {
             brief={activeWorkflow.brief} 
             outline={activeWorkflow.outline} 
             onBack={() => setRoute(AppRoute.DASHBOARD)} 
+            onNavigate={setRoute}
           />
         ) : <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} />;
       case AppRoute.PLANNER:

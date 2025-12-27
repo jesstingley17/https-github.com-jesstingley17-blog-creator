@@ -4,6 +4,8 @@ export interface ContentBrief {
   topic: string;
   companyUrl?: string;
   brandContext?: string;
+  competitorUrls: string[];
+  backlinkUrls: string[];
   targetKeywords: string[];
   secondaryKeywords: string[];
   tags?: string[];
@@ -21,6 +23,32 @@ export interface ContentOutline {
     subheadings: string[];
     keyPoints: string[];
   }[];
+}
+
+export interface Citation {
+  id: number;
+  url: string;
+  title: string;
+  snippet?: string;
+}
+
+export interface ArticleImage {
+  url: string;
+  prompt: string;
+  id: string;
+  isHero: boolean;
+}
+
+export interface GeneratedContent {
+  id: string;
+  brief: ContentBrief;
+  outline: ContentOutline;
+  content: string;
+  analysis: SEOAnalysis | null;
+  heroImageUrl: string | null;
+  images: ArticleImage[];
+  citations: Citation[];
+  updatedAt: number;
 }
 
 export interface KeywordSuggestion {
@@ -41,7 +69,7 @@ export interface ScheduledPost {
   id: string;
   articleId: string;
   title: string;
-  date: string; // ISO format
+  date: string;
   platform: 'LinkedIn' | 'Twitter' | 'Facebook' | 'Blog';
 }
 
@@ -51,24 +79,6 @@ export interface ArticleMetadata {
   topic: string;
   score: number;
   status: 'Draft' | 'Published' | 'Review';
-  updatedAt: number;
-}
-
-export interface ArticleImage {
-  url: string;
-  prompt: string;
-  id: string;
-  isHero: boolean;
-}
-
-export interface GeneratedContent {
-  id: string;
-  brief: ContentBrief;
-  outline: ContentOutline;
-  content: string;
-  analysis: SEOAnalysis | null;
-  heroImageUrl: string | null; // Kept for legacy compatibility
-  images: ArticleImage[];
   updatedAt: number;
 }
 
