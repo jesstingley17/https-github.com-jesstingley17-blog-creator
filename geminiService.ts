@@ -43,9 +43,8 @@ export const geminiService = {
     Input: "${rawInput}"
     Requirements:
     1. Remove conversational noise.
-    2. Identify core technical keywords (e.g., related to engineers/engineering if applicable).
+    2. Identify core technical keywords.
     3. Format as a clean, actionable instruction for a high-quality article.
-    4. Detect if a reference URL or author page is mentioned and extract it.
     Return a JSON object with 'title', 'optimizedPrompt', 'sourceUrl', and 'tags'.`;
 
     try {
@@ -72,11 +71,21 @@ export const geminiService = {
     }
   },
 
+  async generateSlug(title: string): Promise<string> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `Generate a clean, SEO-friendly URL slug for this article title: "${title}". Return only the slug string. No spaces, lowercase only, hyphens for spaces. Example: "how-to-engineer-content".`
+    });
+    return response.text?.trim().replace(/[^a-z0-9-]/gi, '').toLowerCase() || title.toLowerCase().replace(/\s+/g, '-');
+  },
+
   async deepResearch(urlOrTopic: string): Promise<Partial<ContentBrief>> {
     await this.ensureApiKey();
     const ai = getAI();
     const prompt = `Perform deep SEO research for: "${urlOrTopic}".
-    Identify 3-5 top organic competitors and high-authority URLs for potential backlink injection.
+    Identify 3-5 top organic competitors.
     Extract 5 target keywords and 5 secondary keywords.
     Return as JSON.`;
 
@@ -109,11 +118,7 @@ export const geminiService = {
   async discoverBacklinks(topic: string, keywords: string[]): Promise<BacklinkOpportunity[]> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as an SEO link discovery engine. 
-    Topic: "${topic}". Keywords: ${keywords.join(', ')}. 
-    Find 5-7 HIGH-AUTHORITY websites or technical resources related to this topic.
-    Return a list of specific URLs and why they are valuable.
-    Return as JSON.`;
+    const prompt = `Act as an SEO link discovery engine. Topic: "${topic}". Keywords: ${keywords.join(', ')}. Find 5-7 HIGH-AUTHORITY websites. Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -150,10 +155,7 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate a high-authority article outline for: "${brief.topic}". 
-    Focus on creating a technical, informative structure suitable for a ${brief.detailLevel} ${brief.length} length article.
-    Target Keywords: ${brief.targetKeywords.join(', ')}.
-    Include 5-8 major sections. Return as JSON.`;
+    const prompt = `Generate a high-authority article outline for: "${brief.topic}". Focus on technical depth. Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -199,17 +201,11 @@ export const geminiService = {
       Focus: ${brief.detailLevel}.
 
       INSTRUCTIONS:
-      1. Write in a neutral, professional third-person voice. 
-      2. Ground every claim in data verified via search.
-      3. Use detailed Markdown formatting for all elements.
-      4. CRITICAL: Include at least one complex data comparison table. 
-         YOU MUST use proper GitHub Flavored Markdown (GFM) pipe syntax. 
-         Example: 
-         | Feature | Details | Performance |
-         | :--- | :--- | :--- |
-         | Metric A | Value 1 | High |
-         | Metric B | Value 2 | Medium |
-      5. Do not adopt a specific persona; focus on high-quality technical synthesis.`;
+      1. Write in a neutral, professional voice. 
+      2. Ground every claim in search-verified data.
+      3. Use detailed Markdown.
+      4. Include at least one complex GFM table (| Header |).
+      5. Output ONLY Markdown content.`;
       
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-pro-preview',
@@ -248,7 +244,7 @@ export const geminiService = {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Analyze SEO for: "${text.substring(0, 4000)}". Primary keywords: ${keywords.join(', ')}. Return a JSON score (0-100) and specific technical suggestions.`,
+      contents: `Analyze SEO for: "${text.substring(0, 4000)}". Primary keywords: ${keywords.join(', ')}. Return a JSON score and suggestions.`,
       config: { 
         responseMimeType: 'application/json',
         responseSchema: {
@@ -285,44 +281,16 @@ export const geminiService = {
   async optimizeContent(text: string, brief: ContentBrief): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Rewrite and optimize the following article for SEO and technical accuracy.
-    Keywords to amplify: ${brief.targetKeywords.join(', ')}.
-    Content: "${text}".
-    Task: Improve flow, fix technical inconsistencies, and ensure proper Markdown structure. 
-    IMPORTANT: If there are data comparisons, ensure they are formatted as GFM tables with pipe syntax (| Header |). 
-    Output only the refined Markdown.`;
-
-    const res = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: prompt
-    });
+    const prompt = `Rewrite and optimize the following article for SEO. Keywords: ${brief.targetKeywords.join(', ')}. Ensure GFM tables are used for comparisons. Output only Markdown. Content: "${text}".`;
+    const res = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
     return res.text || text;
   },
 
   async generateStructuredData(title: string, content: string, author: { name: string; title: string }): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate a valid JSON-LD script for an Article schema based on the following article metadata.
-    Title: "${title}"
-    Author Name: "${author.name}"
-    Author Job Title: "${author.title}"
-    Brief Content Summary: "${content.substring(0, 500)}..."
-    
-    Ensure it includes:
-    - @context: "https://schema.org"
-    - @type: "Article"
-    - headline
-    - author (with name and jobTitle)
-    - datePublished (use ISO current date)
-    - description (brief summary)
-    - articleBody (summary or key points)
-    
-    Return only the valid JSON object inside a script tag formatted as raw text.`;
-
-    const res = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
+    const prompt = `Generate JSON-LD script for Article schema. Title: "${title}". Author: "${author.name}". Summary: "${content.substring(0, 500)}".`;
+    const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
     return res.text || "{}";
   },
 
@@ -330,11 +298,7 @@ export const geminiService = {
     await this.ensureApiKey();
     const ai = getAI();
     const prompt = `Suggest social media schedule for: ${JSON.stringify(articles)}. JSON array only.`;
-    const res = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: { responseMimeType: 'application/json' }
-    });
+    const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json' } });
     return extractJson(res.text || '[]') || [];
   }
 };

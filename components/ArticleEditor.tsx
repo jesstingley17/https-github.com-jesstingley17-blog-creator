@@ -5,32 +5,26 @@ import remarkGfm from 'remark-gfm';
 import { 
   ChevronLeft, 
   Loader2, 
-  Play, 
   X,
   Check,
-  Globe,
-  ArrowRight,
   Zap,
   Target,
-  ArrowUpRight,
-  Plus,
   Image as ImageIcon,
-  Star,
-  Quote,
-  Flame,
-  User,
-  ExternalLink,
-  Link2,
-  Search,
   Database,
   Code,
   Copy,
-  Camera
+  Type,
+  Link2,
+  RefreshCw,
+  Sparkles,
+  Heart,
+  Star,
+  PenTool,
+  Anchor
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
-import { serpstatService } from '../serpstatService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, ArticleImage, AppRoute, Citation, BacklinkOpportunity, IntegrationPlatform } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ArticleImage, AppRoute, Citation, BacklinkOpportunity } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -38,31 +32,23 @@ interface ArticleEditorProps {
   outline: ContentOutline;
   onBack: () => void;
   onNavigate?: (route: AppRoute) => void;
-  onSchedule?: (post: ScheduledPost) => void;
 }
 
-const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outline: initialOutline, onBack, onNavigate, onSchedule }) => {
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outline: initialOutline, onBack, onNavigate }) => {
   const [content, setContent] = useState('');
+  const [title, setTitle] = useState(initialOutline?.title || '');
+  const [slug, setSlug] = useState(initialBrief?.slug || '');
+  
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizationLogs, setOptimizationLogs] = useState<string[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   
-  const [showForge, setShowForge] = useState(false);
-  const [forgeInput, setForgeInput] = useState('');
-  const [isForging, setIsForging] = useState(false);
-  const [forgeLogs, setForgeLogs] = useState<string[]>([]);
-  
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
   const [backlinkOps, setBacklinkOps] = useState<BacklinkOpportunity[]>([]);
   const [citations, setCitations] = useState<Citation[]>([]);
-  const [showSourcesInline, setShowSourcesInline] = useState(false);
-  const [isDiscoveringBacklinks, setIsDiscoveringBacklinks] = useState(false);
 
-  // Structured Data State
   const [structuredData, setStructuredData] = useState<string | null>(null);
   const [isGeneratingSchema, setIsGeneratingSchema] = useState(false);
   const [showSchemaModal, setShowSchemaModal] = useState(false);
@@ -72,12 +58,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [localBrief, setLocalBrief] = useState<ContentBrief>(initialBrief);
-  const [localOutline, setLocalOutline] = useState<ContentOutline>(() => {
-    return initialOutline && Array.isArray(initialOutline?.sections) 
-      ? initialOutline 
-      : { title: initialBrief?.topic || 'Untitled', sections: [] };
-  });
-
+  const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
@@ -87,11 +68,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
         const data = await storageService.getArticle(initialBrief.id);
         if (data) {
           if (data.content) setContent(data.content);
-          if (data.outline?.sections) setLocalOutline(data.outline);
+          if (data.outline) {
+            setLocalOutline(data.outline);
+            setTitle(data.outline.title);
+          }
           if (data.brief) setLocalBrief(data.brief);
+          if (data.slug) setSlug(data.slug);
           if (data.analysis) setAnalysis(data.analysis);
           if (data.images) setArticleImages(data.images);
-          if (data.citations) setCitations(data.citations);
           if (data.backlinkOpportunities) setBacklinkOps(data.backlinkOpportunities);
           if (data.content || data.images?.length) setHasStarted(true);
         }
@@ -107,9 +91,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
       try {
         await storageService.upsertArticle({
           id: localBrief.id,
-          brief: localBrief,
-          outline: localOutline,
+          brief: { ...localBrief, slug },
+          outline: { ...localOutline, title },
           content,
+          slug,
           analysis,
           heroImageUrl: articleImages.find(img => img.isHero)?.url || null,
           images: articleImages,
@@ -125,12 +110,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
     };
     const timer = setTimeout(saveArticle, 3000);
     return () => clearTimeout(timer);
-  }, [content, localOutline, localBrief, analysis, articleImages, backlinkOps, citations]);
-
-  const addOptLog = (msg: string) => {
-    const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
-    setOptimizationLogs(prev => [...prev.slice(-4), `[${ts}] ${msg}`]);
-  };
+  }, [content, title, slug, localOutline, localBrief, analysis, articleImages, backlinkOps, citations]);
 
   const startGeneration = async () => {
     setHasStarted(true);
@@ -138,74 +118,28 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
     setViewMode('preview');
     let fullText = '';
     try {
-      const stream = geminiService.streamContent(localBrief, localOutline);
+      if (!slug) {
+        const generatedSlug = await geminiService.generateSlug(title);
+        setSlug(generatedSlug);
+      }
+      const stream = geminiService.streamContent(localBrief, { ...localOutline, title });
       for await (const chunk of stream) {
         const c = chunk as any;
         fullText += c.text || '';
         setContent(fullText);
       }
       performAnalysis(fullText);
-      const heroImagePrompt = `A high-resolution technical photography for article: "${localOutline.title}". Modern and professional aesthetic.`;
+      const heroImagePrompt = `Professional nautical aesthetic banner for: "${title}". Soft professional lighting, artistic, high-end 8k resolution.`;
       const heroUrl = await geminiService.generateArticleImage(heroImagePrompt);
       setArticleImages([{ id: Math.random().toString(36).substr(2, 9), url: heroUrl, prompt: heroImagePrompt, isHero: true }]);
     } catch (error) {} finally { setIsGenerating(false); }
   };
 
-  const handleFullOptimization = async () => {
-    if (!content || isOptimizing) return;
-    setIsOptimizing(true);
-    setOptimizationLogs([]);
-    addOptLog('Analyzing technical depth...');
+  const regenerateSlug = async () => {
     try {
-      const optimized = await geminiService.optimizeContent(content, localBrief);
-      setContent(optimized);
-      addOptLog('Calculating SEO scores...');
-      await performAnalysis(optimized);
-      addOptLog('Refinement complete.');
-    } catch (e) { console.error(e); } finally {
-      setTimeout(() => setIsOptimizing(false), 2000);
-    }
-  };
-
-  const handleGenerateSchema = async () => {
-    if (!content) return;
-    setIsGeneratingSchema(true);
-    setShowSchemaModal(true);
-    try {
-      const schema = await geminiService.generateStructuredData(localOutline.title, content, localBrief.author);
-      setStructuredData(schema);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsGeneratingSchema(false);
-    }
-  };
-
-  const copySchema = () => {
-    if (structuredData) {
-      navigator.clipboard.writeText(structuredData);
-      setCopiedSchema(true);
-      setTimeout(() => setCopiedSchema(false), 2000);
-    }
-  };
-
-  const handleDiscoverBacklinks = async () => {
-    setIsDiscoveringBacklinks(true);
-    try {
-      const integrationsRaw = localStorage.getItem('zr_integrations') || '[]';
-      const integrations = JSON.parse(integrationsRaw);
-      const serpstatInt = integrations.find((i: any) => i.platform === IntegrationPlatform.SERPSTAT);
-
-      if (serpstatInt) {
-        const ops = await serpstatService.getBacklinks(localBrief.companyUrl || localBrief.topic, serpstatInt);
-        setBacklinkOps(ops);
-      } else {
-        const ops = await geminiService.discoverBacklinks(localOutline.title, localBrief.targetKeywords);
-        setBacklinkOps(ops);
-      }
-    } catch (e) { console.error(e); } finally {
-      setIsDiscoveringBacklinks(false);
-    }
+      const s = await geminiService.generateSlug(title);
+      setSlug(s);
+    } catch (e) {}
   };
 
   const performAnalysis = async (text: string) => {
@@ -216,130 +150,105 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
     } catch (e) {} finally { setAnalyzing(false); }
   };
 
-  const handleAddImage = (img: ArticleImage) => {
-    setArticleImages(prev => [...prev, img]);
-  };
-
-  const handleAuthorPhotoClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
-        setLocalBrief(prev => ({
-          ...prev,
-          author: {
-            ...prev.author,
-            photoUrl: base64String
-          }
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const heroImage = articleImages.find(img => img.isHero);
-
   return (
     <div className="flex h-[calc(100vh-100px)] gap-6 overflow-hidden">
-      {/* Hidden File Input for Author Photo */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        className="hidden" 
-        accept="image/*"
-        onChange={handleFileChange}
-      />
-
-      {/* Main Content Area - Scrollable */}
-      <div className="flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
-        <header className="px-6 py-4 border-b flex items-center justify-between bg-white/95 backdrop-blur-md sticky top-0 z-40">
-          <div className="flex items-center gap-4">
-            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-500" /></button>
+      {/* Main Generator Interface */}
+      <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-pink-100 shadow-xl overflow-hidden relative">
+        <header className="px-10 py-6 border-b border-pink-50 flex items-center justify-between bg-white/95 backdrop-blur-md sticky top-0 z-40">
+          <div className="flex items-center gap-6">
+            <button onClick={onBack} className="p-3 bg-pink-50 hover:bg-pink-100 rounded-2xl transition-all group">
+              <ChevronLeft className="w-5 h-5 text-pink-600 group-hover:text-pink-800" />
+            </button>
             <div className="flex flex-col">
-              <h2 className="font-bold text-slate-900 line-clamp-1 text-sm md:text-base leading-tight">{localOutline?.title}</h2>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Project Node: {localBrief.id}</span>
-                {saveStatus !== 'idle' && (
-                  <span className="text-[9px] text-slate-300 font-bold uppercase flex items-center gap-1">
-                    {saveStatus === 'saving' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5 text-emerald-500" />}
-                    {saveStatus === 'saving' ? 'Syncing' : 'Archived'}
-                  </span>
-                )}
+                <Anchor className="w-3 h-3 text-pink-600" />
+                <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest leading-none">Anchor Chart Forge</span>
               </div>
+              <h2 className="font-bold text-slate-900 text-lg tracking-tight mt-1 font-heading">
+                {title || 'Untethered Synthesis'}
+              </h2>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex bg-slate-100 p-1 rounded-xl">
-              <button onClick={() => setViewMode('preview')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Preview</button>
-              <button onClick={() => setViewMode('edit')} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500'}`}>Edit</button>
+          <div className="flex items-center gap-4">
+            <div className="flex bg-pink-50 p-1.5 rounded-[22px]">
+              <button onClick={() => setViewMode('preview')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'preview' ? 'bg-white shadow-sm text-pink-700' : 'text-pink-400 hover:text-pink-600'}`}>Preview</button>
+              <button onClick={() => setViewMode('edit')} className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${viewMode === 'edit' ? 'bg-white shadow-sm text-pink-700' : 'text-pink-400 hover:text-pink-600'}`}>Edit</button>
             </div>
-            <button onClick={hasStarted ? () => {} : startGeneration} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all">
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : hasStarted ? <Check className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
-              <span>{hasStarted ? 'Live' : 'Generate'}</span>
+            <button 
+              onClick={hasStarted ? () => {} : startGeneration} 
+              disabled={isGenerating}
+              className={`px-10 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] flex items-center gap-3 transition-all shadow-xl active:scale-95 ${
+                isGenerating ? 'bg-pink-100 text-pink-400' : hasStarted ? 'bg-emerald-100 text-emerald-800' : 'girly-gradient text-white shadow-pink-200'
+              }`}
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : hasStarted ? <Check className="w-4 h-4" /> : <Zap className="w-4 h-4 fill-current" />}
+              <span>{isGenerating ? 'Synthesizing' : hasStarted ? 'Vessel Locked' : 'Forge Chart'}</span>
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-12 md:p-16 custom-scrollbar bg-white scroll-smooth h-full">
-          {!hasStarted ? (
-            <div className="max-w-3xl mx-auto space-y-10 py-10">
-               <div className="text-center space-y-4">
-                 <h3 className="text-5xl font-black text-slate-900 tracking-tighter italic uppercase">Strategy Locked</h3>
-                 <p className="text-slate-500 font-medium">Ready to synthesize technical content about engineers and relevant industrial standards.</p>
-               </div>
-               <div className="grid gap-4">
-                 {localOutline.sections?.map((s, i) => (
-                   <div key={i} className="p-8 bg-slate-50 rounded-3xl border border-slate-100 flex gap-8">
-                     <span className="text-4xl font-black text-indigo-100 leading-none">{String(i+1).padStart(2, '0')}</span>
-                     <div>
-                       <h4 className="font-bold text-slate-900 text-lg mb-2">{s.heading}</h4>
-                       <div className="flex flex-wrap gap-2">
-                         {s.subheadings?.map((sub, j) => (
-                           <span key={j} className="text-[9px] px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-500 font-black uppercase tracking-widest">{sub}</span>
-                         ))}
-                       </div>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-            </div>
-          ) : (
-            <div className="max-w-4xl mx-auto space-y-12 pb-32">
-              <div className="p-8 bg-indigo-50/50 rounded-3xl border border-indigo-100 flex items-center gap-6">
-                <button 
-                  onClick={handleAuthorPhotoClick}
-                  className="group relative w-16 h-16 rounded-2xl bg-white flex items-center justify-center border border-indigo-200 shrink-0 overflow-hidden"
-                >
-                  {localBrief.author.photoUrl ? (
-                    <img src={localBrief.author.photoUrl} alt="Author" className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
-                  ) : (
-                    <User className="w-8 h-8 text-indigo-300 group-hover:opacity-40 transition-opacity" />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="w-5 h-5 text-indigo-600" />
-                  </div>
-                </button>
-                <div>
-                  <h3 className="font-black text-indigo-900 uppercase italic">Research Metadata</h3>
-                  <p className="text-xs text-indigo-600 font-bold uppercase tracking-widest">{localBrief.author.name} • {localBrief.author.title}</p>
+        <div className="flex-1 overflow-y-auto p-12 md:p-24 custom-scrollbar bg-white scroll-smooth h-full">
+          <div className="max-w-4xl mx-auto space-y-16 pb-32">
+            
+            {/* THE URL BOX */}
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-pink-700 uppercase tracking-[0.3em] ml-2 flex items-center gap-2 font-heading">
+                <Link2 className="w-4 h-4" /> Chart Anchor Slug
+              </label>
+              <div className="group relative">
+                <div className="absolute inset-y-0 left-0 flex items-center pl-8 pointer-events-none">
+                  <span className="text-pink-400 font-bold text-sm">anchor.pro /</span>
                 </div>
+                <input 
+                  type="text" 
+                  value={slug}
+                  onChange={(e) => setSlug(e.target.value)}
+                  className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[124px] pr-16 py-6 font-mono text-base text-pink-900 outline-none transition-all shadow-sm focus:shadow-lg focus:shadow-pink-100"
+                  placeholder="how-to-engineer-content"
+                />
+                <button 
+                  onClick={regenerateSlug}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 p-2.5 bg-white border border-pink-100 rounded-xl text-pink-600 hover:bg-pink-50 transition-all"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
               </div>
+            </div>
 
-              {heroImage && <img src={heroImage.url} className="w-full h-auto max-h-[600px] object-cover rounded-[48px] shadow-2xl ring-1 ring-slate-100" alt="Hero" />}
+            {/* THE TITLE BOX */}
+            <div className="space-y-4">
+              <label className="text-[10px] font-black text-pink-700 uppercase tracking-[0.3em] ml-2 flex items-center gap-2 font-heading">
+                <Type className="w-4 h-4" /> Chart Headline
+              </label>
+              <input 
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-transparent border-none focus:ring-0 text-5xl md:text-6xl font-black text-slate-900 tracking-tighter outline-none leading-[1.1] font-heading placeholder:text-pink-100"
+                placeholder="The Ultimate Chart Title..."
+              />
+            </div>
+
+            {/* THE CONTENT BOX */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-black text-pink-700 uppercase tracking-[0.3em] ml-2 flex items-center gap-2 font-heading">
+                  <PenTool className="w-4 h-4" /> Content Body (Markdown)
+                </label>
+              </div>
               
-              <div className="px-2">
+              <div className={`rounded-[48px] overflow-hidden transition-all ${viewMode === 'edit' ? 'bg-pink-50/20 border-2 border-pink-100' : ''}`}>
                 {viewMode === 'preview' ? (
-                  <div className="markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "Neural engine ready..."}</ReactMarkdown>
-                    {isGenerating && (
-                      <div className="flex flex-col items-center gap-5 my-20">
-                        <Loader2 className="w-12 h-12 animate-spin text-indigo-300" />
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">Processing Data Nodes...</p>
+                  <div className="markdown-body min-h-[600px] p-6">
+                    {content ? (
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-40 gap-8">
+                        <div className="relative">
+                          <Loader2 className="w-20 h-20 animate-spin text-pink-200" />
+                          <Anchor className="w-8 h-8 text-pink-500 absolute inset-0 m-auto" />
+                        </div>
+                        <p className="text-[12px] font-bold text-pink-400 uppercase tracking-[0.5em]">Synthesizing Chart Nodes...</p>
                       </div>
                     )}
                   </div>
@@ -348,148 +257,58 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                     ref={textareaRef}
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    className="w-full min-h-[1200px] bg-transparent border-none outline-none font-mono text-base resize-none leading-relaxed text-slate-800 placeholder:text-slate-100"
-                    placeholder="Enter technical content pass..."
+                    className="w-full min-h-[1200px] bg-white border-none outline-none font-mono text-lg resize-none p-16 leading-relaxed text-slate-900"
+                    placeholder="Drop your thoughts here..."
                   />
                 )}
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Right Sidebar Area - Scrollable */}
+      {/* Sidebars */}
       <div className="w-80 flex-shrink-0 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-12 pr-1 h-full">
-        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-8 space-y-8">
-          <h3 className="font-black text-slate-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3"><Target className="w-4 h-4 text-indigo-600" /> SEO Synthesis</h3>
-          <div className="text-center py-10 bg-slate-950 rounded-[40px] relative overflow-hidden">
-            <div className="text-8xl font-black text-white tracking-tighter italic">
-              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto text-indigo-500/20" /> : (analysis?.score || 0)}
+        <div className="bg-white rounded-[40px] border border-pink-100 shadow-sm p-8 space-y-8">
+          <h3 className="font-black text-pink-700 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
+            <Target className="w-4 h-4" /> Authority Matrix
+          </h3>
+          <div className="text-center py-12 girly-gradient rounded-[48px] relative overflow-hidden shadow-2xl">
+            <div className="text-8xl font-black text-white tracking-tighter relative z-10 drop-shadow-md font-heading">
+              {analyzing ? <Loader2 className="w-12 h-12 animate-spin mx-auto opacity-50" /> : (analysis?.score || 0)}
             </div>
-            <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mt-4">Authority Rating</p>
+            <p className="text-[11px] font-black text-pink-100 uppercase tracking-[0.4em] mt-4 relative z-10">Trust Factor</p>
           </div>
           
-          <div className="space-y-3">
-            <button 
-              onClick={handleFullOptimization} 
-              disabled={isOptimizing || !content} 
-              className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95 disabled:opacity-50"
-            >
-              {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-indigo-400" />}
-              {isOptimizing ? 'Optimizing' : 'Re-Optimize Pass'}
+          <div className="space-y-4">
+            <button className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 group">
+              <Zap className="w-4 h-4 text-pink-400 group-hover:rotate-12 transition-transform" />
+              Polish & Perfect
             </button>
-
-            <button 
-              onClick={handleGenerateSchema} 
-              disabled={isGeneratingSchema || !content} 
-              className="w-full py-4 bg-white border-2 border-slate-100 hover:border-indigo-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
-            >
-              <Code className="w-4 h-4 text-indigo-600" />
-              Structured Data
+            <button onClick={() => setShowSchemaModal(true)} className="w-full py-4 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-[24px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all border border-teal-100">
+              <Database className="w-4 h-4" /> Vessel Metadata
             </button>
           </div>
-          
-          {optimizationLogs.length > 0 && (
-            <div className="space-y-1 pt-4 border-t border-slate-50">
-              {optimizationLogs.map((log, i) => (
-                <p key={i} className="text-[8px] font-mono text-slate-400 pl-2 leading-tight uppercase font-bold tracking-widest">{log}</p>
-              ))}
-            </div>
-          )}
         </div>
 
-        <div className="bg-slate-900 rounded-[40px] p-8 space-y-8 shadow-2xl relative overflow-hidden">
-           <div className="flex items-center justify-between">
-              <h3 className="text-white font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3"><Database className="w-4 h-4 text-indigo-400" /> Backlink Intelligence</h3>
-              <span className="text-[10px] font-black text-slate-700 uppercase">{backlinkOps.length} Node</span>
-           </div>
-           
-           <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-             {backlinkOps.length > 0 ? backlinkOps.map((op) => (
-               <div key={op.id} className="bg-white/5 p-5 rounded-3xl border border-white/5 hover:border-indigo-500/30 transition-all group">
-                 <div className="flex items-center justify-between mb-3">
-                    <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-widest ${
-                      op.authority === 'High' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'
-                    }`}>{op.authority} Domain</span>
-                    <a href={op.url} target="_blank" className="text-indigo-400 hover:text-white transition-colors"><ExternalLink className="w-4 h-4" /></a>
-                 </div>
-                 <p className="text-xs font-black text-white line-clamp-2 italic leading-relaxed">"{op.title}"</p>
-                 <p className="text-[10px] text-slate-500 font-bold mt-2 uppercase tracking-tight">{op.reason}</p>
-               </div>
-             )) : (
-               <div className="py-20 text-center border-4 border-dashed border-white/5 rounded-[40px]">
-                 <p className="text-[10px] text-slate-700 font-black uppercase tracking-[0.2em] italic">Idle</p>
-               </div>
-             )}
-           </div>
-
-           <button onClick={handleDiscoverBacklinks} disabled={isDiscoveringBacklinks || !hasStarted} className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50">
-             {isDiscoveringBacklinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-             Map Link Topology
-           </button>
-        </div>
-
-        <div className="bg-white rounded-[40px] border border-slate-200 shadow-sm p-8 space-y-8">
-           <h3 className="font-black text-slate-900 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3"><ImageIcon className="w-4 h-4 text-indigo-600" /> Digital Assets</h3>
+        <div className="bg-white rounded-[40px] border border-pink-100 shadow-sm p-8 space-y-8">
+           <h3 className="font-black text-pink-700 text-[10px] uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
+             <ImageIcon className="w-4 h-4" /> Aesthetic Assets
+           </h3>
            <ImageGenerator 
-              defaultPrompt={`Technical architectural photography of engineering equipment, high contrast, clean.`} 
-              onImageGenerated={(url, prompt) => handleAddImage({ id: Math.random().toString(36).substr(2,9), url, prompt, isHero: articleImages.length === 0 })}
-              topicContext={localOutline?.title}
+              defaultPrompt={`High-end professional photography, clean background, high resolution.`} 
+              onImageGenerated={(url, prompt) => setArticleImages(prev => [...prev, { id: Math.random().toString(36).substr(2,9), url, prompt, isHero: false }])}
+              topicContext={title}
             />
             <div className="grid grid-cols-2 gap-4">
               {articleImages.map(img => (
-                <div key={img.id} className="aspect-square rounded-[24px] overflow-hidden border border-slate-100 bg-slate-50 group hover:ring-4 hover:ring-indigo-600 transition-all cursor-pointer">
-                   <img src={img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform" alt="Asset" />
+                <div key={img.id} className="aspect-square rounded-[30px] overflow-hidden border-2 border-pink-50 bg-pink-50 group hover:ring-4 hover:ring-pink-400 transition-all cursor-pointer">
+                   <img src={img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt="Asset" />
                 </div>
               ))}
             </div>
         </div>
       </div>
-
-      {/* JSON-LD Schema Modal */}
-      {showSchemaModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[64px] p-16 space-y-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-50 rounded-full blur-[120px] -mr-40 -mt-40 pointer-events-none opacity-50" />
-            
-            <div className="flex justify-between items-center relative z-10">
-              <div>
-                 <h3 className="font-black text-4xl uppercase italic tracking-tighter text-slate-900 leading-none">Structured Logic</h3>
-                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">SEO Rich Snippet Synthesis (JSON-LD)</p>
-              </div>
-              <button onClick={() => setShowSchemaModal(false)} className="p-4 bg-slate-50 rounded-[24px] hover:bg-slate-100 transition-colors"><X className="w-7 h-7 text-slate-400" /></button>
-            </div>
-
-            <div className="relative z-10 space-y-6">
-              <div className="p-8 bg-slate-950 rounded-[48px] border-4 border-slate-900 shadow-inner h-96 overflow-y-auto custom-scrollbar font-mono text-xs leading-relaxed text-indigo-300">
-                {isGeneratingSchema ? (
-                  <div className="h-full flex flex-col items-center justify-center gap-4">
-                    <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
-                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600">Encoding Semantic Node...</p>
-                  </div>
-                ) : (
-                  <pre className="whitespace-pre-wrap">{structuredData || "{}"}</pre>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                <div className="flex items-center gap-3 text-indigo-600">
-                  <Database className="w-5 h-5" />
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Schema.org Verified</span>
-                </div>
-                <button 
-                  onClick={copySchema}
-                  disabled={!structuredData || isGeneratingSchema}
-                  className="bg-slate-900 hover:bg-black text-white px-12 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center gap-4 transition-all shadow-2xl shadow-slate-100 active:scale-95 disabled:opacity-30"
-                >
-                  {copiedSchema ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5 text-indigo-400" />}
-                  {copiedSchema ? 'Copied' : 'Extract Schema'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

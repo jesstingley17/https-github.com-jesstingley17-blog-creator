@@ -20,6 +20,7 @@ export interface SavedPrompt {
 export interface ContentBrief {
   id: string;
   topic: string;
+  slug?: string;
   companyUrl?: string;
   brandContext?: string;
   competitorUrls: string[];
@@ -72,6 +73,7 @@ export interface GeneratedContent {
   brief: ContentBrief;
   outline: ContentOutline;
   content: string;
+  slug?: string;
   analysis: SEOAnalysis | null;
   heroImageUrl: string | null;
   images: ArticleImage[];

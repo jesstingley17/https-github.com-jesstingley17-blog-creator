@@ -4,85 +4,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ZR Content Creator - AI Content Creation</title>
+  <title>AnchorChartPRO - AI SEO Suite</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
   <script>
-    // Global process shim to prevent crashes in browser-only environments
     window.process = window.process || { env: { API_KEY: "" } };
   </script>
   <style>
+    :root {
+      /* Darker, high-contrast pinks */
+      --primary: #be185d; /* Rose 700 */
+      --secondary: #fdf2f8; /* Rose 50 */
+      --accent: #9d174d; /* Rose 800 */
+      --bg: #fff1f2; /* Rose 50 */
+      --anchor-teal: #0d9488; /* Teal 600 */
+    }
+
     body {
       font-family: 'Inter', sans-serif;
-      background-color: #f1f5f9;
-      color: #0f172a;
+      background-color: var(--bg);
+      color: #310d20;
     }
-    
+
+    h1, h2, h3, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+
+    .girly-gradient {
+      background: linear-gradient(135deg, #be185d 0%, #9d174d 100%);
+    }
+
+    .anchor-gradient {
+      background: linear-gradient(135deg, #db2777 0%, #0d9488 100%);
+    }
+
+    .girly-shadow {
+      box-shadow: 0 10px 40px -10px rgba(190, 24, 93, 0.15);
+    }
+
     .markdown-body {
-      color: #334155;
-      line-height: 1.6;
-      font-size: 1.05rem;
+      color: #310d20;
+      line-height: 1.7;
     }
-    .markdown-body h1 { font-size: 2.5rem; font-weight: 800; margin: 2rem 0 1.5rem; color: #0f172a; letter-spacing: -0.025em; line-height: 1.1; }
-    .markdown-body h2 { font-size: 1.85rem; font-weight: 700; margin: 2.5rem 0 1.25rem; color: #0f172a; border-bottom: 2px solid #f1f5f9; padding-bottom: 0.5rem; }
-    .markdown-body h3 { font-size: 1.4rem; font-weight: 700; margin: 2rem 0 1rem; color: #1e293b; }
-    .markdown-body p { margin-bottom: 1.5rem; }
-    .markdown-body ul, .markdown-body ol { margin-bottom: 1.5rem; padding-left: 1.75rem; }
-    .markdown-body li { margin-bottom: 0.75rem; }
-    .markdown-body blockquote { border-left: 4px solid #6366f1; padding-left: 1.5rem; font-style: italic; color: #475569; margin: 2rem 0; }
+    .markdown-body h1 { font-size: 2.8rem; font-weight: 800; margin: 2rem 0; color: #310d20; letter-spacing: -0.02em; line-height: 1.1; }
+    .markdown-body h2 { font-size: 2rem; font-weight: 700; margin: 2.5rem 0 1.5rem; color: #4a042e; border-bottom: 3px solid #fbcfe8; padding-bottom: 0.5rem; }
+    .markdown-body blockquote { border-left: 5px solid #be185d; background: white; padding: 1.5rem; font-style: italic; border-radius: 0 1rem 1rem 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
     
-    /* Enhanced Table Styles */
     .markdown-body table { 
       width: 100%; 
       margin: 2.5rem 0; 
       border-collapse: separate; 
       border-spacing: 0;
-      font-size: 0.95rem;
-      border: 1px solid #e2e8f0;
-      border-radius: 1rem;
+      border: 2px solid #fbcfe8;
+      border-radius: 1.5rem;
       overflow: hidden;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      background: white;
+      box-shadow: 0 4px 15px rgba(190, 24, 93, 0.05);
     }
     .markdown-body th { 
-      background-color: #f8fafc; 
-      padding: 1rem 1.25rem; 
+      background-color: #fdf2f8; 
+      padding: 1.25rem; 
       text-align: left; 
       font-weight: 800; 
-      color: #1e293b; 
+      color: #9d174d; 
       text-transform: uppercase;
-      letter-spacing: 0.05em;
       font-size: 0.75rem;
-      border-bottom: 1px solid #e2e8f0;
-      border-right: 1px solid #e2e8f0;
+      border-bottom: 2px solid #fbcfe8;
     }
     .markdown-body td { 
       padding: 1rem 1.25rem; 
-      border-bottom: 1px solid #f1f5f9; 
-      border-right: 1px solid #f1f5f9;
-      background-color: white;
-      color: #475569;
+      border-bottom: 1px solid #fce7f3; 
+      color: #4a042e;
+      font-size: 0.95rem;
     }
-    .markdown-body tr:last-child td {
-      border-bottom: none;
-    }
-    .markdown-body th:last-child, .markdown-body td:last-child {
-      border-right: none;
-    }
-    .markdown-body tr:hover td {
-      background-color: #fcfdfe;
-    }
+    .markdown-body tr:last-child td { border-bottom: none; }
 
-    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-    
-    .glass-morphism {
-      background: rgba(255, 255, 255, 0.8);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #be185d; }
+
+    .pill-input {
+      border-radius: 9999px;
+      border: 2px solid #fbcfe8;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .pill-input:focus {
+      border-color: #be185d;
+      box-shadow: 0 0 15px rgba(190, 24, 93, 0.1);
     }
   </style>
 <script type="importmap">
