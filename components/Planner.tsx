@@ -17,7 +17,7 @@ import {
 import { geminiService } from '../geminiService';
 import { ScheduledPost } from '../types';
 
-const PLATFORM_ICONS = {
+const PLATFORM_ICONS: Record<string, any> = {
   LinkedIn: Linkedin,
   Twitter: Twitter,
   Facebook: Facebook,
@@ -56,9 +56,9 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
     try {
       const suggestions = await geminiService.suggestSchedule(availableArticles);
       const newPosts: ScheduledPost[] = suggestions.map((s, i) => ({
-        id: Math.random().toString(36).substr(2, 9),
+        id: Math.random().toString(36).substring(2, 9),
         articleId: s.articleId || availableArticles[i].id,
-        title: availableArticles.find(a => a.id === s.articleId)?.title || availableArticles[i].title,
+        title: availableArticles.find(a => a.id === s.articleId)?.title || availableArticles[i]?.title || 'Untitled Article',
         date: s.date || new Date().toISOString(),
         platform: (s.platform as any) || 'LinkedIn'
       }));
@@ -201,7 +201,8 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
                                 <Trash2 className="w-2.5 h-2.5" />
                               </button>
                             </div>
-                          ))}
+                          );
+                        })}
                       </div>
                       <button className="absolute bottom-2 right-2 p-1 text-gray-300 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Plus className="w-4 h-4" />

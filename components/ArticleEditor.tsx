@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -63,7 +64,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   const [showSourcesModal, setShowSourcesModal] = useState(false);
   
-  // Scheduling States
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
   const [scheduleTime, setScheduleTime] = useState('09:00');
@@ -146,8 +146,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const fileName = brief.topic.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
-    link.download = `${fileName || 'article'}.md`;
+    const fileName = (brief.topic || 'article').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+    link.download = `${fileName}.md`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -172,7 +172,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
-  // --- Outline Mutation Logic ---
   const updateTitle = (val: string) => setLocalOutline({ ...localOutline, title: val });
 
   const addSection = () => {
@@ -306,7 +305,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
-      {/* Editor Main */}
       <div className="flex-1 flex flex-col bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
         <header className="px-6 py-4 border-b flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-4">
@@ -393,10 +391,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                     <p className="text-sm text-gray-500">Fine-tune the architecture of your article.</p>
                   </div>
                 </div>
-                <button 
-                  onClick={addSection}
-                  className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors border border-indigo-100"
-                >
+                <button onClick={addSection} className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors border border-indigo-100">
                   <Plus className="w-4 h-4" /> Add Section
                 </button>
               </div>
@@ -420,10 +415,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                             placeholder="Heading..."
                           />
                         </div>
-                        <button 
-                          onClick={() => removeSection(sIdx)}
-                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                        >
+                        <button onClick={() => removeSection(sIdx)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -443,11 +435,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                                   <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
                                   <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === (section.subheadings || []).length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
                                 </div>
-                                <input 
-                                  value={sub}
-                                  onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
-                                  className="flex-1 bg-transparent border-none text-sm text-gray-700 focus:ring-0 p-0 font-medium"
-                                />
+                                <input value={sub} onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)} className="flex-1 bg-transparent border-none text-sm text-gray-700 focus:ring-0 p-0 font-medium" />
                                 <button onClick={() => removeSubheading(sIdx, subIdx)} className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
@@ -468,11 +456,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                                   <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
                                   <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === (section.keyPoints || []).length - 1} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
                                 </div>
-                                <input 
-                                  value={point}
-                                  onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)}
-                                  className="flex-1 bg-transparent border-none text-[11px] text-gray-600 focus:ring-0 p-0 font-bold"
-                                />
+                                <input value={point} onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)} className="flex-1 bg-transparent border-none text-[11px] text-gray-600 focus:ring-0 p-0 font-bold" />
                                 <button onClick={() => removeKeyPoint(sIdx, pIdx)} className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
@@ -494,26 +478,19 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   </div>
                 </div>
               )}
-
               {isGenerating && (
                 <div className="flex items-center gap-2 text-indigo-600 font-medium bg-indigo-50 px-4 py-2 rounded-lg w-fit animate-pulse sticky top-0 z-10 shadow-sm border border-indigo-100">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   AI is crafting your synthesis...
                 </div>
               )}
-              
               <div className="min-h-[500px]">
                 {viewMode === 'preview' ? (
                   <div className="markdown-body animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <ReactMarkdown>{content || "*Preparing content stream...*"}</ReactMarkdown>
-                    {isGenerating && <span className="inline-block w-2 h-5 ml-1 bg-indigo-500 animate-pulse rounded-sm" />}
                   </div>
                 ) : (
-                  <textarea
-                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl"
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                  />
+                  <textarea className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl" value={content} onChange={(e) => setContent(e.target.value)} />
                 )}
               </div>
             </div>
@@ -521,21 +498,13 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         </div>
       </div>
 
-      {/* Sidebar Analysis & Assets */}
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Intelligence
-            </h3>
+            <h3 className="font-bold text-gray-900 flex items-center gap-2"><BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Intelligence</h3>
             {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
           </div>
-
-          <div 
-            className="relative w-32 h-32 mx-auto mb-6 cursor-pointer group/score"
-            onMouseEnter={() => setShowScoreTooltip(true)}
-            onMouseLeave={() => setShowScoreTooltip(false)}
-          >
+          <div className="relative w-32 h-32 mx-auto mb-6 cursor-pointer group/score" onMouseEnter={() => setShowScoreTooltip(true)} onMouseLeave={() => setShowScoreTooltip(false)}>
             <svg className="w-full h-full transform -rotate-90">
               <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
               <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={364} strokeDashoffset={364 - (364 * (analysis?.score || 0)) / 100} className={`${scoreColor(analysis?.score || 0)} transition-all duration-1000 ease-out`} />
@@ -544,222 +513,61 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               <span className={`text-3xl font-black ${scoreColor(analysis?.score || 0)}`}>{analysis?.score || 0}</span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</span>
             </div>
-
             {showScoreTooltip && analysis && (
               <div className="absolute top-0 right-full mr-4 w-64 bg-white border border-gray-100 shadow-2xl rounded-2xl p-5 z-50 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="mb-4 border-b pb-2 flex items-center justify-between">
-                  <p className="text-xs font-black text-gray-900 uppercase tracking-widest">Score Breakdown</p>
-                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                </div>
+                <div className="mb-4 border-b pb-2 flex items-center justify-between"><p className="text-xs font-black text-gray-900 uppercase tracking-widest">Score Breakdown</p><Trophy className="w-3.5 h-3.5 text-amber-500" /></div>
                 <div className="space-y-4">
                   {getScoreBreakdown().map((item, idx) => (
                     <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[11px] font-bold">
-                        <div className="flex items-center gap-1.5 text-gray-600">
-                          <item.icon className="w-3 h-3 opacity-60" />
-                          <span>{item.label}</span>
-                        </div>
-                        <span className={scoreColor(item.val)}>{item.val}%</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
-                        <div 
-                          className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-700 ease-out`} 
-                          style={{ width: `${item.val}%` }} 
-                        />
-                      </div>
+                      <div className="flex justify-between items-center text-[11px] font-bold"><div className="flex items-center gap-1.5 text-gray-600"><item.icon className="w-3 h-3 opacity-60" /><span>{item.label}</span></div><span className={scoreColor(item.val)}>{item.val}%</span></div>
+                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100"><div className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-700 ease-out`} style={{ width: `${item.val}%` }} /></div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500 font-medium">Readability</span>
-              <span className="font-bold text-gray-900">{analysis?.readability || 'Not Measured'}</span>
-            </div>
-            <div className="space-y-2 border-t pt-4">
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Keyword Load</span>
+            <div className="flex items-center justify-between text-sm"><span className="text-gray-500 font-medium">Readability</span><span className="font-bold text-gray-900">{analysis?.readability || 'Not Measured'}</span></div>
+            <div className="space-y-2 border-t pt-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Keyword Load</span>
               {brief.targetKeywords.map((k, i) => (
                 <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-600 truncate max-w-[150px] font-medium">{k}</span>
-                    <span className="text-gray-400 font-bold">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} />
-                  </div>
+                  <div className="flex justify-between text-[11px]"><span className="text-gray-600 truncate max-w-[150px] font-medium">{k}</span><span className="text-gray-400 font-bold">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span></div>
+                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"><div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} /></div>
                 </div>
               ))}
             </div>
-
-            {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 && (
-              <div className="border-t pt-4 space-y-4">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Zap className="w-3 h-3 text-amber-500" /> SEO Actions
-                </h4>
-                <div className="space-y-3">
-                  {analysis.keywordSuggestions.map((suggestion, idx) => (
-                    <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-3 space-y-2 hover:border-indigo-100 transition-all">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-gray-800">{suggestion.keyword}</span>
-                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-indigo-100">{suggestion.action}</span>
-                      </div>
-                      <p className="text-[10px] text-gray-500 leading-relaxed font-medium">{suggestion.explanation}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
-
-        {hasStarted && (
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden flex-shrink-0 transition-all duration-300">
-             <button onClick={() => setShowVersions(!showVersions)} className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-               <h3 className="font-bold text-gray-900 flex items-center gap-2"><HistoryIcon className="w-5 h-5 text-indigo-500" /> Version History</h3>
-               <span className="bg-indigo-100 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">{versions.length} Points</span>
-             </button>
-             {showVersions && (
-               <div className="px-6 pb-6 space-y-3">
-                 {versions.map((v) => (
-                   <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-indigo-50 transition-all cursor-pointer" onClick={() => restoreVersion(v)}>
-                     <span className="text-[11px] font-bold text-gray-500 group-hover:text-indigo-600">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                     <RotateCcw className="w-3.5 h-3.5 text-gray-300 group-hover:text-indigo-600" />
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-        )}
-
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
-          <ImageGenerator 
-            defaultPrompt={defaultImagePrompt} 
-            initialImageUrl={heroImageUrl} 
-            onImageGenerated={setHeroImageUrl}
-            topicContext={localOutline.title}
-          />
+          <ImageGenerator defaultPrompt={defaultImagePrompt} initialImageUrl={heroImageUrl} onImageGenerated={setHeroImageUrl} topicContext={localOutline.title} />
         </div>
       </div>
 
-      {/* Schedule Modal */}
       {showScheduleModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
             <div className="px-8 py-6 border-b flex items-center justify-between bg-gray-50/50">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-xl">
-                  <Calendar className="w-5 h-5 text-indigo-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 text-xl tracking-tight">Schedule Publication</h3>
-              </div>
-              <button onClick={() => setShowScheduleModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
+              <div className="flex items-center gap-3"><div className="p-2 bg-indigo-100 rounded-xl"><Calendar className="w-5 h-5 text-indigo-600" /></div><h3 className="font-bold text-gray-900 text-xl tracking-tight">Schedule Publication</h3></div>
+              <button onClick={() => setShowScheduleModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><X className="w-5 h-5 text-gray-400" /></button>
             </div>
-            
             <div className="p-8 space-y-8">
               {isScheduled ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in-95">
-                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                    <Check className="w-10 h-10 text-green-600" />
-                  </div>
-                  <h4 className="text-xl font-bold text-gray-900">Successfully Scheduled!</h4>
-                  <p className="text-gray-500 mt-2">Article has been added to your content planner.</p>
-                </div>
+                <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in-95"><div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4"><Check className="w-10 h-10 text-green-600" /></div><h4 className="text-xl font-bold text-gray-900">Successfully Scheduled!</h4></div>
               ) : (
                 <>
                   <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Calendar className="w-3 h-3" /> Publish Date
-                      </label>
-                      <input 
-                        type="date" 
-                        value={scheduleDate}
-                        onChange={(e) => setScheduleDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <Clock className="w-3 h-3" /> Time (UTC)
-                      </label>
-                      <input 
-                        type="time" 
-                        value={scheduleTime}
-                        onChange={(e) => setScheduleTime(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
-                      />
-                    </div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Calendar className="w-3 h-3" /> Publish Date</label><input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" /></div>
+                    <div className="space-y-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"><Clock className="w-3 h-3" /> Time (UTC)</label><input type="time" value={scheduleTime} onChange={(e) => setScheduleTime(e.target.value)} className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium" /></div>
                   </div>
-
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Channel</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { id: 'LinkedIn', icon: Linkedin, color: 'text-blue-600', bg: 'bg-blue-50' },
-                        { id: 'Twitter', icon: Twitter, color: 'text-sky-500', bg: 'bg-sky-50' },
-                        { id: 'Facebook', icon: Facebook, color: 'text-indigo-600', bg: 'bg-indigo-50' },
-                        { id: 'Blog', icon: Layout, color: 'text-gray-700', bg: 'bg-gray-100' }
-                      ].map((plat) => (
-                        <button
-                          key={plat.id}
-                          onClick={() => setSchedulePlatform(plat.id as ScheduledPost['platform'])}
-                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
-                            schedulePlatform === plat.id 
-                              ? 'border-indigo-600 bg-white shadow-md' 
-                              : 'border-transparent bg-gray-50 hover:bg-gray-100'
-                          }`}
-                        >
-                          <div className={`${plat.bg} p-2 rounded-lg`}>
-                            <plat.icon className={`w-5 h-5 ${plat.color}`} />
-                          </div>
-                          <span className="text-sm font-bold text-gray-700">{plat.id}</span>
-                        </button>
+                  <div className="space-y-4"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Channel</label><div className="grid grid-cols-2 gap-3">
+                      {[{ id: 'LinkedIn', icon: Linkedin, color: 'text-blue-600', bg: 'bg-blue-50' }, { id: 'Twitter', icon: Twitter, color: 'text-sky-500', bg: 'bg-sky-50' }, { id: 'Facebook', icon: Facebook, color: 'text-indigo-600', bg: 'bg-indigo-50' }, { id: 'Blog', icon: Layout, color: 'text-gray-700', bg: 'bg-gray-100' }].map((plat) => (
+                        <button key={plat.id} onClick={() => setSchedulePlatform(plat.id as ScheduledPost['platform'])} className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${schedulePlatform === plat.id ? 'border-indigo-600 bg-white shadow-md' : 'border-transparent bg-gray-50 hover:bg-gray-100'}`}><div className={`${plat.bg} p-2 rounded-lg`}><plat.icon className={`w-5 h-5 ${plat.color}`} /></div><span className="text-sm font-bold text-gray-700">{plat.id}</span></button>
                       ))}
-                    </div>
-                  </div>
-
-                  <button 
-                    onClick={handleScheduleConfirm}
-                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
-                  >
-                    Confirm Schedule
-                  </button>
+                    </div></div>
+                  <button onClick={handleScheduleConfirm} className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100">Confirm Schedule</button>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Citations Modal */}
-      {showSourcesModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
-            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50/50">
-              <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                <BookOpen className="w-5 h-5 text-indigo-600" /> Synthesis Sources
-              </h3>
-              <button onClick={() => setShowSourcesModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                <X className="w-5 h-5 text-gray-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              {sources.map((source, idx) => (
-                <a key={idx} href={source.uri} target="_blank" rel="noopener noreferrer" className="block p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:bg-white transition-all group">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{source.title}</h4>
-                      <p className="text-[10px] text-gray-400 font-mono truncate max-w-[400px]">{source.uri}</p>
-                    </div>
-                    <Search className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
-                  </div>
-                </a>
-              ))}
             </div>
           </div>
         </div>
