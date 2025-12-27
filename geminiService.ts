@@ -2,7 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis } from "./types";
 
-// Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) per coding guidelines
 const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
@@ -36,77 +35,70 @@ export const geminiService = {
     return true;
   },
 
-  async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
+  async deepResearch(urlOrTopic: string): Promise<Partial<ContentBrief>> {
     await this.ensureApiKey();
     const ai = getAI();
-    let prompt = `Analyze the topic "${topic}" for a high-authority SEO article.`;
-    if (companyUrl) prompt += ` Tailor content to the brand at ${companyUrl}.`;
-    prompt += ` Provide SEO strategy details including target keywords and brand resonance.`;
+    const prompt = `Perform deep SEO research for: "${urlOrTopic}".
+    1. Identify the core topic.
+    2. Find 3-5 top organic competitors for this topic/site.
+    3. Suggest 3-5 high-authority URLs for potential backlink injection or citation.
+    4. Extract 5 target keywords and 5 secondary keywords.
+    Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview', 
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          tools: companyUrl ? [{ googleSearch: {} }] : undefined,
+          tools: [{ googleSearch: {} }],
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
             properties: {
+              topic: { type: Type.STRING },
+              competitorUrls: { type: Type.ARRAY, items: { type: Type.STRING } },
+              backlinkUrls: { type: Type.ARRAY, items: { type: Type.STRING } },
               targetKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-              audience: { type: Type.STRING },
-              tone: { type: Type.STRING },
-              brandContext: { type: Type.STRING }
+              secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
-            required: ['targetKeywords', 'secondaryKeywords', 'audience', 'tone']
+            required: ['topic', 'competitorUrls', 'backlinkUrls', 'targetKeywords', 'secondaryKeywords']
           }
         }
       });
-
-      const parsed = extractJson(response.text || '{}');
-      return {
-        targetKeywords: parsed?.targetKeywords || [topic],
-        secondaryKeywords: parsed?.secondaryKeywords || [],
-        audience: parsed?.audience || 'General Audience',
-        tone: parsed?.tone || 'Professional',
-        brandContext: parsed?.brandContext || ''
-      };
+      return extractJson(response.text || '{}');
     } catch (e) {
-      console.error("Brief generation failed:", e);
-      return { targetKeywords: [topic], secondaryKeywords: [], audience: 'General', tone: 'Professional' };
+      return { competitorUrls: [], backlinkUrls: [], targetKeywords: [], secondaryKeywords: [] };
     }
   },
 
-  async generateTitleSuggestions(topic: string, keywords: string[]): Promise<string[]> {
+  async refineTextWithContext(text: string, title: string, tone: string, author: any): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate 5 high-CTR, SEO-optimized headlines for an article about "${topic}". 
-    Primary Keywords: ${keywords.join(', ')}. 
-    Return as a simple JSON array of strings. Ensure titles are authoritative and modern.`;
+    const prompt = `Act as ${author.name} (${author.title}). 
+    RE-SYNTHESIZE the following raw research/notes to fit perfectly into an article titled "${title}".
+    Tone: ${tone}.
+    Instruction: Rephrase sentences for maximum authority, improve flow, and naturally weave in professional insights.
+    Raw Notes: "${text}".
+    Output only the refined version in high-quality Markdown.`;
 
     try {
-      const res = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' }
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt
       });
-      return extractJson(res.text || '[]') || [];
+      return response.text || text;
     } catch (e) {
-      return [`Mastering ${topic}: A Comprehensive Guide`];
+      return text;
     }
   },
 
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as a senior SEO editor. Generate a comprehensive, high-authority article outline for: "${brief.topic}". 
+    const prompt = `Generate a high-authority article outline for: "${brief.topic}". 
     Target Keywords: ${brief.targetKeywords.join(', ')}.
-    Audience: ${brief.audience}.
-    Tone: ${brief.tone}.
-    Benchmarking against competitors: ${brief.competitorUrls.join(', ') || 'N/A'}.
     Author: ${brief.author.name}, ${brief.author.title}.
-    Ensure 5-8 major sections with detailed subheadings. Include a plan for at least 2 comparison or data tables.`;
+    Ensure 5-8 major sections. Plan for at least 2 detailed Markdown tables.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -125,21 +117,14 @@ export const geminiService = {
                   properties: {
                     heading: { type: Type.STRING },
                     subheadings: { type: Type.ARRAY, items: { type: Type.STRING } }
-                  },
-                  required: ['heading', 'subheadings']
+                  }
                 }
               }
-            },
-            required: ['title', 'sections']
+            }
           }
         }
       });
-
-      const parsed = extractJson(response.text || '{}');
-      return {
-        title: parsed.title || brief.topic,
-        sections: parsed.sections || []
-      };
+      return extractJson(response.text || '{}');
     } catch (e) {
       return { title: brief.topic, sections: [] };
     }
@@ -149,19 +134,11 @@ export const geminiService = {
     try {
       await this.ensureApiKey();
       const ai = getAI();
-      const prompt = `Write a long-form, authoritative SEO article as ${brief.author.name} (${brief.author.title}).
-      Outline: ${JSON.stringify(outline)}. 
-      Keywords: ${brief.targetKeywords.join(', ')}. 
-      Tone: ${brief.tone}.
-      
-      MANDATORY FORMATTING INSTRUCTIONS:
-      1. TABLES: You MUST include at least two Markdown tables (e.g. comparison tables, feature sets, or key metrics). Ensure proper Markdown syntax (| Header | Header |).
-      2. AUTHOR VOICE: Write from the perspective of ${brief.author.name}. Incorporate professional insights.
-      3. BACKLINKS: Naturally inject these links: ${brief.backlinkUrls.join(', ') || 'None'}.
-      4. CITATIONS: Cite 3-5 external authoritative facts using [number] notation.
-      5. CITATION LIST: End the article with a "Sources & References" list mapping the [number] to the source URL and Title.
-      
-      Ensure H1, H2, H3 hierarchy is perfect for SEO.`;
+      const prompt = `Write a comprehensive SEO article as ${brief.author.name} (${brief.author.title}).
+      Title: ${outline.title}.
+      Keywords: ${brief.targetKeywords.join(', ')}.
+      Formatting: Use Markdown. YOU MUST INCLUDE AT LEAST TWO DETAILED DATA TABLES using | Header | syntax.
+      Style: Authoritative, data-driven, and highly engaging.`;
       
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-pro-preview',
@@ -178,74 +155,6 @@ export const geminiService = {
     } catch (e) {
       console.error("Streaming failed:", e);
     }
-  },
-
-  async performWritingTask(task: string, text: string, context: string): Promise<string> {
-    try {
-      await this.ensureApiKey();
-      const ai = getAI();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Task: ${task}. Target Text: "${text}". Context: "${context}". Improved text only.`,
-      });
-      return response.text?.trim() || text;
-    } catch (e) { return text; }
-  },
-
-  async optimizeContent(text: string, brief: ContentBrief): Promise<string> {
-    try {
-      await this.ensureApiKey();
-      const ai = getAI();
-      const prompt = `SEO Optimization Pass. Content: ${text}. 
-      Ensure keywords [${brief.targetKeywords.join(', ')}] and backlinks are optimally placed. 
-      Ensure table formatting is valid Markdown. Maintain citations.`;
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: prompt
-      });
-      return response.text || text;
-    } catch (e) { return text; }
-  },
-
-  async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
-    try {
-      await this.ensureApiKey();
-      const ai = getAI();
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: `Analyze SEO for: "${text.substring(0, 3000)}". Primary keywords: ${keywords.join(', ')}.`,
-        config: { 
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.INTEGER },
-              readability: { type: Type.STRING },
-              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-              keywordSuggestions: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    keyword: { type: Type.STRING },
-                    action: { type: Type.STRING },
-                    explanation: { type: Type.STRING }
-                  }
-                }
-              }
-            }
-          }
-        }
-      });
-      const parsed = extractJson(response.text || '{}');
-      return {
-        score: parsed?.score || 50,
-        readability: parsed?.readability || 'Standard',
-        keywordDensity: {},
-        suggestions: parsed?.suggestions || [],
-        keywordSuggestions: parsed?.keywordSuggestions || []
-      };
-    } catch (e) { return { score: 0, readability: 'N/A', keywordDensity: {}, suggestions: [], keywordSuggestions: [] }; }
   },
 
   async generateArticleImage(prompt: string): Promise<string> {
@@ -265,16 +174,63 @@ export const geminiService = {
     } catch (e) { throw e; }
   },
 
-  // Added missing suggestSchedule method
-  async suggestSchedule(articles: any[]): Promise<any[]> {
+  async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
+    try {
+      await this.ensureApiKey();
+      const ai = getAI();
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `Analyze SEO for: "${text.substring(0, 3000)}". Primary keywords: ${keywords.join(', ')}.`,
+        config: { responseMimeType: 'application/json' }
+      });
+      const parsed = extractJson(response.text || '{}');
+      return {
+        score: parsed?.score || 50,
+        readability: parsed?.readability || 'Standard',
+        keywordDensity: {},
+        suggestions: parsed?.suggestions || [],
+        keywordSuggestions: parsed?.keywordSuggestions || []
+      };
+    } catch (e) { return { score: 0, readability: 'N/A', keywordDensity: {}, suggestions: [], keywordSuggestions: [] }; }
+  },
+
+  async generateTitleSuggestions(topic: string, keywords: string[]): Promise<string[]> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Given these articles: ${JSON.stringify(articles.map(a => ({ id: a.id, title: a.title, topic: a.topic })))}, 
-    suggest an optimal posting schedule for the next 7 days across LinkedIn, Twitter, and Facebook.
-    Return a JSON array of objects, each with 'articleId', 'date' (ISO string), and 'platform'.`;
+    const prompt = `Suggest 5 high-CTR titles for: ${topic}. Keywords: ${keywords.join(', ')}. JSON array only.`;
+    const res = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: { responseMimeType: 'application/json' }
+    });
+    return extractJson(res.text || '[]') || [];
+  },
 
+  async optimizeContent(text: string, brief: ContentBrief, author: any): Promise<string> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Act as ${author.name}. SEO OPTIMIZATION PASS. 
+    Content: ${text}. 
+    Keywords: ${brief.targetKeywords.join(', ')}.
+    Task: Rephrase sentences for better authority, improve internal flow, ensure perfect Markdown table formatting, and maximize keyword density without stuffing.
+    Return only the optimized Markdown.`;
+
+    const res = await ai.models.generateContent({
+      model: 'gemini-3-pro-preview',
+      contents: prompt
+    });
+    return res.text || text;
+  },
+
+  async suggestSchedule(articles: { id: string, title: string, topic: string }[]): Promise<any[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Suggest an optimal social media posting schedule for these articles: ${JSON.stringify(articles)}. 
+    Available platforms: LinkedIn, Twitter, Facebook, Blog.
+    Return a JSON array of objects with 'articleId', 'date' (ISO format), and 'platform'.`;
+    
     try {
-      const response = await ai.models.generateContent({
+      const res = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
@@ -293,10 +249,10 @@ export const geminiService = {
           }
         }
       });
-      return extractJson(response.text || '[]');
+      return extractJson(res.text || '[]') || [];
     } catch (e) {
       console.error("Schedule suggestion failed:", e);
       return [];
     }
-  },
+  }
 };
