@@ -7,15 +7,18 @@ const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 export const geminiService = {
   async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
     const ai = getAI();
-    let systemPrompt = `Analyze the topic "${topic}" and provide SEO brief details.`;
+    let prompt = `Analyze the topic "${topic}" and provide highly detailed SEO brief details.`;
     
     if (companyUrl) {
-      systemPrompt += ` Also research the company at ${companyUrl} using Google Search. Identify their brand voice, primary services, and target demographic to ensure the generated content is perfectly aligned with their brand identity. Provide a 'brandContext' summary.`;
+      prompt += ` Conduct deep research on the company at ${companyUrl} using Google Search. 
+      Identify their core brand pillars, tone of voice (e.g., sophisticated, aggressive, helpful), target audience segments, and primary value propositions. 
+      Ensure the suggested keywords and brand context are perfectly aligned with their existing market positioning. 
+      Prioritize information from official company pages, press releases, and verified professional profiles.`;
     }
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: systemPrompt,
+      contents: prompt,
       config: {
         tools: companyUrl ? [{ googleSearch: {} }] : undefined,
         responseMimeType: 'application/json',
@@ -43,12 +46,14 @@ export const geminiService = {
 
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     const ai = getAI();
-    const prompt = `Create a detailed SEO content outline for the topic: "${brief.topic}". 
-    Audience: ${brief.audience}. 
-    Tone: ${brief.tone}. 
-    Primary Keywords: ${brief.targetKeywords.join(', ')}.
-    ${brief.brandContext ? `Brand Identity Context: ${brief.brandContext}` : ''}
-    ${brief.companyUrl ? `The content is for the company at: ${brief.companyUrl}` : ''}`;
+    const prompt = `Create a detailed, high-converting SEO content outline for: "${brief.topic}". 
+    Target Audience: ${brief.audience}. 
+    Tone of Voice: ${brief.tone}. 
+    Primary SEO Keywords: ${brief.targetKeywords.join(', ')}.
+    ${brief.brandContext ? `Brand Guidelines: ${brief.brandContext}` : ''}
+    ${brief.companyUrl ? `Align with the business goals of: ${brief.companyUrl}` : ''}
+    
+    Structure the outline to maximize user engagement and search engine visibility. Each section should have specific goals and semantic keyword targets.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -80,21 +85,29 @@ export const geminiService = {
 
   async *streamContent(brief: ContentBrief, outline: ContentOutline) {
     const ai = getAI();
-    const prompt = `Write a high-quality, long-form SEO article based on this outline:
+    const prompt = `Act as a world-class SEO content strategist and editor. 
+    Write an authoritative, comprehensive, and engaging long-form article based on this outline:
     Title: ${outline.title}
-    Topic: ${brief.topic}
-    Tone: ${brief.tone}
-    Keywords to include: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
-    ${brief.brandContext ? `Maintain consistency with this brand voice: ${brief.brandContext}` : ''}
-    ${brief.companyUrl ? `Mention or subtly align with company values from ${brief.companyUrl} where appropriate.` : ''}
+    Core Topic: ${brief.topic}
+    Voice/Tone: ${brief.tone}
+    Keywords: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
+    ${brief.brandContext ? `Brand Voice Constraints: ${brief.brandContext}` : ''}
+
+    REQUIRED SEARCH & GROUNDING STRATEGY:
+    1. Use Google Search to verify all technical claims, statistics, and current market trends.
+    2. PRIORITIZE AUTHORITATIVE SOURCES: Favor .gov, .edu, industry-leading publications (e.g., McKinsey, Harvard Business Review, TechCrunch), and official company reports.
+    3. DEDUPLICATE INFORMATION: Cross-reference multiple sources to ensure accuracy and avoid redundant or conflicting information.
+    4. FACT-CHECK: If multiple sources conflict, prioritize the most recent and reputable one.
+    5. DATA INTEGRITY: Ensure that all cited numbers and "facts" are grounded in search results.
     
-    Structure the article with Markdown. Make it engaging and authoritative.`;
+    Structure the article with clean Markdown. Include actionable insights, expert-level depth, and a compelling narrative flow.`;
 
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
       contents: prompt,
       config: {
-        tools: [{ googleSearch: {} }]
+        tools: [{ googleSearch: {} }],
+        temperature: 0.7, // Lower temperature to ensure factual consistency and adherence to grounding.
       }
     });
 
@@ -105,10 +118,10 @@ export const geminiService = {
 
   async suggestSchedule(articles: {id: string, title: string, topic: string}[]): Promise<Partial<ScheduledPost>[]> {
     const ai = getAI();
-    const prompt = `Suggest a social media posting schedule for the following articles to maximize engagement.
+    const prompt = `Analyze these articles and suggest an optimized cross-platform social media distribution schedule.
     Articles: ${articles.map(a => `"${a.title}" (Topic: ${a.topic})`).join(', ')}
     
-    Provide a list of scheduled dates (ISO strings starting from tomorrow) and suggested platforms for each article.`;
+    Consider current social media trends and peak engagement times for the respective niches.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -123,7 +136,7 @@ export const geminiService = {
               articleId: { type: Type.STRING },
               date: { type: Type.STRING },
               platform: { type: Type.STRING, enum: ['LinkedIn', 'Twitter', 'Facebook', 'Blog'] },
-              reason: { type: Type.STRING, description: 'AI reasoning for this specific slot' }
+              reason: { type: Type.STRING }
             }
           }
         }
@@ -137,8 +150,12 @@ export const geminiService = {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Analyze the following content for SEO performance against keywords: ${keywords.join(', ')}. 
-      Provide a score (0-100), readability level, keyword density analysis, improvement suggestions, and specific keyword-focused actionable suggestions.
+      contents: `Critically evaluate the following content for SEO excellence against target keywords: ${keywords.join(', ')}. 
+      
+      Analysis Criteria:
+      - Semantic relevance and topical depth.
+      - Keyword integration (avoiding stuffing, ensuring natural flow).
+      - Readability and structure (E-E-A-T principles).
       
       Content: ${text.substring(0, 5000)}`,
       config: {

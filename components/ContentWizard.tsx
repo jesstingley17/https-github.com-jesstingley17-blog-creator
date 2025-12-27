@@ -100,7 +100,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-8">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold text-gray-900">Configure Your Content</h2>
-              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity.</p>
+              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity via AnchorChartPRO.</p>
             </div>
             
             <div className="space-y-4 text-left">
@@ -109,7 +109,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 <div className="relative group">
                   <input
                     type="text"
-                    placeholder="e.g. Benefits of Sustainable Living in Urban Areas"
+                    placeholder="e.g. The Science of Metacognition in Early Education"
                     className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all shadow-inner"
                     value={topic}
                     onChange={(e) => setTopic(e.target.value)}
@@ -139,15 +139,15 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-100 mt-4"
               >
                 {loading ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" /> {companyUrl ? 'Researching Brand & Analyzing Topic...' : 'Analyzing Topic...'}</>
+                  <><Loader2 className="w-6 h-6 animate-spin" /> Researching Brand Context...</>
                 ) : (
-                  <><Sparkles className="w-6 h-6" /> Start SEO Research</>
+                  <><Sparkles className="w-6 h-6" /> Start Intelligence Gathering</>
                 )}
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
-              {['Market Trends 2024', 'Remote Work Culture', 'Healthy Meal Prep', 'Digital Transformation'].map((t) => (
+              {['Inclusive Classroom Strategies', 'Modern Educational Leadership', 'Early Literacy Development', 'Digital Literacy in K-12'].map((t) => (
                 <button 
                   key={t}
                   onClick={() => setTopic(t)}
@@ -164,8 +164,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           <div className="space-y-8 animate-in fade-in duration-500">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">SEO Content Brief</h2>
-                <p className="text-gray-500">We've generated an SEO profile aligned with your {brief.brandContext ? 'brand' : 'topic'}.</p>
+                <h2 className="text-2xl font-bold text-gray-900">Content Strategy Brief</h2>
+                <p className="text-gray-500">We've generated a high-fidelity brief aligned with your {brief.brandContext ? 'brand' : 'topic'}.</p>
               </div>
               <button 
                 onClick={() => setStep(1)}
@@ -178,7 +178,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             {brief.brandContext && (
               <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl">
                 <h3 className="text-indigo-900 font-bold flex items-center gap-2 mb-2">
-                  <Globe className="w-4 h-4" /> Detected Brand Persona
+                  <Globe className="w-4 h-4" /> Brand Persona Intelligence
                 </h3>
                 <p className="text-indigo-700 text-sm leading-relaxed">{brief.brandContext}</p>
               </div>
@@ -187,7 +187,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
                 <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Primary Keywords</label>
+                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Target Keywords</label>
                   <div className="flex flex-wrap gap-2">
                     {brief.targetKeywords?.map((k, i) => (
                       <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium border border-indigo-100">{k}</span>
@@ -196,7 +196,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 </div>
 
                 <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Secondary Keywords</label>
+                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Semantic Keywords</label>
                   <div className="flex flex-wrap gap-2">
                     {brief.secondaryKeywords?.map((k, i) => (
                       <span key={i} className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium border border-gray-100">{k}</span>
@@ -226,10 +226,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                     <option>Conversational & Friendly</option>
                     <option>Technical & In-depth</option>
                     <option>Inspirational & Bold</option>
-                    <option>Humorous</option>
-                    <option>Empathetic</option>
-                    <option>Formal</option>
-                    <option>Casual</option>
+                    <option>Empathetic & Caring</option>
+                    <option>Academic & Rigorous</option>
                   </select>
                 </div>
               </div>
@@ -241,7 +239,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 disabled={loading}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Next: Review Outline <ArrowRight className="w-5 h-5" /></>}
+                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Next: Review Structure <ArrowRight className="w-5 h-5" /></>}
               </button>
             </div>
           </div>
@@ -250,8 +248,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         {step === 3 && outline && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">Article Structure</h2>
-              <p className="text-gray-500">Review the AI-generated structure before starting the writing process.</p>
+              <h2 className="text-2xl font-bold text-gray-900">AnchorChartPRO Structure</h2>
+              <p className="text-gray-500">Review the AI-generated pedagogical structure before final content synthesis.</p>
             </div>
 
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">
@@ -292,7 +290,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 onClick={() => onComplete(brief as ContentBrief, outline)}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
               >
-                Generate Final Article <Sparkles className="w-5 h-5" />
+                Synthesize Final Content <Sparkles className="w-5 h-5" />
               </button>
             </div>
           </div>

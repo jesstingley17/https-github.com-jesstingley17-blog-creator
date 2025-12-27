@@ -31,7 +31,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
           <Sparkles className="text-white w-6 h-6" />
         </div>
         <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          SEOForge
+          AnchorChartPRO
         </span>
       </div>
 
