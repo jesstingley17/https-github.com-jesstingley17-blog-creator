@@ -89,7 +89,7 @@ export const geminiService = {
 
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', // Upgraded for better structural reasoning
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -174,9 +174,9 @@ export const geminiService = {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Task: ${task}. Target Text: "${text}". Content context: "${context}". Return the improved text only with no introduction or conclusion.`,
+        contents: `Task: ${task}. Target Text: "${text}". Content context: "${context}". Return the improved text only with no introduction or conclusion. Keep Markdown if present.`,
       });
-      return response.text || text;
+      return response.text?.trim() || text;
     } catch (e) { return text; }
   },
 

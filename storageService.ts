@@ -1,6 +1,6 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
-import { GeneratedContent, ArticleMetadata } from './types';
+import { GeneratedContent, ArticleMetadata, ArticleImage } from './types';
 
 const REGISTRY_KEY = 'zr_registry';
 const ARTICLE_PREFIX = 'zr_article_';
@@ -26,7 +26,8 @@ export const storageService = {
             outline: article.outline,
             content: article.content,
             analysis: article.analysis,
-            hero_image_url: article.heroImageUrl,
+            hero_image_url: article.heroImageUrl || article.images?.find(img => img.isHero)?.url || null,
+            images: article.images,
             updated_at: new Date(article.updatedAt).toISOString()
           });
         
@@ -52,7 +53,10 @@ export const storageService = {
     const local = localStorage.getItem(`${ARTICLE_PREFIX}${id}`);
     if (local) {
       try {
-        return JSON.parse(local);
+        const parsed = JSON.parse(local);
+        // Ensure images array exists for legacy drafts
+        if (!parsed.images) parsed.images = [];
+        return parsed;
       } catch (e) {
         console.error("Failed to parse local article:", e);
       }
@@ -75,6 +79,7 @@ export const storageService = {
             content: data.content,
             analysis: data.analysis,
             heroImageUrl: data.hero_image_url,
+            images: data.images || [],
             updatedAt: new Date(data.updated_at).getTime()
           };
           localStorage.setItem(`${ARTICLE_PREFIX}${id}`, JSON.stringify(article));

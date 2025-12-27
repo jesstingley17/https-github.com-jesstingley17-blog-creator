@@ -54,13 +54,21 @@ export interface ArticleMetadata {
   updatedAt: number;
 }
 
+export interface ArticleImage {
+  url: string;
+  prompt: string;
+  id: string;
+  isHero: boolean;
+}
+
 export interface GeneratedContent {
   id: string;
   brief: ContentBrief;
   outline: ContentOutline;
   content: string;
   analysis: SEOAnalysis | null;
-  heroImageUrl: string | null;
+  heroImageUrl: string | null; // Kept for legacy compatibility
+  images: ArticleImage[];
   updatedAt: number;
 }
 

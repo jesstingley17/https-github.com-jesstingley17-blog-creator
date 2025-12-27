@@ -10,7 +10,8 @@ import {
   Tag, 
   Calendar, 
   ShieldCheck,
-  BrainCircuit
+  BrainCircuit,
+  Image as ImageIcon
 } from 'lucide-react';
 import { storageService } from '../storageService';
 import { GeneratedContent } from '../types';
@@ -68,6 +69,8 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
     );
   }
 
+  const heroImage = data.images?.find(img => img.isHero) || { url: data.heroImageUrl };
+
   return (
     <div className="min-h-screen bg-white selection:bg-indigo-100 selection:text-indigo-900">
       <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-xl z-50 border-b border-gray-50 px-8 py-4">
@@ -76,7 +79,7 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
             <div className="bg-indigo-600 p-2 rounded-xl">
               <Sparkles className="w-5 h-5 text-white" />
             </div>
-            <span className="font-black text-lg italic tracking-tighter text-gray-900">ZR SYNTHESIS</span>
+            <span className="font-black text-lg italic tracking-tighter text-gray-900 uppercase">ZR SYNTHESIS</span>
           </div>
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-full">
@@ -115,17 +118,19 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
               <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{new Date(data.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
             </div>
             <div className="flex-1" />
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest">
-              <Globe className="w-4 h-4" /> Archive Node
-            </button>
+            <div className="flex items-center gap-4">
+               <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest">
+                <Globe className="w-4 h-4" /> Archive
+              </button>
+            </div>
           </div>
         </header>
 
-        {data.heroImageUrl && (
+        {heroImage?.url && (
           <div className="mb-20">
             <img 
-              src={data.heroImageUrl} 
-              className="w-full h-[500px] object-cover rounded-[56px] shadow-2xl" 
+              src={heroImage.url} 
+              className="w-full h-[600px] object-cover rounded-[56px] shadow-2xl" 
               alt="Article Hero" 
             />
           </div>
@@ -135,7 +140,26 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
           <ReactMarkdown>{data.content}</ReactMarkdown>
         </div>
 
-        <footer className="mt-32 pt-20 border-t border-gray-100 text-center space-y-8">
+        {data.images && data.images.filter(img => !img.isHero).length > 0 && (
+          <div className="mt-32 space-y-12">
+            <div className="flex items-center gap-4">
+              <h3 className="text-sm font-black text-gray-400 uppercase tracking-[0.3em]">Asset Discourse Map</h3>
+              <div className="flex-1 h-px bg-gray-50" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {data.images.filter(img => !img.isHero).map((img, i) => (
+                <div key={i} className="group space-y-4">
+                  <div className="aspect-video rounded-[32px] overflow-hidden border border-gray-100 shadow-xl">
+                    <img src={img.url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" alt="Asset" />
+                  </div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center px-4">{img.prompt}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <footer className="mt-40 pt-20 border-t border-gray-100 text-center space-y-8">
            <div className="w-20 h-20 bg-indigo-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl shadow-indigo-100">
              <Sparkles className="w-10 h-10 text-white" />
            </div>
