@@ -11,6 +11,7 @@ export interface SavedPrompt {
   title: string;
   rawInput: string;
   optimizedPrompt: string;
+  sourceUrl?: string;
   tags: string[];
   usageCount: number;
   createdAt: number;

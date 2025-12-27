@@ -6,14 +6,14 @@ import {
   Copy, 
   Check, 
   Clock, 
-  Wand2, 
-  Plus, 
-  X, 
+  Bookmark, 
+  Zap, 
+  Tag, 
+  ArrowRight,
+  Link as LinkIcon,
+  ExternalLink,
   Loader2,
-  Bookmark,
-  Zap,
-  Tag,
-  ArrowRight
+  FileText
 } from 'lucide-react';
 import { storageService } from '../storageService';
 import { SavedPrompt } from '../types';
@@ -91,16 +91,16 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ onUsePrompt }) => {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filtered.map(prompt => (
-            <div key={prompt.id} className="bg-white rounded-[40px] border border-gray-100 p-8 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all group flex flex-col h-full relative overflow-hidden">
-               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
-                  <Zap className="w-24 h-24 text-indigo-600 rotate-12" />
-               </div>
-               
-               <div className="flex justify-between items-start mb-6">
-                 <div className="space-y-1">
-                   <h3 className="font-black text-xl text-slate-900 italic tracking-tighter line-clamp-1">{prompt.title}</h3>
+            <div key={prompt.id} className="bg-white rounded-[40px] border border-gray-100 shadow-sm hover:shadow-2xl transition-all group flex flex-col relative overflow-hidden">
+               {/* Header Section: Title and Actions */}
+               <div className="p-8 pb-4 flex justify-between items-start">
+                 <div className="space-y-1.5">
+                   <div className="flex items-center gap-2">
+                     <FileText className="w-4 h-4 text-indigo-600" />
+                     <h3 className="font-black text-2xl text-slate-900 italic tracking-tighter line-clamp-1">{prompt.title}</h3>
+                   </div>
                    <div className="flex gap-2">
                      {prompt.tags.map(tag => (
                        <span key={tag} className="text-[8px] font-black uppercase text-indigo-500 px-2 py-0.5 bg-indigo-50 rounded-md border border-indigo-100 flex items-center gap-1">
@@ -109,35 +109,60 @@ const PromptLibrary: React.FC<PromptLibraryProps> = ({ onUsePrompt }) => {
                      ))}
                    </div>
                  </div>
-                 <button onClick={() => handleDelete(prompt.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-4 h-4" /></button>
+                 <button onClick={() => handleDelete(prompt.id)} className="p-2 text-slate-200 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 className="w-5 h-5" /></button>
                </div>
 
-               <div className="flex-1 mb-8">
-                 <div className="p-5 bg-slate-50 rounded-2xl border border-slate-100 max-h-40 overflow-y-auto custom-scrollbar">
-                    <p className="text-xs font-bold text-slate-600 leading-relaxed italic line-clamp-4">"{prompt.optimizedPrompt}"</p>
+               {/* Content Box Section: Optimized Prompt Text */}
+               <div className="px-8 flex-1">
+                 <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800 shadow-inner group-hover:ring-2 group-hover:ring-indigo-500/50 transition-all">
+                    <p className="text-xs font-mono text-indigo-300 mb-2 uppercase tracking-widest opacity-40 font-black">Strategic Content Box</p>
+                    <p className="text-sm font-bold text-white leading-relaxed italic">"{prompt.optimizedPrompt}"</p>
                  </div>
                </div>
 
-               <div className="flex items-center justify-between pt-6 border-t border-slate-50">
-                 <div className="flex items-center gap-2">
-                    <Clock className="w-3 h-3 text-slate-300" />
-                    <span className="text-[9px] font-black uppercase text-slate-300 tracking-widest">{new Date(prompt.createdAt).toLocaleDateString()}</span>
+               {/* URL Section: Citations and References */}
+               <div className="p-8 pt-6 space-y-4">
+                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group/url">
+                   <div className="flex items-center gap-3">
+                     <div className="p-2 bg-white rounded-lg shadow-sm">
+                       <LinkIcon className="w-3.5 h-3.5 text-slate-400" />
+                     </div>
+                     <div className="overflow-hidden">
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Source Citation</p>
+                        <p className="text-[10px] font-bold text-slate-600 truncate max-w-[200px] md:max-w-[300px]">
+                          {prompt.sourceUrl || "No author page cited."}
+                        </p>
+                     </div>
+                   </div>
+                   {prompt.sourceUrl && (
+                     <a href={prompt.sourceUrl} target="_blank" className="p-2 hover:bg-white hover:text-indigo-600 text-slate-300 rounded-lg transition-all">
+                       <ExternalLink className="w-4 h-4" />
+                     </a>
+                   )}
                  </div>
-                 <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleCopy(prompt)} 
-                      className={`p-3 rounded-xl border border-slate-100 transition-all active:scale-90 ${copyingId === prompt.id ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-white text-slate-400 hover:text-indigo-600'}`}
-                    >
-                      {copyingId === prompt.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    {onUsePrompt && (
+
+                 <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                   <div className="flex items-center gap-2">
+                      <Clock className="w-3 h-3 text-slate-300" />
+                      <span className="text-[9px] font-black uppercase text-slate-300 tracking-widest">{new Date(prompt.createdAt).toLocaleDateString()}</span>
+                   </div>
+                   <div className="flex gap-2">
                       <button 
-                        onClick={() => onUsePrompt(prompt.optimizedPrompt)}
-                        className="p-3 bg-slate-900 text-white rounded-xl shadow-lg shadow-slate-100 hover:bg-indigo-600 transition-all active:scale-95 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+                        onClick={() => handleCopy(prompt)} 
+                        className={`px-4 py-2.5 rounded-xl border border-slate-100 transition-all active:scale-90 flex items-center gap-2 text-[9px] font-black uppercase tracking-widest ${copyingId === prompt.id ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-white text-slate-400 hover:text-indigo-600'}`}
                       >
-                        Deploy <ArrowRight className="w-3 h-3" />
+                        {copyingId === prompt.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copyingId === prompt.id ? 'Copied' : 'Copy Node'}
                       </button>
-                    )}
+                      {onUsePrompt && (
+                        <button 
+                          onClick={() => onUsePrompt(prompt.optimizedPrompt)}
+                          className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-100 hover:bg-indigo-700 transition-all active:scale-95 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+                        >
+                          Deploy Strategy <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                   </div>
                  </div>
                </div>
             </div>

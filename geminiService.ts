@@ -43,10 +43,11 @@ export const geminiService = {
     Input: "${rawInput}"
     Requirements:
     1. Remove conversational noise.
-    2. Identify core technical keywords.
+    2. Identify core technical keywords (especially engineering or professional terms).
     3. Suggest a professional 'Angle' or 'Hook'.
     4. Format as a clean, actionable instruction.
-    Return a JSON object with 'title', 'optimizedPrompt', and 'tags'.`;
+    5. Detect if a URL or author page is mentioned and extract it.
+    Return a JSON object with 'title', 'optimizedPrompt', 'sourceUrl', and 'tags'.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -59,6 +60,7 @@ export const geminiService = {
             properties: {
               title: { type: Type.STRING },
               optimizedPrompt: { type: Type.STRING },
+              sourceUrl: { type: Type.STRING, description: 'Extracted author page or reference URL' },
               tags: { type: Type.ARRAY, items: { type: Type.STRING } }
             },
             required: ['title', 'optimizedPrompt', 'tags']
@@ -114,10 +116,11 @@ export const geminiService = {
   async discoverBacklinks(topic: string, keywords: string[]): Promise<BacklinkOpportunity[]> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as an SEO link-building specialist. 
+    const prompt = `Act as an SEO backlink engineer. 
     Topic: "${topic}". 
     Keywords: ${keywords.join(', ')}. 
-    Find 5-7 high-authority websites and specific pages that would be perfect for backlink outreach or content guest posting.
+    Use Google Search to find 5-7 HIGH-AUTHORITY websites, engineering blogs, or technical resources that would be perfect for backlink outreach.
+    Return a list of specific URLs and why they are valuable.
     Return as JSON.`;
 
     try {
@@ -289,8 +292,32 @@ export const geminiService = {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Analyze SEO for: "${text.substring(0, 3000)}". Primary keywords: ${keywords.join(', ')}. Evaluate authority and keyword semantic depth.`,
-        config: { responseMimeType: 'application/json' }
+        contents: `Analyze the following article for SEO effectiveness. Primary keywords: ${keywords.join(', ')}.
+        Article: "${text.substring(0, 5000)}".
+        Calculate a score from 0-100, suggest improvements, and analyze keyword presence.
+        Return as JSON.`,
+        config: { 
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              score: { type: Type.NUMBER },
+              readability: { type: Type.STRING },
+              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+              keywordSuggestions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    keyword: { type: Type.STRING },
+                    action: { type: Type.STRING },
+                    explanation: { type: Type.STRING }
+                  }
+                }
+              }
+            }
+          }
+        }
       });
       const parsed = extractJson(response.text || '{}');
       return {
@@ -318,12 +345,12 @@ export const geminiService = {
   async optimizeContent(text: string, brief: ContentBrief, author: any): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as ${author.name}. This is an SEO OPTIMIZATION PASS for your article. 
+    const prompt = `Act as ${author.name}, a professional ${author.title}. This is an SEO OPTIMIZATION PASS for your article. 
     Bio Context: ${author.bio}.
-    Content: ${text}. 
-    Keywords: ${brief.targetKeywords.join(', ')}.
-    Task: Refine the content to ensure it reads like your authoritative voice. Improve flow, ensure Markdown tables are perfect, and ensure keywords are naturally woven in based on your specific industry expertise.
-    Return only the optimized Markdown.`;
+    Keywords to amplify: ${brief.targetKeywords.join(', ')}.
+    Content to refine: "${text}". 
+    Task: Improve the semantic richness, ensure engineering standards are met (if applicable), optimize keyword distribution without stuffing, and refine the Markdown formatting.
+    Return only the optimized Markdown article.`;
 
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',

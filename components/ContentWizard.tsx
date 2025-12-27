@@ -13,7 +13,8 @@ import {
   Wand2,
   X,
   Check,
-  Save
+  Save,
+  Link as LinkIcon
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
@@ -92,6 +93,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       title: refinedData.title || "Optimized Brief",
       rawInput: topic,
       optimizedPrompt: refinedData.optimizedPrompt || topic,
+      sourceUrl: refinedData.sourceUrl,
       tags: refinedData.tags || ["General"],
       usageCount: 0,
       createdAt: Date.now()
@@ -315,7 +317,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
                <div className="space-y-4">
                   <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Raw Input Node</label>
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 h-64 overflow-y-auto text-sm font-medium text-slate-500 italic leading-relaxed">
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 h-80 overflow-y-auto text-sm font-medium text-slate-500 italic leading-relaxed">
                      {topic}
                   </div>
                </div>
@@ -327,17 +329,33 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                        {refinedData?.tags?.slice(0, 2).map(tag => <span key={tag} className="text-[8px] font-black uppercase px-2 py-1 bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">{tag}</span>)}
                     </div>
                   </div>
-                  <div className="p-6 bg-white rounded-3xl border-2 border-indigo-600 h-64 overflow-y-auto shadow-xl shadow-indigo-50">
-                    {isRefining ? (
-                       <div className="flex flex-col items-center justify-center h-full gap-4">
-                         <Loader2 className="w-10 h-10 animate-spin text-indigo-300" />
-                         <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Processing Intelligence...</p>
-                       </div>
-                    ) : (
-                      <div className="text-base font-bold text-slate-800 leading-relaxed">
-                         {refinedData?.optimizedPrompt}
+                  <div className="space-y-4">
+                    <div className="p-6 bg-slate-900 rounded-3xl border-2 border-indigo-600 h-64 overflow-y-auto shadow-xl shadow-indigo-50">
+                      {isRefining ? (
+                         <div className="flex flex-col items-center justify-center h-full gap-4">
+                           <Loader2 className="w-10 h-10 animate-spin text-indigo-300" />
+                           <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Processing Intelligence...</p>
+                         </div>
+                      ) : (
+                        <div className="text-base font-bold text-white leading-relaxed italic">
+                           {refinedData?.optimizedPrompt}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <LinkIcon className="w-3 h-3 text-slate-400" />
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Author / Source URL</label>
                       </div>
-                    )}
+                      <input 
+                        type="text"
+                        value={refinedData?.sourceUrl || ''}
+                        onChange={e => setRefinedData(prev => ({ ...prev, sourceUrl: e.target.value }))}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-indigo-600 outline-none focus:border-indigo-600 transition-all"
+                        placeholder="https://authorpage.com/profile"
+                      />
+                    </div>
                   </div>
                </div>
             </div>

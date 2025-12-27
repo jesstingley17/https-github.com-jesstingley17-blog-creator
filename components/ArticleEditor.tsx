@@ -204,14 +204,19 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setIsOptimizing(true);
     setOptimizationLogs([]);
     addOptLog('Analyzing semantic structure...');
-    addOptLog('Optimizing keyword density...');
+    addOptLog('Optimizing keyword distribution...');
     
     try {
       const optimized = await geminiService.optimizeContent(content, brief, brief.author);
       setContent(optimized);
-      performAnalysis(optimized);
-      setTimeout(() => setIsOptimizing(false), 1500);
-    } catch (e) { setIsOptimizing(false); }
+      addOptLog('Calculating new SEO scores...');
+      await performAnalysis(optimized);
+      addOptLog('Optimization complete.');
+      setTimeout(() => setIsOptimizing(false), 2000);
+    } catch (e) { 
+      console.error(e);
+      setIsOptimizing(false); 
+    }
   };
 
   const handleDiscoverBacklinks = async () => {
@@ -241,7 +246,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const heroImage = articleImages.find(img => img.isHero);
 
   return (
-    <div className="flex h-full gap-6 animate-in fade-in duration-500 overflow-hidden pr-4">
+    <div className="flex h-screen gap-6 overflow-hidden">
+      {/* Main Content Area - Scrollable */}
       <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
         <header className="px-6 py-4 border-b flex items-center justify-between bg-white/90 backdrop-blur-md sticky top-0 z-40">
           <div className="flex items-center gap-4">
@@ -273,7 +279,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 md:p-12 lg:p-16 custom-scrollbar bg-white">
+        <div className="flex-1 overflow-y-auto p-8 md:p-12 lg:p-16 custom-scrollbar bg-white scroll-smooth">
           {!hasStarted ? (
             <div className="max-w-3xl mx-auto space-y-10 py-10">
                <div className="text-center space-y-3">
@@ -298,7 +304,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-12 pb-32">
-              {/* Author Perspective Card - Balanced and Clear */}
+              {/* Author Perspective Card */}
               <div className="p-8 bg-slate-50/50 rounded-3xl border border-slate-100 flex flex-col md:flex-row items-center md:items-start gap-8 shadow-sm">
                 <div className="w-20 h-20 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden relative ring-4 ring-white group cursor-default">
                   {brief.author.photoUrl ? (
@@ -375,18 +381,41 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         </div>
       </div>
 
-      <div className="w-80 flex-shrink-0 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-12">
+      {/* Right Sidebar - Scrollable independently */}
+      <div className="w-80 flex-shrink-0 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-12 pr-1">
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-6 space-y-6">
           <h3 className="font-bold text-slate-900 text-xs uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-indigo-600" /> SEO Analysis</h3>
-          <div className="text-center py-6 bg-slate-50 rounded-[24px] border border-slate-100">
+          <div className="text-center py-6 bg-slate-50 rounded-[24px] border border-slate-100 relative overflow-hidden">
+            {isOptimizing && (
+              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm z-10 flex flex-col items-center justify-center p-4">
+                 <Loader2 className="w-8 h-8 animate-spin text-indigo-600 mb-2" />
+                 <p className="text-[8px] font-black text-indigo-600 uppercase tracking-widest text-center">Re-Calculating Logic...</p>
+              </div>
+            )}
             <div className="text-7xl font-black text-indigo-600 tracking-tighter">
-              {analyzing ? <Loader2 className="w-12 h-12 animate-spin mx-auto text-indigo-100" /> : analysis?.score || 0}
+              {analyzing ? <Loader2 className="w-12 h-12 animate-spin mx-auto text-indigo-100" /> : (analysis?.score || 0)}
             </div>
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Authority Score</p>
           </div>
-          <button onClick={handleFullOptimization} disabled={isOptimizing || !content} className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95">
-            <Zap className="w-4 h-4 text-indigo-400" /> Re-Optimize SEO
+          
+          <button 
+            onClick={handleFullOptimization} 
+            disabled={isOptimizing || !content} 
+            className={`w-full py-4 rounded-2xl font-bold text-xs flex items-center justify-center gap-3 shadow-lg transition-all active:scale-95 ${
+              isOptimizing ? 'bg-slate-100 text-slate-400' : 'bg-slate-900 hover:bg-slate-800 text-white'
+            }`}
+          >
+            {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-indigo-400" />}
+            {isOptimizing ? 'Synthesizing...' : 'Re-Optimize SEO'}
           </button>
+          
+          {optimizationLogs.length > 0 && (
+            <div className="space-y-1 mt-4">
+              {optimizationLogs.map((log, i) => (
+                <p key={i} className="text-[8px] font-mono text-slate-400 border-l border-slate-100 pl-2 leading-tight">{log}</p>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="bg-slate-950 rounded-[32px] p-6 space-y-6 shadow-xl relative overflow-hidden">

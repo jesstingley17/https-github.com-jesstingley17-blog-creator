@@ -162,9 +162,9 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
       <Sidebar currentRoute={currentRoute} setRoute={setRoute} />
-      <main className="flex-1 ml-64 p-8">
+      <main className="flex-1 ml-64 p-8 h-screen overflow-y-auto custom-scrollbar">
         {renderContent()}
       </main>
     </div>
