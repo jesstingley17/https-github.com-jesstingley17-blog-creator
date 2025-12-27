@@ -1,0 +1,8 @@
+{
+  "name": "SEOForge Content Generator",
+  "description": "A professional AI-powered SEO content creation platform that generates briefs, outlines, and high-ranking articles with real-time SEO analysis and search grounding.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
