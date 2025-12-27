@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnchorChartPRO - AI SEO Suite</title>
+  <title>AnchorChartPRO - AI SEO Content Suite</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,21 +14,21 @@
   </script>
   <style>
     :root {
-      /* Darker, high-contrast pinks */
-      --primary: #be185d; /* Rose 700 */
+      --primary: #be185d; /* Dark Rose 700 - Highly Legible */
+      --primary-dark: #9d174d; /* Rose 800 */
       --secondary: #fdf2f8; /* Rose 50 */
-      --accent: #9d174d; /* Rose 800 */
-      --bg: #fff1f2; /* Rose 50 */
-      --anchor-teal: #0d9488; /* Teal 600 */
+      --accent-teal: #0d9488; /* Teal 600 */
+      --text-main: #310d20;
+      --bg-soft: #fff1f2;
     }
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg);
-      color: #310d20;
+      background-color: var(--bg-soft);
+      color: var(--text-main);
     }
 
-    h1, h2, h3, .font-heading {
+    h1, h2, h3, h4, .font-heading {
       font-family: 'Outfit', sans-serif;
     }
 
@@ -41,59 +41,62 @@
     }
 
     .girly-shadow {
-      box-shadow: 0 10px 40px -10px rgba(190, 24, 93, 0.15);
+      box-shadow: 0 10px 40px -10px rgba(157, 23, 77, 0.2);
     }
 
     .markdown-body {
-      color: #310d20;
-      line-height: 1.7;
+      color: var(--text-main);
+      line-height: 1.8;
+      font-size: 1.1rem;
     }
-    .markdown-body h1 { font-size: 2.8rem; font-weight: 800; margin: 2rem 0; color: #310d20; letter-spacing: -0.02em; line-height: 1.1; }
-    .markdown-body h2 { font-size: 2rem; font-weight: 700; margin: 2.5rem 0 1.5rem; color: #4a042e; border-bottom: 3px solid #fbcfe8; padding-bottom: 0.5rem; }
-    .markdown-body blockquote { border-left: 5px solid #be185d; background: white; padding: 1.5rem; font-style: italic; border-radius: 0 1rem 1rem 0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+    .markdown-body h1 { font-size: 3rem; font-weight: 800; margin: 2rem 0; color: #1a0611; letter-spacing: -0.02em; font-family: 'Outfit'; }
+    .markdown-body h2 { font-size: 2.25rem; font-weight: 700; margin: 2.5rem 0 1.5rem; color: #310d20; border-bottom: 2px solid #fce7f3; padding-bottom: 0.5rem; font-family: 'Outfit'; }
+    .markdown-body h3 { font-size: 1.75rem; font-weight: 700; margin: 2rem 0 1rem; color: #4a042e; font-family: 'Outfit'; }
+    .markdown-body p { margin-bottom: 1.5rem; }
+    .markdown-body blockquote { border-left: 6px solid var(--primary); background: white; padding: 1.5rem 2rem; font-style: italic; border-radius: 0 1.5rem 1.5rem 0; margin: 2rem 0; }
     
     .markdown-body table { 
       width: 100%; 
-      margin: 2.5rem 0; 
+      margin: 3rem 0; 
       border-collapse: separate; 
       border-spacing: 0;
-      border: 2px solid #fbcfe8;
+      border: 2px solid #fce7f3;
       border-radius: 1.5rem;
       overflow: hidden;
       background: white;
-      box-shadow: 0 4px 15px rgba(190, 24, 93, 0.05);
     }
     .markdown-body th { 
       background-color: #fdf2f8; 
-      padding: 1.25rem; 
+      padding: 1.5rem; 
       text-align: left; 
       font-weight: 800; 
-      color: #9d174d; 
+      color: var(--primary); 
       text-transform: uppercase;
-      font-size: 0.75rem;
-      border-bottom: 2px solid #fbcfe8;
+      font-size: 0.85rem;
+      border-bottom: 2px solid #fce7f3;
     }
     .markdown-body td { 
-      padding: 1rem 1.25rem; 
+      padding: 1.25rem 1.5rem; 
       border-bottom: 1px solid #fce7f3; 
       color: #4a042e;
-      font-size: 0.95rem;
     }
     .markdown-body tr:last-child td { border-bottom: none; }
 
     .custom-scrollbar::-webkit-scrollbar { width: 8px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 10px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #be185d; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #fce7f3; border-radius: 10px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-    .pill-input {
-      border-radius: 9999px;
-      border: 2px solid #fbcfe8;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    .input-field {
+      border-radius: 1.5rem;
+      border: 2px solid #fce7f3;
+      transition: all 0.2s ease;
+      background: white;
     }
-    .pill-input:focus {
-      border-color: #be185d;
-      box-shadow: 0 0 15px rgba(190, 24, 93, 0.1);
+    .input-field:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(190, 24, 93, 0.05);
+      outline: none;
     }
   </style>
 <script type="importmap">
