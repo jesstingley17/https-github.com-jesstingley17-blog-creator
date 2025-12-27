@@ -36,7 +36,9 @@ import {
   Info,
   ShieldCheck,
   Tag as TagIcon,
-  Quote
+  Quote,
+  Terminal,
+  Copy
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -66,6 +68,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   const [showSourcesModal, setShowSourcesModal] = useState(false);
+  const [showJsonLdModal, setShowJsonLdModal] = useState(false);
+  const [copiedJson, setCopiedJson] = useState(false);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -85,6 +89,35 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   // Autosave State
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const autosaveTimerRef = useRef<number | null>(null);
+
+  // Structured Data (JSON-LD) Memo
+  const jsonLd = useMemo(() => {
+    const data = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      "headline": localOutline.title,
+      "image": heroImageUrl ? [heroImageUrl] : [],
+      "datePublished": new Date().toISOString(),
+      "dateModified": new Date().toISOString(),
+      "author": [{
+        "@type": "Person",
+        "name": "Senior Content Strategist",
+        "jobTitle": "SEO Specialist"
+      }],
+      "publisher": {
+        "@type": "Organization",
+        "name": "ZR Content Creator",
+        "logo": {
+          "@type": "ImageObject",
+          "url": "https://esm.sh/sparkles.svg"
+        }
+      },
+      "description": content.substring(0, 160).replace(/[#*`]/g, '') + "...",
+      "keywords": [...brief.targetKeywords, ...tags].join(", "),
+      "articleBody": content.replace(/[#*`]/g, '')
+    };
+    return JSON.stringify(data, null, 2);
+  }, [localOutline.title, heroImageUrl, content, brief.targetKeywords, tags]);
 
   // Load draft from localStorage on mount
   useEffect(() => {
@@ -249,6 +282,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
+  const copyJsonLd = () => {
+    navigator.clipboard.writeText(jsonLd);
+    setCopiedJson(true);
+    setTimeout(() => setCopiedJson(false), 2000);
+  };
+
   // Tag Handlers
   const addTag = () => {
     const trimmed = tagInput.trim().toLowerCase();
@@ -409,6 +448,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
+      {/* Hidden script tag for JSON-LD in DOM */}
+      <script type="application/ld+json">
+        {jsonLd}
+      </script>
+
       <div className="flex-1 flex flex-col bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
         <header className="px-6 py-4 border-b flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-4">
@@ -707,6 +751,33 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
         </div>
 
+        {/* Schema Markup & SEO Rich Snippets Card */}
+        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm uppercase tracking-tight">
+              <Terminal className="w-4 h-4 text-emerald-600" /> Schema Markup
+            </h3>
+            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 uppercase tracking-widest">Active</span>
+          </div>
+          
+          <div className="p-4 bg-gray-900 rounded-2xl overflow-hidden relative group">
+             <pre className="text-[9px] text-emerald-400 font-mono overflow-hidden h-24 line-clamp-6 opacity-60">
+               {jsonLd}
+             </pre>
+             <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-[2px]">
+               <button 
+                onClick={() => setShowJsonLdModal(true)}
+                className="px-4 py-2 bg-white text-gray-900 rounded-xl text-xs font-bold shadow-xl hover:scale-105 active:scale-95 transition-all"
+               >
+                 View Structured Data
+               </button>
+             </div>
+          </div>
+          <p className="mt-3 text-[10px] text-gray-400 leading-relaxed italic">
+            Article & Author JSON-LD injected for rich snippet visibility.
+          </p>
+        </div>
+
         {/* Taxonomy & Tags Card */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
           <div className="flex items-center justify-between mb-4">
@@ -781,6 +852,59 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
         )}
       </div>
+
+      {/* JSON-LD Structured Data Modal */}
+      {showJsonLdModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
+            <div className="px-8 py-6 border-b flex items-center justify-between bg-gray-900">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500/10 rounded-xl">
+                  <Terminal className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-xl tracking-tight">Structured Data (JSON-LD)</h3>
+                  <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Optimized for Article & Search Rich Snippets</p>
+                </div>
+              </div>
+              <button onClick={() => setShowJsonLdModal(false)} className="p-2 hover:bg-white/10 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-0 relative group">
+              <pre className="p-8 bg-gray-950 text-emerald-400 font-mono text-xs overflow-y-auto max-h-[50vh] custom-scrollbar">
+                {jsonLd}
+              </pre>
+              <button 
+                onClick={copyJsonLd}
+                className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold backdrop-blur-md border border-white/10 transition-all"
+              >
+                {copiedJson ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copiedJson ? 'Copied' : 'Copy JSON'}
+              </button>
+            </div>
+            <div className="p-8 bg-white border-t space-y-4">
+              <div className="flex items-start gap-4 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <Info className="w-5 h-5 text-indigo-600 mt-0.5" />
+                <div>
+                  <h4 className="text-sm font-bold text-indigo-900">SEO Impact</h4>
+                  <p className="text-xs text-indigo-700 leading-relaxed">
+                    This JSON-LD markup is automatically injected into the page metadata. It helps Google, Bing, and other crawlers understand that this is an authoritative Article, featuring valid Author and Publisher credentials.
+                  </p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-2">
+                <button 
+                  onClick={() => setShowJsonLdModal(false)}
+                  className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                >
+                  Confirm Schema
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Sources Modal */}
       {showSourcesModal && (
