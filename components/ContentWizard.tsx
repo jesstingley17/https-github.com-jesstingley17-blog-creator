@@ -100,7 +100,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-8">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold text-gray-900">Configure Your Content</h2>
-              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity via AnchorChartPRO.</p>
+              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity via ZR Content Creator.</p>
             </div>
             
             <div className="space-y-4 text-left">
@@ -248,8 +248,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         {step === 3 && outline && (
           <div className="space-y-8 animate-in fade-in duration-500">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">AnchorChartPRO Structure</h2>
-              <p className="text-gray-500">Review the AI-generated pedagogical structure before final content synthesis.</p>
+              <h2 className="text-2xl font-bold text-gray-900">ZR Content Creator Structure</h2>
+              <p className="text-gray-500">Review the AI-generated structure before final content synthesis.</p>
             </div>
 
             <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">

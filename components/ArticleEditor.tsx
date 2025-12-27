@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
   Save, 
@@ -8,37 +8,24 @@ import {
   BarChart2, 
   Loader2, 
   Trophy, 
-  CheckCircle, 
-  AlertCircle, 
-  Info, 
   Plus, 
   Trash2, 
-  GripVertical, 
   Play, 
-  Pencil, 
-  Image as ImageIcon, 
-  Sparkles, 
-  RefreshCw,
   Eye,
   Code,
   List,
   Type,
-  Link as LinkIcon,
-  ExternalLink,
-  X,
   BookOpen,
-  Key,
-  Tag as TagIcon,
-  Calendar,
-  Clock,
-  Send,
-  Globe,
-  History as HistoryIcon,
   RotateCcw,
   ChevronUp,
   ChevronDown,
   Zap,
-  Target
+  Target,
+  Layers,
+  Search,
+  ExternalLink,
+  X,
+  History as HistoryIcon
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -69,23 +56,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   const [showSourcesModal, setShowSourcesModal] = useState(false);
   
-  // Tag State
-  const [tags, setTags] = useState<string[]>(brief.targetKeywords || []);
-  const [tagInput, setTagInput] = useState('');
-
-  // Hero Image State
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
-
-  // Outline Editing State
   const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
-
-  // Scheduling State
-  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [scheduleTime, setScheduleTime] = useState('09:00');
-  const [schedulePlatform, setSchedulePlatform] = useState<'LinkedIn' | 'Twitter' | 'Facebook' | 'Blog'>('Blog');
-  const [isScheduling, setIsScheduling] = useState(false);
-
-  // Version History State
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
 
@@ -94,13 +66,13 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       id: Math.random().toString(36).substring(2, 9),
       timestamp: Date.now(),
       content: content,
-      outline: JSON.parse(JSON.stringify(localOutline)) // Deep clone
+      outline: JSON.parse(JSON.stringify(localOutline))
     };
     setVersions(prev => [newVersion, ...prev]);
   };
 
   const restoreVersion = (version: ArticleVersion) => {
-    if (confirm("Are you sure you want to restore this version? Current changes will be lost unless saved as a version first.")) {
+    if (confirm("Restore this version? Unsaved changes will be lost.")) {
       setContent(version.content);
       setLocalOutline(JSON.parse(JSON.stringify(version.outline)));
       performAnalysis(version.content);
@@ -163,82 +135,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     const fileName = brief.topic.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     link.download = `${fileName || 'article'}.md`;
     document.body.appendChild(link);
+    link.href = url;
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
   };
 
-  const handleSchedule = () => {
-    if (!onSchedule) return;
-    setIsScheduling(true);
-    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
-    
-    const newPost: ScheduledPost = {
-      id: Math.random().toString(36).substr(2, 9),
-      articleId: brief.id || 'new-article',
-      title: localOutline.title,
-      date: scheduledDateTime,
-      platform: schedulePlatform
-    };
-
-    setTimeout(() => {
-      onSchedule(newPost);
-      setIsScheduling(false);
-      alert(`Article scheduled for ${schedulePlatform} on ${scheduleDate} at ${scheduleTime}`);
-    }, 800);
-  };
-
-  const scoreColor = (score: number) => {
-    if (score > 80) return 'text-green-600';
-    if (score > 50) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const getScoreBreakdown = () => {
-    if (!analysis) return [];
-    const score = analysis.score;
-    return [
-      { label: 'Keyword Synergy', val: Math.round(score * 0.95), weight: 30 },
-      { label: 'Semantic Depth', val: Math.min(100, Math.round(score * 1.02)), weight: 40 },
-      { label: 'Readability', val: analysis.readability === 'Professional' ? 95 : 85, weight: 20 },
-      { label: 'Structure', val: 90, weight: 10 },
-    ];
-  };
-
-  const generateOptimizedImagePrompt = (): string => {
-    const title = localOutline.title;
-    const topic = brief.topic;
-    const keyThemes = brief.targetKeywords.slice(0, 3).join(', ');
-    
-    return `A professional, high-end editorial blog header image for an article titled "${title}". 
-The scene should conceptually represent "${topic}" with subtle visual motifs of ${keyThemes}. 
-Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of field, 8k resolution, photorealistic textures, corporate-modern color palette, premium magazine quality.`;
-  };
-
-  const addTag = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    const cleanTag = tagInput.trim().toLowerCase();
-    if (cleanTag && !tags.includes(cleanTag)) {
-      setTags([...tags, cleanTag]);
-      setTagInput('');
-    }
-  };
-
-  const removeTag = (tagToRemove: string) => {
-    setTags(tags.filter(t => t !== tagToRemove));
-  };
-
-  // --- Outline Mutation Helpers ---
-
-  const updateTitle = (val: string) => {
-    setLocalOutline({ ...localOutline, title: val });
-  };
-
-  const updateSectionHeading = (index: number, val: string) => {
-    const newSections = [...localOutline.sections];
-    newSections[index].heading = val;
-    setLocalOutline({ ...localOutline, sections: newSections });
-  };
+  // --- Outline Mutation Logic ---
+  const updateTitle = (val: string) => setLocalOutline({ ...localOutline, title: val });
 
   const addSection = () => {
     setLocalOutline({
@@ -247,78 +151,107 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
     });
   };
 
-  const removeSection = (index: number) => {
-    const newSections = localOutline.sections.filter((_, i) => i !== index);
-    setLocalOutline({ ...localOutline, sections: newSections });
-  };
-
-  const moveSection = (index: number, direction: -1 | 1) => {
-    const newIndex = index + direction;
-    if (newIndex < 0 || newIndex >= localOutline.sections.length) return;
+  const updateSectionHeading = (idx: number, val: string) => {
     const newSections = [...localOutline.sections];
-    const temp = newSections[index];
-    newSections[index] = newSections[newIndex];
-    newSections[newIndex] = temp;
+    newSections[idx].heading = val;
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const addSubheading = (sectionIdx: number) => {
+  const removeSection = (idx: number) => {
+    setLocalOutline({ ...localOutline, sections: localOutline.sections.filter((_, i) => i !== idx) });
+  };
+
+  const moveSection = (idx: number, dir: number) => {
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= localOutline.sections.length) return;
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].subheadings.push('New Subheading');
+    [newSections[idx], newSections[newIdx]] = [newSections[newIdx], newSections[idx]];
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const updateSubheading = (sectionIdx: number, subIdx: number, val: string) => {
+  const addSubheading = (sIdx: number) => {
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].subheadings[subIdx] = val;
+    newSections[sIdx].subheadings.push('New Subheading');
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const removeSubheading = (sectionIdx: number, subIdx: number) => {
+  const updateSubheading = (sIdx: number, subIdx: number, val: string) => {
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].subheadings = newSections[sectionIdx].subheadings.filter((_, i) => i !== subIdx);
+    newSections[sIdx].subheadings[subIdx] = val;
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const moveSubheading = (sectionIdx: number, subIdx: number, direction: -1 | 1) => {
-    const newIndex = subIdx + direction;
-    if (newIndex < 0 || newIndex >= localOutline.sections[sectionIdx].subheadings.length) return;
+  const removeSubheading = (sIdx: number, subIdx: number) => {
     const newSections = [...localOutline.sections];
-    const temp = newSections[sectionIdx].subheadings[subIdx];
-    newSections[sectionIdx].subheadings[subIdx] = newSections[sectionIdx].subheadings[newIndex];
-    newSections[sectionIdx].subheadings[newIndex] = temp;
+    newSections[sIdx].subheadings = newSections[sIdx].subheadings.filter((_, i) => i !== subIdx);
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const addKeyPoint = (sectionIdx: number) => {
+  const moveSubheading = (sIdx: number, subIdx: number, dir: number) => {
+    const newIdx = subIdx + dir;
+    if (newIdx < 0 || newIdx >= localOutline.sections[sIdx].subheadings.length) return;
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].keyPoints.push('New Key Point');
+    [newSections[sIdx].subheadings[subIdx], newSections[sIdx].subheadings[newIdx]] = [newSections[sIdx].subheadings[newIdx], newSections[sIdx].subheadings[subIdx]];
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const updateKeyPoint = (sectionIdx: number, pointIdx: number, val: string) => {
+  const addKeyPoint = (sIdx: number) => {
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].keyPoints[pointIdx] = val;
+    newSections[sIdx].keyPoints.push('New Key Point');
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const removeKeyPoint = (sectionIdx: number, pointIdx: number) => {
+  const updateKeyPoint = (sIdx: number, pIdx: number, val: string) => {
     const newSections = [...localOutline.sections];
-    newSections[sectionIdx].keyPoints = newSections[sectionIdx].keyPoints.filter((_, i) => i !== pointIdx);
+    newSections[sIdx].keyPoints[pIdx] = val;
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const moveKeyPoint = (sectionIdx: number, pointIdx: number, direction: -1 | 1) => {
-    const newIndex = pointIdx + direction;
-    if (newIndex < 0 || newIndex >= localOutline.sections[sectionIdx].keyPoints.length) return;
+  const removeKeyPoint = (sIdx: number, pIdx: number) => {
     const newSections = [...localOutline.sections];
-    const temp = newSections[sectionIdx].keyPoints[pointIdx];
-    newSections[sectionIdx].keyPoints[pointIdx] = newSections[sectionIdx].keyPoints[newIndex];
-    newSections[sectionIdx].keyPoints[newIndex] = temp;
+    newSections[sIdx].keyPoints = newSections[sIdx].keyPoints.filter((_, i) => i !== pIdx);
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  const heroImagePrompt = generateOptimizedImagePrompt();
+  const moveKeyPoint = (sIdx: number, pIdx: number, dir: number) => {
+    const newIdx = pIdx + dir;
+    if (newIdx < 0 || newIdx >= localOutline.sections[sIdx].keyPoints.length) return;
+    const newSections = [...localOutline.sections];
+    [newSections[sIdx].keyPoints[pIdx], newSections[sIdx].keyPoints[newIdx]] = [newSections[sIdx].keyPoints[newIdx], newSections[sIdx].keyPoints[pIdx]];
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const scoreColor = (score: number) => {
+    if (score > 80) return 'text-green-600';
+    if (score > 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  // Fix: Explicitly cast Object.values to number[] and ensure analysis.score is treated as number to avoid arithmetic operation errors
+  const getScoreBreakdown = () => {
+    if (!analysis) return [];
+    
+    const densities = Object.values(analysis.keywordDensity) as number[];
+    const avgDensity = densities.length > 0 ? (densities.reduce((a: number, b: number) => a + b, 0) / densities.length) * 40 : 0;
+    
+    const readabilityMap: Record<string, number> = {
+      'Advanced': 65,
+      'Professional': 95,
+      'Conversational': 85,
+      'Simple': 75
+    };
+
+    return [
+      { label: 'Keyword Density', val: Math.min(100, Math.round(avgDensity)), icon: Target },
+      { label: 'Readability', val: readabilityMap[analysis.readability] || 80, icon: Type },
+      { label: 'Structure', val: localOutline.sections.length > 4 ? 95 : 75, icon: Layers },
+      { label: 'Semantic Depth', val: Math.min(100, Math.round((analysis.score || 0) * 1.05)), icon: Search },
+    ];
+  };
+
+  const defaultImagePrompt = useMemo(() => {
+    return `A professional editorial hero image for an article titled "${localOutline.title}". Style: clean modern minimalism, cinematic lighting, corporate professional aesthetic, high resolution 8k.`;
+  }, [localOutline.title]);
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
@@ -336,8 +269,8 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                   type="text"
                   value={localOutline.title}
                   onChange={(e) => updateTitle(e.target.value)}
-                  className="font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 text-xl w-[400px]"
-                  placeholder="Article Title..."
+                  className="font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 text-xl w-[400px] placeholder:text-gray-300"
+                  placeholder="Draft Title..."
                 />
                </div>
             ) : (
@@ -376,7 +309,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                   <button 
                     onClick={() => setShowSourcesModal(true)}
                     className="p-2 text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-2 text-sm font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"
-                    title="View citations used for this article"
+                    title="View citations"
                   >
                     <BookOpen className="w-4 h-4" /> Cite Sources
                   </button>
@@ -400,53 +333,21 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
-          {/* Sources Modal */}
-          {showSourcesModal && (
-            <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/5 bg-blur-sm animate-in fade-in duration-300">
-               <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
-                  <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50/50">
-                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
-                      <BookOpen className="w-5 h-5 text-indigo-600" /> Research Citations
-                    </h3>
-                    <button onClick={() => setShowSourcesModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
-                      <X className="w-5 h-5 text-gray-400" />
-                    </button>
-                  </div>
-                  <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                    {sources.map((source, idx) => (
-                      <a 
-                        key={idx} 
-                        href={source.uri} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="block p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:bg-white transition-all group"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1">
-                            <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{source.title}</h4>
-                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[300px]">{source.uri}</p>
-                          </div>
-                          <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
-                        </div>
-                      </a>
-                    ))}
-                  </div>
-               </div>
-            </div>
-          )}
-
           {!hasStarted ? (
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between border-b pb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                    <Pencil className="w-5 h-5 text-indigo-500" /> Finalize Article Strategy
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">Refine and reorder the structure before synthesis.</p>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-lg">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Blueprint Designer</h3>
+                    <p className="text-sm text-gray-500">Fine-tune the architecture of your article.</p>
+                  </div>
                 </div>
                 <button 
                   onClick={addSection}
-                  className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors"
+                  className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors border border-indigo-100"
                 >
                   <Plus className="w-4 h-4" /> Add Section
                 </button>
@@ -454,104 +355,79 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
               <div className="space-y-6">
                 {localOutline.sections.map((section, sIdx) => (
-                  <div key={sIdx} className="group bg-white border border-gray-100 rounded-2xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm">
-                    <div className="flex items-start gap-4">
-                      <div className="flex flex-col gap-1 items-center opacity-40 group-hover:opacity-100 transition-opacity">
-                        <button 
-                          onClick={() => moveSection(sIdx, -1)}
-                          disabled={sIdx === 0}
-                          className="p-1 hover:bg-indigo-50 rounded-md disabled:opacity-20"
-                        >
-                          <ChevronUp className="w-4 h-4" />
-                        </button>
-                        <GripVertical className="w-4 h-4 text-gray-300" />
-                        <button 
-                          onClick={() => moveSection(sIdx, 1)}
-                          disabled={sIdx === localOutline.sections.length - 1}
-                          className="p-1 hover:bg-indigo-50 rounded-md disabled:opacity-20"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
+                  <div key={sIdx} className="group bg-white border border-gray-100 rounded-3xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm relative">
+                    <div className="absolute -left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-1 rounded-lg border shadow-sm z-10">
+                      <button onClick={() => moveSection(sIdx, -1)} disabled={sIdx === 0} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronUp className="w-4 h-4" /></button>
+                      <button onClick={() => moveSection(sIdx, 1)} disabled={sIdx === localOutline.sections.length - 1} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronDown className="w-4 h-4" /></button>
+                    </div>
 
-                      <div className="flex-1 space-y-6">
-                        <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-6">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
                           <input 
                             type="text"
                             value={section.heading}
                             onChange={(e) => updateSectionHeading(sIdx, e.target.value)}
-                            className="flex-1 bg-transparent border-none text-xl font-bold text-gray-800 focus:ring-0 p-0 placeholder:text-gray-300"
-                            placeholder="Section Heading..."
+                            className="w-full bg-transparent border-none text-xl font-black text-gray-900 focus:ring-0 p-0 placeholder:text-gray-300"
+                            placeholder="Heading..."
                           />
-                          <button 
-                            onClick={() => removeSection(sIdx)}
-                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        </div>
+                        <button 
+                          onClick={() => removeSection(sIdx)}
+                          className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                              <List className="w-3 h-3 text-indigo-400" /> Subheadings
+                            </label>
+                            <button onClick={() => addSubheading(sIdx)} className="text-[10px] font-bold text-indigo-500 hover:underline">Add Subheading</button>
+                          </div>
+                          <div className="space-y-2 pl-4 border-l-2 border-indigo-50">
+                            {section.subheadings.map((sub, subIdx) => (
+                              <div key={subIdx} className="group/sub flex items-center gap-2 bg-gray-50/50 rounded-xl px-3 py-1.5 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
+                                <div className="flex flex-col opacity-0 group-hover/sub:opacity-100">
+                                  <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
+                                  <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === section.subheadings.length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
+                                </div>
+                                <input 
+                                  value={sub}
+                                  onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
+                                  className="flex-1 bg-transparent border-none text-sm text-gray-700 focus:ring-0 p-0 font-medium"
+                                />
+                                <button onClick={() => removeSubheading(sIdx, subIdx)} className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                              <List className="w-3 h-3" /> Subheadings
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
+                              <Target className="w-3 h-3 text-amber-500" /> Context Targets
                             </label>
-                            <div className="space-y-2 pl-4 border-l-2 border-indigo-100">
-                              {section.subheadings.map((sub, subIdx) => (
-                                <div key={subIdx} className="flex items-center gap-2 group/sub bg-gray-50/30 rounded-lg p-1">
-                                  <div className="flex flex-col opacity-0 group-hover/sub:opacity-100 transition-opacity">
-                                    <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                    <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === section.subheadings.length - 1} className="hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
-                                  </div>
-                                  <input 
-                                    type="text"
-                                    value={sub}
-                                    onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
-                                    className="flex-1 bg-transparent border-none text-sm text-gray-600 focus:ring-0 p-0"
-                                  />
-                                  <button 
-                                    onClick={() => removeSubheading(sIdx, subIdx)}
-                                    className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
-                                </div>
-                              ))}
-                              <button onClick={() => addSubheading(sIdx)} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider">
-                                <Plus className="w-3 h-3" /> Add Subheading
-                              </button>
-                            </div>
+                            <button onClick={() => addKeyPoint(sIdx)} className="text-[10px] font-bold text-amber-600 hover:underline">Add Target</button>
                           </div>
-
-                          <div className="space-y-3">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                              <Trophy className="w-3 h-3" /> Key Points
-                            </label>
-                            <div className="space-y-2">
-                              {section.keyPoints.map((point, pIdx) => (
-                                <div key={pIdx} className="flex items-center gap-2 group/point bg-gray-50 rounded-lg px-2 py-1">
-                                  <div className="flex flex-col opacity-0 group-hover/point:opacity-100 transition-opacity">
-                                    <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                    <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === section.keyPoints.length - 1} className="hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
-                                  </div>
-                                  <input 
-                                    type="text"
-                                    value={point}
-                                    onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)}
-                                    className="flex-1 bg-transparent border-none text-[11px] text-gray-500 focus:ring-0 p-0"
-                                  />
-                                  <button 
-                                    onClick={() => removeKeyPoint(sIdx, pIdx)}
-                                    className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </button>
+                          <div className="space-y-2">
+                            {section.keyPoints.map((point, pIdx) => (
+                              <div key={pIdx} className="group/point flex items-center gap-2 bg-amber-50/30 rounded-xl px-3 py-1.5 border border-transparent hover:border-amber-100 hover:bg-amber-50/50 transition-all">
+                                <div className="flex flex-col opacity-0 group-hover/point:opacity-100">
+                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
+                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === section.keyPoints.length - 1} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
                                 </div>
-                              ))}
-                              <button onClick={() => addKeyPoint(sIdx)} className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1 mt-1 uppercase tracking-wider">
-                                <Plus className="w-3 h-3" /> Add Point
-                              </button>
-                            </div>
+                                <input 
+                                  value={point}
+                                  onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)}
+                                  className="flex-1 bg-transparent border-none text-[11px] text-gray-600 focus:ring-0 p-0 font-bold"
+                                />
+                                <button onClick={() => removeKeyPoint(sIdx, pIdx)} className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
@@ -574,19 +450,19 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               {isGenerating && (
                 <div className="flex items-center gap-2 text-indigo-600 font-medium bg-indigo-50 px-4 py-2 rounded-lg w-fit animate-pulse sticky top-0 z-10 shadow-sm border border-indigo-100">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  AI is crafting your SEO content...
+                  AI is crafting your synthesis...
                 </div>
               )}
               
               <div className="min-h-[500px]">
                 {viewMode === 'preview' ? (
                   <div className="markdown-body animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <ReactMarkdown>{content || "*Waiting for generation to begin...*"}</ReactMarkdown>
+                    <ReactMarkdown>{content || "*Preparing content stream...*"}</ReactMarkdown>
                     {isGenerating && <span className="inline-block w-2 h-5 ml-1 bg-indigo-500 animate-pulse rounded-sm" />}
                   </div>
                 ) : (
                   <textarea
-                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono"
+                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                   />
@@ -599,17 +475,16 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
       {/* Sidebar Analysis & Assets */}
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
-        {/* Unified SEO Analysis Card */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Analysis
+              <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Intelligence
             </h3>
             {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
           </div>
 
           <div 
-            className="relative w-32 h-32 mx-auto mb-6 cursor-pointer"
+            className="relative w-32 h-32 mx-auto mb-6 cursor-pointer group/score"
             onMouseEnter={() => setShowScoreTooltip(true)}
             onMouseLeave={() => setShowScoreTooltip(false)}
           >
@@ -622,21 +497,27 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</span>
             </div>
 
-            {/* Tooltip Breakdown */}
             {showScoreTooltip && analysis && (
-              <div className="absolute top-0 left-full ml-4 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-left-2 duration-200">
-                <div className="mb-3 border-b pb-2">
-                  <p className="text-xs font-bold text-gray-900">Breakdown</p>
+              <div className="absolute top-0 right-full mr-4 w-64 bg-white border border-gray-100 shadow-2xl rounded-2xl p-5 z-50 animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="mb-4 border-b pb-2 flex items-center justify-between">
+                  <p className="text-xs font-black text-gray-900 uppercase tracking-widest">Score Breakdown</p>
+                  <Trophy className="w-3.5 h-3.5 text-amber-500" />
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {getScoreBreakdown().map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-medium">
-                        <span className="text-gray-600">{item.label}</span>
+                    <div key={idx} className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[11px] font-bold">
+                        <div className="flex items-center gap-1.5 text-gray-600">
+                          <item.icon className="w-3 h-3 opacity-60" />
+                          <span>{item.label}</span>
+                        </div>
                         <span className={scoreColor(item.val)}>{item.val}%</span>
                       </div>
-                      <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
-                        <div className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-500`} style={{ width: `${item.val}%` }} />
+                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                        <div 
+                          className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-700 ease-out`} 
+                          style={{ width: `${item.val}%` }} 
+                        />
                       </div>
                     </div>
                   ))}
@@ -647,17 +528,16 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-500">Readability</span>
-              <span className="font-bold text-gray-900">{analysis?.readability || '...'}</span>
+              <span className="text-gray-500 font-medium">Readability</span>
+              <span className="font-bold text-gray-900">{analysis?.readability || 'Not Measured'}</span>
             </div>
-            
             <div className="space-y-2 border-t pt-4">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Keyword Density</span>
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Keyword Load</span>
               {brief.targetKeywords.map((k, i) => (
                 <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-xs">
-                    <span className="text-gray-600 truncate">{k}</span>
-                    <span className="text-gray-400">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-gray-600 truncate max-w-[150px] font-medium">{k}</span>
+                    <span className="text-gray-400 font-bold">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
                     <div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} />
@@ -666,27 +546,19 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               ))}
             </div>
 
-            {/* Keyword Suggestions Section */}
             {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 && (
               <div className="border-t pt-4 space-y-4">
-                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                  <Zap className="w-3 h-3 text-amber-500" /> Actionable Suggestions
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Zap className="w-3 h-3 text-amber-500" /> SEO Actions
                 </h4>
                 <div className="space-y-3">
                   {analysis.keywordSuggestions.map((suggestion, idx) => (
-                    <div key={idx} className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-2 hover:border-indigo-100 transition-all">
+                    <div key={idx} className="bg-gray-50 border border-gray-100 rounded-2xl p-3 space-y-2 hover:border-indigo-100 transition-all">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Target className="w-3 h-3 text-indigo-400" />
-                          <span className="text-[11px] font-bold text-gray-800">{suggestion.keyword}</span>
-                        </div>
-                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-indigo-100">
-                          {suggestion.action}
-                        </span>
+                        <span className="text-[11px] font-bold text-gray-800">{suggestion.keyword}</span>
+                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-indigo-100">{suggestion.action}</span>
                       </div>
-                      <p className="text-[10px] text-gray-500 leading-relaxed font-medium">
-                        {suggestion.explanation}
-                      </p>
+                      <p className="text-[10px] text-gray-500 leading-relaxed font-medium">{suggestion.explanation}</p>
                     </div>
                   ))}
                 </div>
@@ -698,15 +570,15 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
         {hasStarted && (
           <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden flex-shrink-0 transition-all duration-300">
              <button onClick={() => setShowVersions(!showVersions)} className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
-               <h3 className="font-bold text-gray-900 flex items-center gap-2"><HistoryIcon className="w-5 h-5 text-indigo-500" /> History</h3>
-               <span className="bg-indigo-100 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">{versions.length} Saved</span>
+               <h3 className="font-bold text-gray-900 flex items-center gap-2"><HistoryIcon className="w-5 h-5 text-indigo-500" /> Version History</h3>
+               <span className="bg-indigo-100 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">{versions.length} Points</span>
              </button>
              {showVersions && (
                <div className="px-6 pb-6 space-y-3">
                  {versions.map((v) => (
-                   <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
-                     <span className="text-[11px] font-bold">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                     <button onClick={() => restoreVersion(v)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><RotateCcw className="w-3.5 h-3.5" /></button>
+                   <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl group hover:bg-indigo-50 transition-all cursor-pointer" onClick={() => restoreVersion(v)}>
+                     <span className="text-[11px] font-bold text-gray-500 group-hover:text-indigo-600">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                     <RotateCcw className="w-3.5 h-3.5 text-gray-300 group-hover:text-indigo-600" />
                    </div>
                  ))}
                </div>
@@ -716,13 +588,42 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
           <ImageGenerator 
-            defaultPrompt={heroImagePrompt} 
+            defaultPrompt={defaultImagePrompt} 
             initialImageUrl={heroImageUrl} 
             onImageGenerated={setHeroImageUrl}
             topicContext={localOutline.title}
           />
         </div>
       </div>
+
+      {/* Citations Modal */}
+      {showSourcesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
+            <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50/50">
+              <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                <BookOpen className="w-5 h-5 text-indigo-600" /> Synthesis Sources
+              </h3>
+              <button onClick={() => setShowSourcesModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              {sources.map((source, idx) => (
+                <a key={idx} href={source.uri} target="_blank" rel="noopener noreferrer" className="block p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:bg-white transition-all group">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{source.title}</h4>
+                      <p className="text-[10px] text-gray-400 font-mono truncate max-w-[400px]">{source.uri}</p>
+                    </div>
+                    <Search className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
