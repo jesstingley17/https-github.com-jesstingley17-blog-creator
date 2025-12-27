@@ -92,14 +92,18 @@ export const geminiService = {
     Keywords: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
     ${brief.brandContext ? `Brand Voice Constraints: ${brief.brandContext}` : ''}
 
+    REQUIRED VISUAL ARCHITECTURE:
+    1. USE COMPARISON TABLES: Include at least one Markdown table (e.g., Feature Comparisons, Pros vs. Cons, or Data Snapshots) to make complex info scannable.
+    2. KEY TAKEAWAY CALLOUTS: Use Markdown blockquotes (>) for "Pro-Tips," "Key Takeaways," or "Strategic Insights."
+    3. ACTIONABLE CHECKLISTS: Use bulleted lists for steps or checklists.
+    4. HIERARCHY: Use clear H2 and H3 structures.
+    
     REQUIRED SEARCH & GROUNDING STRATEGY:
     1. Use Google Search to verify all technical claims, statistics, and current market trends.
-    2. PRIORITIZE AUTHORITATIVE SOURCES: Favor .gov, .edu, industry-leading publications (e.g., McKinsey, Harvard Business Review, TechCrunch), and official company reports.
-    3. DEDUPLICATE INFORMATION: Cross-reference multiple sources to ensure accuracy and avoid redundant or conflicting information.
-    4. FACT-CHECK: If multiple sources conflict, prioritize the most recent and reputable one.
-    5. DATA INTEGRITY: Ensure that all cited numbers and "facts" are grounded in search results.
+    2. PRIORITIZE AUTHORITATIVE SOURCES: Favor .gov, .edu, industry-leading publications.
+    3. DATA INTEGRITY: Ensure every "fact" or "stat" is grounded in search results.
     
-    Structure the article with clean Markdown. Include actionable insights, expert-level depth, and a compelling narrative flow.`;
+    Structure the article with clean, visually rich Markdown. Include expert-level depth and a compelling narrative flow.`;
 
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',

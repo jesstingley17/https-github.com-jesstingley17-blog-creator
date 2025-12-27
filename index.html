@@ -7,22 +7,60 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body {
       font-family: 'Inter', sans-serif;
       background-color: #f8fafc;
+      color: #1e293b;
     }
-    .markdown-body h1 { @apply text-3xl font-bold mb-4 mt-6 text-gray-900; }
-    .markdown-body h2 { @apply text-2xl font-semibold mb-3 mt-8 pb-2 border-b border-gray-100 text-gray-800; }
-    .markdown-body h3 { @apply text-xl font-medium mb-2 mt-6 text-gray-800; }
-    .markdown-body p { @apply mb-4 leading-relaxed text-gray-700; }
-    .markdown-body ul { @apply list-disc pl-6 mb-4 space-y-1 text-gray-700; }
-    .markdown-body ol { @apply list-decimal pl-6 mb-4 space-y-1 text-gray-700; }
-    .markdown-body blockquote { @apply border-l-4 border-indigo-200 pl-4 italic text-gray-600 my-4; }
-    .markdown-body strong { @apply font-bold text-gray-900; }
     
-    /* Custom Scrollbar for better UX */
+    /* Markdown Enhancement Layer */
+    .markdown-body {
+      @apply text-gray-700 leading-relaxed;
+    }
+    .markdown-body h1 { @apply text-4xl font-extrabold mb-6 mt-8 text-gray-900 tracking-tight; }
+    .markdown-body h2 { @apply text-2xl font-bold mb-4 mt-10 pb-2 border-b-2 border-indigo-50 text-gray-800 flex items-center gap-2; }
+    .markdown-body h3 { @apply text-xl font-bold mb-3 mt-8 text-gray-800; }
+    .markdown-body p { @apply mb-5 leading-relaxed text-gray-700 text-[17px]; }
+    
+    /* Advanced Table Styling */
+    .markdown-body table {
+      @apply w-full mb-8 border-collapse overflow-hidden rounded-xl border border-gray-200 shadow-sm bg-white;
+    }
+    .markdown-body thead {
+      @apply bg-gray-50 text-gray-600 font-bold uppercase text-[11px] tracking-wider border-b border-gray-200;
+    }
+    .markdown-body th { @apply px-4 py-3 text-left; }
+    .markdown-body td { @apply px-4 py-3 border-b border-gray-100 text-[15px]; }
+    .markdown-body tr:last-child td { @apply border-b-0; }
+    .markdown-body tr:nth-child(even) { @apply bg-gray-50/50; }
+    .markdown-body tr:hover { @apply bg-indigo-50/30 transition-colors; }
+
+    /* Enhanced Callout Blocks (Blockquotes) */
+    .markdown-body blockquote {
+      @apply border-l-4 border-indigo-500 bg-indigo-50/50 px-6 py-4 rounded-r-2xl italic text-indigo-900 my-8 relative overflow-hidden;
+    }
+    .markdown-body blockquote::before {
+      content: "“";
+      @apply absolute -top-2 -left-1 text-6xl text-indigo-200/50 pointer-events-none font-serif;
+    }
+
+    /* List Enhancements */
+    .markdown-body ul { @apply list-none pl-0 mb-6 space-y-3; }
+    .markdown-body ul li { @apply pl-7 relative text-[16px]; }
+    .markdown-body ul li::before {
+      content: "✓";
+      @apply absolute left-0 top-1 text-indigo-500 font-bold bg-indigo-50 w-5 h-5 flex items-center justify-center rounded-full text-[10px];
+    }
+    .markdown-body ol { @apply list-decimal pl-8 mb-6 space-y-2 text-[16px]; }
+    
+    /* Inline code */
+    .markdown-body code:not(pre code) {
+      @apply bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded-md font-mono text-sm;
+    }
+
+    /* Custom Scrollbar */
     .custom-scrollbar::-webkit-scrollbar {
       width: 6px;
     }
@@ -36,6 +74,13 @@
     .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: #cbd5e1;
     }
+
+    /* Shimmer Effect */
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    .animate-shimmer { animation: shimmer 2s infinite linear; }
   </style>
 <script type="importmap">
 {
