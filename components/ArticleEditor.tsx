@@ -21,7 +21,9 @@ import {
   ExternalLink,
   Link2,
   Search,
-  Database
+  Database,
+  Code,
+  Copy
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { serpstatService } from '../serpstatService';
@@ -57,6 +59,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [citations, setCitations] = useState<Citation[]>([]);
   const [showSourcesInline, setShowSourcesInline] = useState(false);
   const [isDiscoveringBacklinks, setIsDiscoveringBacklinks] = useState(false);
+
+  // Structured Data State
+  const [structuredData, setStructuredData] = useState<string | null>(null);
+  const [isGeneratingSchema, setIsGeneratingSchema] = useState(false);
+  const [showSchemaModal, setShowSchemaModal] = useState(false);
+  const [copiedSchema, setCopiedSchema] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [localOutline, setLocalOutline] = useState<ContentOutline>(() => {
@@ -153,10 +161,31 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
+  const handleGenerateSchema = async () => {
+    if (!content) return;
+    setIsGeneratingSchema(true);
+    setShowSchemaModal(true);
+    try {
+      const schema = await geminiService.generateStructuredData(localOutline.title, content, brief.author);
+      setStructuredData(schema);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsGeneratingSchema(false);
+    }
+  };
+
+  const copySchema = () => {
+    if (structuredData) {
+      navigator.clipboard.writeText(structuredData);
+      setCopiedSchema(true);
+      setTimeout(() => setCopiedSchema(false), 2000);
+    }
+  };
+
   const handleDiscoverBacklinks = async () => {
     setIsDiscoveringBacklinks(true);
     try {
-      // Check for Serpstat integration
       const integrationsRaw = localStorage.getItem('zr_integrations') || '[]';
       const integrations = JSON.parse(integrationsRaw);
       const serpstatInt = integrations.find((i: any) => i.platform === IntegrationPlatform.SERPSTAT);
@@ -293,14 +322,25 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <p className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.3em] mt-4">Authority Rating</p>
           </div>
           
-          <button 
-            onClick={handleFullOptimization} 
-            disabled={isOptimizing || !content} 
-            className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95 disabled:opacity-50"
-          >
-            {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-indigo-400" />}
-            {isOptimizing ? 'Optimizing' : 'Re-Optimize Pass'}
-          </button>
+          <div className="space-y-3">
+            <button 
+              onClick={handleFullOptimization} 
+              disabled={isOptimizing || !content} 
+              className="w-full py-5 bg-slate-900 hover:bg-black text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-2xl transition-all active:scale-95 disabled:opacity-50"
+            >
+              {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4 text-indigo-400" />}
+              {isOptimizing ? 'Optimizing' : 'Re-Optimize Pass'}
+            </button>
+
+            <button 
+              onClick={handleGenerateSchema} 
+              disabled={isGeneratingSchema || !content} 
+              className="w-full py-4 bg-white border-2 border-slate-100 hover:border-indigo-600 text-slate-900 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50"
+            >
+              <Code className="w-4 h-4 text-indigo-600" />
+              Structured Data
+            </button>
+          </div>
           
           {optimizationLogs.length > 0 && (
             <div className="space-y-1 pt-4 border-t border-slate-50">
@@ -358,6 +398,51 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </div>
         </div>
       </div>
+
+      {/* JSON-LD Schema Modal */}
+      {showSchemaModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-xl animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-2xl rounded-[64px] p-16 space-y-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-50 rounded-full blur-[120px] -mr-40 -mt-40 pointer-events-none opacity-50" />
+            
+            <div className="flex justify-between items-center relative z-10">
+              <div>
+                 <h3 className="font-black text-4xl uppercase italic tracking-tighter text-slate-900 leading-none">Structured Logic</h3>
+                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">SEO Rich Snippet Synthesis (JSON-LD)</p>
+              </div>
+              <button onClick={() => setShowSchemaModal(false)} className="p-4 bg-slate-50 rounded-[24px] hover:bg-slate-100 transition-colors"><X className="w-7 h-7 text-slate-400" /></button>
+            </div>
+
+            <div className="relative z-10 space-y-6">
+              <div className="p-8 bg-slate-950 rounded-[48px] border-4 border-slate-900 shadow-inner h-96 overflow-y-auto custom-scrollbar font-mono text-xs leading-relaxed text-indigo-300">
+                {isGeneratingSchema ? (
+                  <div className="h-full flex flex-col items-center justify-center gap-4">
+                    <Loader2 className="w-12 h-12 animate-spin text-indigo-500" />
+                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-600">Encoding Semantic Node...</p>
+                  </div>
+                ) : (
+                  <pre className="whitespace-pre-wrap">{structuredData || "{}"}</pre>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                <div className="flex items-center gap-3 text-indigo-600">
+                  <Database className="w-5 h-5" />
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">Schema.org Verified</span>
+                </div>
+                <button 
+                  onClick={copySchema}
+                  disabled={!structuredData || isGeneratingSchema}
+                  className="bg-slate-900 hover:bg-black text-white px-12 py-5 rounded-[24px] font-black text-xs uppercase tracking-[0.2em] flex items-center gap-4 transition-all shadow-2xl shadow-slate-100 active:scale-95 disabled:opacity-30"
+                >
+                  {copiedSchema ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5 text-indigo-400" />}
+                  {copiedSchema ? 'Copied' : 'Extract Schema'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

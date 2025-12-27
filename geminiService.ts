@@ -291,6 +291,33 @@ export const geminiService = {
     return res.text || text;
   },
 
+  async generateStructuredData(title: string, content: string, author: { name: string; title: string }): Promise<string> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Generate a valid JSON-LD script for an Article schema based on the following article metadata.
+    Title: "${title}"
+    Author Name: "${author.name}"
+    Author Job Title: "${author.title}"
+    Brief Content Summary: "${content.substring(0, 500)}..."
+    
+    Ensure it includes:
+    - @context: "https://schema.org"
+    - @type: "Article"
+    - headline
+    - author (with name and jobTitle)
+    - datePublished (use ISO current date)
+    - description (brief summary)
+    - articleBody (summary or key points)
+    
+    Return only the valid JSON object inside a script tag formatted as raw text.`;
+
+    const res = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+    return res.text || "{}";
+  },
+
   async suggestSchedule(articles: any[]): Promise<any[]> {
     await this.ensureApiKey();
     const ai = getAI();
