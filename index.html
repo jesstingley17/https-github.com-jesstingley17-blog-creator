@@ -61,24 +61,34 @@
       border-collapse: separate; 
       border-spacing: 0;
       border: 2px solid #fce7f3;
-      border-radius: 1.5rem;
+      border-radius: 2rem;
       overflow: hidden;
       background: white;
+      box-shadow: 0 10px 30px -10px rgba(190, 24, 93, 0.1);
     }
     .markdown-body th { 
       background-color: #fdf2f8; 
       padding: 1.5rem; 
       text-align: left; 
-      font-weight: 800; 
+      font-weight: 900; 
       color: var(--primary); 
       text-transform: uppercase;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
       border-bottom: 2px solid #fce7f3;
     }
     .markdown-body td { 
       padding: 1.25rem 1.5rem; 
-      border-bottom: 1px solid #fce7f3; 
+      border-bottom: 1px solid #fdf2f8; 
       color: #4a042e;
+      font-size: 1rem;
+      font-weight: 500;
+    }
+    .markdown-body tr:nth-child(even) td {
+      background-color: #fff9fb;
+    }
+    .markdown-body tr:hover td {
+      background-color: #fff1f6;
     }
     .markdown-body tr:last-child td { border-bottom: none; }
 

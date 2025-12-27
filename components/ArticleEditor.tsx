@@ -249,7 +249,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
             <div className="space-y-4">
               <div className="flex items-center gap-3 ml-2">
                 <Link2 className="w-5 h-5 text-pink-700" />
-                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Content URL Slug</label>
+                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Article URL Synthesis</label>
               </div>
               <div className="group relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-10 pointer-events-none">
