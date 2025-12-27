@@ -88,5 +88,6 @@ export enum AppRoute {
   EDITOR = 'editor',
   HISTORY = 'history',
   PLANNER = 'planner',
-  INTEGRATIONS = 'integrations'
+  INTEGRATIONS = 'integrations',
+  SHARED = 'shared'
 }

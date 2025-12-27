@@ -26,7 +26,10 @@ import {
   BrainCircuit,
   Terminal,
   Database,
-  ArrowUpRight
+  ArrowUpRight,
+  Share2,
+  Copy,
+  Link
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
@@ -52,6 +55,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [deployingTo, setDeployingTo] = useState<string | null>(null);
@@ -184,6 +189,18 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setDeployingTo(null);
   };
 
+  const getShareLink = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('share', brief.id);
+    return url.toString();
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(getShareLink());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
       <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden relative">
@@ -240,10 +257,15 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
           <div className="flex items-center gap-4">
             {hasStarted && (
-              <div className="flex bg-gray-100 p-1.5 rounded-2xl">
-                <button onClick={() => setViewMode('preview')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Preview</button>
-                <button onClick={() => setViewMode('edit')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Edit</button>
-              </div>
+              <>
+                <div className="flex bg-gray-100 p-1.5 rounded-2xl">
+                  <button onClick={() => setViewMode('preview')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Preview</button>
+                  <button onClick={() => setViewMode('edit')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Edit</button>
+                </div>
+                <button onClick={() => setShowShareModal(true)} className="p-3 bg-gray-50 text-gray-500 hover:text-indigo-600 rounded-2xl transition-all active:scale-95 border border-transparent hover:border-indigo-100">
+                  <Share2 className="w-5 h-5" />
+                </button>
+              </>
             )}
             <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-indigo-100">
               {hasStarted ? <ArrowUpRight className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Deploy' : 'Start Synthesis'}
@@ -363,6 +385,48 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         />
       </div>
 
+      {showShareModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[56px] p-12 space-y-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+            
+            <div className="flex justify-between items-center relative z-10">
+              <h3 className="font-black text-3xl uppercase italic tracking-tighter">Share Node</h3>
+              <button onClick={() => setShowShareModal(false)} className="p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"><X className="w-6 h-6" /></button>
+            </div>
+
+            <div className="space-y-8 relative z-10 text-center">
+              <div className="w-20 h-20 bg-indigo-100 rounded-[32px] flex items-center justify-center mx-auto">
+                <Link className="w-10 h-10 text-indigo-600" />
+              </div>
+              <div className="space-y-2">
+                <p className="text-gray-900 font-black uppercase text-sm tracking-widest italic">Global Synthesis Link</p>
+                <p className="text-gray-400 text-sm font-medium">Generate a unique access vector for this content.</p>
+              </div>
+
+              <div className="bg-gray-50 p-4 rounded-3xl border border-gray-100 flex items-center gap-3">
+                <input 
+                  readOnly 
+                  value={getShareLink()} 
+                  className="bg-transparent border-none outline-none text-xs font-mono text-gray-500 flex-1 truncate"
+                />
+                <button 
+                  onClick={copyToClipboard}
+                  className={`p-3 rounded-2xl transition-all ${copied ? 'bg-green-500 text-white' : 'bg-white text-indigo-600 shadow-sm'}`}
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                 <button className="py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-colors">LinkedIn Node</button>
+                 <button className="py-4 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-800 transition-colors">Twitter Node</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-lg rounded-[56px] p-12 space-y-10 shadow-2xl relative overflow-hidden">
@@ -403,7 +467,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                       ) : (
                         integrations.map(int => (
                           <button 
-                            key={int.id}
+                            key={int.id} 
                             disabled={deployingTo !== null}
                             onClick={() => handleDeploy(int.id)}
                             className="w-full flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[32px] hover:border-indigo-600 hover:shadow-xl transition-all group"

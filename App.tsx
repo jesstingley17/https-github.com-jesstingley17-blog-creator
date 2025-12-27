@@ -6,6 +6,7 @@ import ContentWizard from './components/ContentWizard';
 import ArticleEditor from './components/ArticleEditor';
 import Planner from './components/Planner';
 import Integrations from './components/Integrations';
+import PublicArticle from './components/PublicArticle';
 import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
 import { Key, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
@@ -15,9 +16,17 @@ const App: React.FC = () => {
   const [hasApiKey, setHasApiKey] = useState<boolean | null>(null);
   const [activeWorkflow, setActiveWorkflow] = useState<{ brief: ContentBrief; outline: ContentOutline } | null>(null);
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
+  const [shareId, setShareId] = useState<string | null>(null);
 
   // Check for existing API key or handle selection logic
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sId = params.get('share');
+    if (sId) {
+      setShareId(sId);
+      setRoute(AppRoute.SHARED);
+    }
+
     const checkKey = async () => {
       try {
         const apiKey = (window as any).process?.env?.API_KEY || '';
@@ -66,6 +75,10 @@ const App: React.FC = () => {
       console.error(e);
     }
   };
+
+  if (currentRoute === AppRoute.SHARED && shareId) {
+    return <PublicArticle shareId={shareId} onExit={() => setRoute(AppRoute.DASHBOARD)} />;
+  }
 
   if (hasApiKey === null) {
     return (
