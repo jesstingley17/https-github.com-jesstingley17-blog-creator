@@ -116,12 +116,12 @@ export const geminiService = {
   async refineTextWithContext(text: string, title: string, tone: string, author: any): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as ${author.name} (${author.title}). 
-    RE-SYNTHESIZE the following raw research/notes to fit perfectly into an article titled "${title}".
-    Tone: ${tone}.
-    Instruction: Rephrase sentences for maximum authority, improve flow, and naturally weave in professional insights.
+    const prompt = `You are ${author.name}, a professional ${author.title} with the following background: ${author.bio}.
+    RE-SYNTHESIZE the following raw research/notes into your voice. 
+    Target Article Title: "${title}".
+    Instruction: Maintain your professional authority and specific tone (${tone}).
     Raw Notes: "${text}".
-    Output only the refined version in high-quality Markdown.`;
+    Refine the flow, vocabulary, and structure to match your persona. Output only the refined Markdown.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -137,10 +137,11 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate a high-authority article outline for: "${brief.topic}". 
+    const prompt = `Act as ${brief.author.name} (${brief.author.title}).
+    Generate a high-authority article outline for: "${brief.topic}". 
+    Ground the outline in your specific expertise: ${brief.author.bio}.
     Target Keywords: ${brief.targetKeywords.join(', ')}.
-    Author: ${brief.author.name}, ${brief.author.title}.
-    Ensure 5-8 major sections. Plan for at least 2 detailed Markdown tables.`;
+    Include 5-8 major sections that demonstrate deep industry knowledge.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -176,11 +177,23 @@ export const geminiService = {
     try {
       await this.ensureApiKey();
       const ai = getAI();
-      const prompt = `Write a comprehensive SEO article as ${brief.author.name} (${brief.author.title}).
+      const prompt = `Write a comprehensive, authoritative SEO article from the first-person perspective of the author.
+      AUTHOR PERSONA:
+      Name: ${brief.author.name}
+      Title: ${brief.author.title}
+      Expertise/Bio: ${brief.author.bio}
+
+      ARTICLE STRATEGY:
       Title: ${outline.title}.
-      Keywords: ${brief.targetKeywords.join(', ')}.
-      Formatting: Use Markdown. YOU MUST INCLUDE AT LEAST TWO DETAILED DATA TABLES using | Header | syntax.
-      Style: Authoritative, data-driven, and highly engaging.`;
+      Keywords to naturally integrate: ${brief.targetKeywords.join(', ')}.
+      Tone: ${brief.tone}.
+      
+      CORE INSTRUCTIONS:
+      1. Adopt the author's persona completely. Speak with their unique professional vocabulary and insight.
+      2. Ground every claim in the expertise described in the bio.
+      3. Use Markdown formatting. 
+      4. MANDATORY: Include at least TWO detailed data comparison tables.
+      5. Use Google Search to ground claims with recent data and cite sources where appropriate.`;
       
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-pro-preview',
@@ -222,7 +235,7 @@ export const geminiService = {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Analyze SEO for: "${text.substring(0, 3000)}". Primary keywords: ${keywords.join(', ')}.`,
+        contents: `Analyze SEO for: "${text.substring(0, 3000)}". Primary keywords: ${keywords.join(', ')}. Evaluate authority and keyword semantic depth.`,
         config: { responseMimeType: 'application/json' }
       });
       const parsed = extractJson(response.text || '{}');
@@ -251,10 +264,11 @@ export const geminiService = {
   async optimizeContent(text: string, brief: ContentBrief, author: any): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as ${author.name}. SEO OPTIMIZATION PASS. 
+    const prompt = `Act as ${author.name}. This is an SEO OPTIMIZATION PASS for your article. 
+    Bio Context: ${author.bio}.
     Content: ${text}. 
     Keywords: ${brief.targetKeywords.join(', ')}.
-    Task: Rephrase sentences for better authority, improve internal flow, ensure perfect Markdown table formatting, and maximize keyword density without stuffing.
+    Task: Refine the content to ensure it reads like your authoritative voice. Improve flow, ensure Markdown tables are perfect, and ensure keywords are naturally woven in based on your specific industry expertise.
     Return only the optimized Markdown.`;
 
     const res = await ai.models.generateContent({

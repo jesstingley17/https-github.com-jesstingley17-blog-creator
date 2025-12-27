@@ -89,8 +89,12 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
              <h1 className="text-6xl md:text-7xl font-black text-gray-900 italic tracking-tighter leading-[1]">{data.outline.title}</h1>
              
              <div className="flex items-center justify-center md:justify-start gap-4 pt-4">
-                <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center shadow-inner overflow-hidden">
-                   <User className="w-7 h-7 text-gray-400" />
+                <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center shadow-inner overflow-hidden border-4 border-white ring-1 ring-slate-100">
+                   {data.brief.author.photoUrl ? (
+                      <img src={data.brief.author.photoUrl} alt={data.brief.author.name} className="w-full h-full object-cover" />
+                   ) : (
+                      <User className="w-7 h-7 text-gray-300" />
+                   )}
                 </div>
                 <div className="text-left">
                    <p className="text-sm font-black text-gray-900 italic">{data.brief.author.name}</p>
@@ -121,13 +125,20 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
 
         {/* Professional Author Block */}
         <div className="mt-24 p-10 bg-slate-50 rounded-[48px] border flex flex-col md:flex-row items-center gap-10">
-           <div className="w-32 h-32 rounded-3xl bg-white shadow-xl flex items-center justify-center shrink-0 border-8 border-white overflow-hidden">
-              <User className="w-16 h-16 text-slate-200" />
+           <div className="w-32 h-32 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-8 border-white overflow-hidden relative">
+              {data.brief.author.photoUrl ? (
+                <img src={data.brief.author.photoUrl} alt={data.brief.author.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-indigo-50 to-slate-100 gap-1">
+                  <User className="w-12 h-12 text-indigo-200" />
+                  <div className="text-[8px] font-black text-indigo-300 uppercase tracking-[0.2em]">Expert</div>
+                </div>
+              )}
            </div>
            <div className="text-center md:text-left space-y-3">
               <h3 className="text-2xl font-black italic text-slate-900 uppercase tracking-tight">About the Author</h3>
               <p className="font-bold text-indigo-600 text-sm uppercase tracking-widest">{data.brief.author.name} • {data.brief.author.title}</p>
-              <p className="text-slate-500 font-medium leading-relaxed">{data.brief.author.bio}</p>
+              <p className="text-slate-500 font-medium leading-relaxed italic">"{data.brief.author.bio}"</p>
            </div>
         </div>
 
