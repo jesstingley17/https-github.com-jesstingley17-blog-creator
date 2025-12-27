@@ -116,6 +116,7 @@ export enum IntegrationPlatform {
   GHOST = 'Ghost',
   WEBFLOW = 'Webflow',
   SHOPIFY = 'Shopify',
+  SERPSTAT = 'Serpstat Backlinks API',
   CUSTOM = 'Custom Webhook'
 }
 
