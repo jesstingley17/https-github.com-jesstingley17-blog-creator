@@ -1,11 +1,13 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
-import { GeneratedContent, ArticleMetadata, ArticleImage } from './types';
+import { GeneratedContent, ArticleMetadata, SavedPrompt } from './types';
 
 const REGISTRY_KEY = 'zr_registry';
 const ARTICLE_PREFIX = 'zr_article_';
+const PROMPT_LIBRARY_KEY = 'zr_prompt_library';
 
 export const storageService = {
+  // --- Article Storage ---
   async upsertArticle(article: GeneratedContent): Promise<void> {
     const metadata: ArticleMetadata = {
       id: article.id,
@@ -55,7 +57,6 @@ export const storageService = {
     if (local) {
       try {
         const parsed = JSON.parse(local);
-        // Ensure mandatory arrays exist for legacy drafts
         if (!parsed.images) parsed.images = [];
         if (!parsed.citations) parsed.citations = [];
         return parsed as GeneratedContent;
@@ -74,7 +75,6 @@ export const storageService = {
         
         if (error) throw error;
         if (data) {
-          // Added citations property mapping from Supabase result
           const article: GeneratedContent = {
             id: data.id,
             brief: data.brief,
@@ -130,6 +130,38 @@ export const storageService = {
     } catch (e) {
       console.error("Registry load failed:", e);
       return [];
+    }
+  },
+
+  // --- Prompt Library Storage ---
+  async savePrompt(prompt: SavedPrompt): Promise<void> {
+    try {
+      const existing = await this.getPrompts();
+      const filtered = existing.filter(p => p.id !== prompt.id);
+      const updated = [prompt, ...filtered];
+      localStorage.setItem(PROMPT_LIBRARY_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to save prompt:", e);
+    }
+  },
+
+  async getPrompts(): Promise<SavedPrompt[]> {
+    try {
+      const raw = localStorage.getItem(PROMPT_LIBRARY_KEY) || '[]';
+      return JSON.parse(raw);
+    } catch (e) {
+      console.error("Failed to load prompts:", e);
+      return [];
+    }
+  },
+
+  async deletePrompt(id: string): Promise<void> {
+    try {
+      const existing = await this.getPrompts();
+      const updated = existing.filter(p => p.id !== id);
+      localStorage.setItem(PROMPT_LIBRARY_KEY, JSON.stringify(updated));
+    } catch (e) {
+      console.error("Failed to delete prompt:", e);
     }
   }
 };

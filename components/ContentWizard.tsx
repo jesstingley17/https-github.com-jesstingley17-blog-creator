@@ -9,10 +9,15 @@ import {
   Zap,
   Info,
   Scale,
-  FileText
+  FileText,
+  Wand2,
+  X,
+  Check,
+  Save
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
-import { ContentBrief, ContentOutline } from '../types';
+import { storageService } from '../storageService';
+import { ContentBrief, ContentOutline, SavedPrompt } from '../types';
 
 interface ContentWizardProps {
   onComplete: (brief: ContentBrief, outline: ContentOutline) => void;
@@ -24,6 +29,12 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const [topic, setTopic] = useState('');
   const [statusLogs, setStatusLogs] = useState<string[]>([]);
   const [progress, setProgress] = useState(0);
+
+  // Refinement State
+  const [isRefining, setIsRefining] = useState(false);
+  const [refinedData, setRefinedData] = useState<Partial<SavedPrompt> | null>(null);
+  const [showRefiner, setShowRefiner] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   
   const [brief, setBrief] = useState<Partial<ContentBrief>>({
     id: Math.random().toString(36).substring(2, 15),
@@ -50,6 +61,44 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
     setStatusLogs(prev => [...prev.slice(-4), `[${timestamp}] ${msg}`]);
+  };
+
+  const handleRefinePrompt = async () => {
+    if (!topic.trim()) return;
+    setIsRefining(true);
+    setShowRefiner(true);
+    try {
+      const optimized = await geminiService.optimizeStrategicPrompt(topic);
+      setRefinedData(optimized);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
+  const applyOptimized = () => {
+    if (refinedData?.optimizedPrompt) {
+      setTopic(refinedData.optimizedPrompt);
+      setShowRefiner(false);
+    }
+  };
+
+  const saveToLibrary = async () => {
+    if (!refinedData) return;
+    setSaveStatus('saving');
+    const newPrompt: SavedPrompt = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: refinedData.title || "Optimized Brief",
+      rawInput: topic,
+      optimizedPrompt: refinedData.optimizedPrompt || topic,
+      tags: refinedData.tags || ["General"],
+      usageCount: 0,
+      createdAt: Date.now()
+    };
+    await storageService.savePrompt(newPrompt);
+    setSaveStatus('saved');
+    setTimeout(() => setSaveStatus('idle'), 2000);
   };
 
   const handleDeepResearch = async () => {
@@ -124,11 +173,19 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 <input
                   type="text"
                   placeholder="Enter topic or website URL..."
-                  className="w-full pl-16 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none text-lg transition-all font-bold placeholder:text-slate-300"
+                  className="w-full pl-16 pr-24 py-5 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none text-lg transition-all font-bold placeholder:text-slate-300"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleDeepResearch()}
                 />
+                <button 
+                  onClick={handleRefinePrompt}
+                  disabled={!topic.trim() || isRefining}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white hover:bg-indigo-50 text-indigo-600 rounded-xl shadow-sm border border-slate-100 transition-all active:scale-90 disabled:opacity-50 group/refine"
+                >
+                  {isRefining ? <Loader2 className="w-5 h-5 animate-spin" /> : <Wand2 className="w-5 h-5" />}
+                  <span className="absolute bottom-full right-0 mb-2 whitespace-nowrap bg-slate-900 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover/refine:opacity-100 transition-opacity pointer-events-none">Smart Refine Brief</span>
+                </button>
               </div>
 
               {loading ? (
@@ -160,9 +217,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-               {/* Column 1: Config & Keywords */}
                <div className="space-y-6">
-                  {/* Content Configuration */}
                   <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-5">
                     <div className="space-y-3">
                       <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -211,7 +266,6 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                   </div>
                </div>
 
-               {/* Column 2: Author & Research */}
                <div className="space-y-6">
                   <div className="space-y-3">
                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Author Identity</label>
@@ -238,6 +292,80 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           </div>
         )}
       </div>
+
+      {/* Prompt Refiner Modal */}
+      {showRefiner && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-4xl rounded-[40px] p-10 space-y-8 shadow-2xl relative border border-slate-100 overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none opacity-50" />
+            
+            <div className="flex justify-between items-center relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Wand2 className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-black italic text-slate-900 uppercase tracking-tighter">Strategic Prompt Synthesis</h3>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Pruning noise, amplifying authority.</p>
+                </div>
+              </div>
+              <button onClick={() => setShowRefiner(false)} className="p-3 bg-slate-50 rounded-2xl hover:bg-slate-100 transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+               <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Raw Input Node</label>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 h-64 overflow-y-auto text-sm font-medium text-slate-500 italic leading-relaxed">
+                     {topic}
+                  </div>
+               </div>
+
+               <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] ml-1 flex items-center gap-2"><Sparkles className="w-3 h-3" /> Optimized Synthesis</label>
+                    <div className="flex gap-2">
+                       {refinedData?.tags?.slice(0, 2).map(tag => <span key={tag} className="text-[8px] font-black uppercase px-2 py-1 bg-indigo-50 text-indigo-600 rounded-md border border-indigo-100">{tag}</span>)}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-white rounded-3xl border-2 border-indigo-600 h-64 overflow-y-auto shadow-xl shadow-indigo-50">
+                    {isRefining ? (
+                       <div className="flex flex-col items-center justify-center h-full gap-4">
+                         <Loader2 className="w-10 h-10 animate-spin text-indigo-300" />
+                         <p className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">Processing Intelligence...</p>
+                       </div>
+                    ) : (
+                      <div className="text-base font-bold text-slate-800 leading-relaxed">
+                         {refinedData?.optimizedPrompt}
+                      </div>
+                    )}
+                  </div>
+               </div>
+            </div>
+
+            <div className="pt-8 border-t border-slate-50 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
+              <button 
+                onClick={saveToLibrary} 
+                disabled={isRefining || saveStatus !== 'idle'}
+                className="flex items-center gap-3 text-slate-400 hover:text-indigo-600 font-black text-[10px] uppercase tracking-widest transition-all px-4 py-2 hover:bg-slate-50 rounded-xl"
+              >
+                {saveStatus === 'saving' ? <Loader2 className="w-4 h-4 animate-spin" /> : saveStatus === 'saved' ? <Check className="w-4 h-4 text-emerald-500" /> : <Save className="w-4 h-4" />}
+                {saveStatus === 'saved' ? 'Saved to Library' : 'Persist in Library'}
+              </button>
+              
+              <div className="flex items-center gap-4 w-full md:w-auto">
+                <button onClick={() => setShowRefiner(false)} className="flex-1 md:flex-none px-10 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px]">Discard</button>
+                <button 
+                  onClick={applyOptimized} 
+                  disabled={isRefining}
+                  className="flex-1 md:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-slate-100 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+                >
+                  Apply to Brief <Check className="w-4 h-4 text-emerald-400" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

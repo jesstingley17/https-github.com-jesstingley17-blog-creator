@@ -6,6 +6,16 @@ export interface Author {
   photoUrl?: string;
 }
 
+export interface SavedPrompt {
+  id: string;
+  title: string;
+  rawInput: string;
+  optimizedPrompt: string;
+  tags: string[];
+  usageCount: number;
+  createdAt: number;
+}
+
 export interface ContentBrief {
   id: string;
   topic: string;
@@ -125,5 +135,6 @@ export enum AppRoute {
   HISTORY = 'history',
   PLANNER = 'planner',
   INTEGRATIONS = 'integrations',
-  SHARED = 'shared'
+  SHARED = 'shared',
+  PROMPTS = 'prompts'
 }

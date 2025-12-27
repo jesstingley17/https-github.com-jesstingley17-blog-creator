@@ -10,7 +10,8 @@ import {
   CalendarDays,
   Cloud,
   CloudOff,
-  Link2
+  Link2,
+  Bookmark
 } from 'lucide-react';
 import { AppRoute } from '../types';
 import { isSupabaseConfigured } from '../supabase';
@@ -24,19 +25,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
   const navItems = [
     { id: AppRoute.DASHBOARD, label: 'Overview', icon: LayoutDashboard },
     { id: AppRoute.CREATE, label: 'New Content', icon: FilePlus2 },
+    { id: AppRoute.PROMPTS, label: 'Prompt Library', icon: Bookmark },
     { id: AppRoute.PLANNER, label: 'Content Planner', icon: CalendarDays },
     { id: AppRoute.HISTORY, label: 'History', icon: History },
     { id: AppRoute.INTEGRATIONS, label: 'Integrations', icon: Link2 },
   ];
 
   return (
-    <div className="w-64 bg-white border-r h-screen flex flex-col fixed left-0 top-0">
+    <div className="w-64 bg-white border-r h-screen flex flex-col fixed left-0 top-0 z-50">
       <div className="p-6 flex items-center gap-2">
         <div className="bg-indigo-600 p-2 rounded-lg">
           <Sparkles className="text-white w-6 h-6" />
         </div>
-        <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-          ZR Content Creator
+        <span className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent italic">
+          ZR DISCOURSE
         </span>
       </div>
 
@@ -55,7 +57,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
               }`}
             >
               <Icon className="w-5 h-5" />
-              <span className="font-medium">{item.label}</span>
+              <span className="font-medium text-sm">{item.label}</span>
             </button>
           );
         })}
@@ -79,11 +81,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
         <div className="space-y-1">
           <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
             <BarChart3 className="w-5 h-5" />
-            <span className="font-medium">Analytics</span>
+            <span className="font-medium text-sm">Analytics</span>
           </button>
           <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
             <Settings className="w-5 h-5" />
-            <span className="font-medium">Settings</span>
+            <span className="font-medium text-sm">Settings</span>
           </button>
         </div>
       </div>

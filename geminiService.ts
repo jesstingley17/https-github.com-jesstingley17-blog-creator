@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ContentBrief, ContentOutline, SEOAnalysis, BacklinkOpportunity } from "./types";
+import { ContentBrief, ContentOutline, SEOAnalysis, BacklinkOpportunity, SavedPrompt } from "./types";
 
 const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -33,6 +33,46 @@ export const geminiService = {
       }
     }
     return true;
+  },
+
+  async optimizeStrategicPrompt(rawInput: string): Promise<Partial<SavedPrompt>> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Act as a Meta-Prompt Engineer. 
+    Task: Take the following raw user input for a content generation topic and re-synthesize it into a highly effective, structured, and summarized AI prompt.
+    Input: "${rawInput}"
+    Requirements:
+    1. Remove conversational noise.
+    2. Identify core technical keywords.
+    3. Suggest a professional 'Angle' or 'Hook'.
+    4. Format as a clean, actionable instruction.
+    Return a JSON object with 'title', 'optimizedPrompt', and 'tags'.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              optimizedPrompt: { type: Type.STRING },
+              tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['title', 'optimizedPrompt', 'tags']
+          }
+        }
+      });
+      return extractJson(response.text || '{}');
+    } catch (e) {
+      return { 
+        title: "Optimized Topic", 
+        optimizedPrompt: rawInput, 
+        tags: ["General"] 
+      };
+    }
   },
 
   async deepResearch(urlOrTopic: string): Promise<Partial<ContentBrief>> {

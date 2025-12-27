@@ -7,6 +7,7 @@ import ArticleEditor from './components/ArticleEditor';
 import Planner from './components/Planner';
 import Integrations from './components/Integrations';
 import PublicArticle from './components/PublicArticle';
+import PromptLibrary from './components/PromptLibrary';
 import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
 import { Key, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
@@ -139,6 +140,20 @@ const App: React.FC = () => {
         return <Planner scheduledPosts={scheduledPosts} setScheduledPosts={setScheduledPosts} />;
       case AppRoute.INTEGRATIONS:
         return <Integrations />;
+      case AppRoute.PROMPTS:
+        return <PromptLibrary onUsePrompt={(text) => {
+          setRoute(AppRoute.CREATE);
+          // Small delay to let ContentWizard mount
+          setTimeout(() => {
+            const input = document.querySelector('input[placeholder*="Enter topic"]') as HTMLInputElement;
+            if (input) {
+              input.value = text;
+              // Trigger a react state update by dispatching an event
+              const event = new Event('input', { bubbles: true });
+              input.dispatchEvent(event);
+            }
+          }, 100);
+        }} />;
       case AppRoute.HISTORY:
         return <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} onSelectArticle={handleSelectArticle} />;
       default:
