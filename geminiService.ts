@@ -5,7 +5,19 @@ import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./type
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const geminiService = {
+  async ensureApiKey(): Promise<boolean> {
+    // @ts-ignore
+    const hasKey = await window.aistudio.hasSelectedApiKey();
+    if (!hasKey) {
+      // @ts-ignore
+      await window.aistudio.openSelectKey();
+      return true; // Proceed assuming selection success as per race condition guidelines
+    }
+    return true;
+  },
+
   async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
+    await this.ensureApiKey();
     const ai = getAI();
     let prompt = `Analyze the topic "${topic}" and provide highly detailed SEO brief details.`;
     
@@ -37,7 +49,7 @@ export const geminiService = {
     });
 
     try {
-      return JSON.parse(response.text);
+      return JSON.parse(response.text || '{}');
     } catch (e) {
       console.error("Failed to parse brief", e);
       return {};
@@ -45,6 +57,7 @@ export const geminiService = {
   },
 
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
+    await this.ensureApiKey();
     const ai = getAI();
     const prompt = `Create a detailed, high-converting SEO content outline for: "${brief.topic}". 
     Target Audience: ${brief.audience}. 
@@ -80,10 +93,11 @@ export const geminiService = {
       }
     });
 
-    return JSON.parse(response.text);
+    return JSON.parse(response.text || '{}');
   },
 
   async *streamContent(brief: ContentBrief, outline: ContentOutline) {
+    await this.ensureApiKey();
     const ai = getAI();
     const prompt = `Act as a world-class SEO content strategist and editor. 
     Write an authoritative, comprehensive, and engaging long-form article based on this outline:
@@ -99,7 +113,7 @@ export const geminiService = {
     3. ACTIONABLE CHECKLISTS: Use bulleted lists for steps.
     4. HIERARCHY: Use clear H2 and H3 structures.
     
-    Structure the article with clean, visually rich Markdown.`;
+    Structure the article with clean, visually rich Markdown. Use search grounding for up-to-date facts.`;
 
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
@@ -116,6 +130,7 @@ export const geminiService = {
   },
 
   async performWritingTask(task: 'rephrase' | 'expand' | 'summarize' | 'draft' | 'custom', text: string, context: string, customInstruction?: string): Promise<string> {
+    await this.ensureApiKey();
     const ai = getAI();
     const prompts = {
       rephrase: `Rephrase the following text to be more professional and engaging: "${text}"`,
@@ -134,11 +149,12 @@ export const geminiService = {
   },
 
   async generateVisualBlock(type: 'table' | 'callout' | 'checklist', context: string): Promise<string> {
+    await this.ensureApiKey();
     const ai = getAI();
     const prompts = {
-      table: `Generate a professional Markdown comparison table based on this context: "${context}". Ensure it has at least 3 columns and 4 rows.`,
-      callout: `Generate a high-impact "Key Takeaway" callout in Markdown (using >) for this context: "${context}".`,
-      checklist: `Generate an actionable 5-step checklist in Markdown for this context: "${context}".`
+      table: `Generate a professional Markdown comparison table based on this context: "${context}". Ensure it has at least 3 columns and 4 rows. Focus on comparing key features or data points.`,
+      callout: `Generate a high-impact "Key Takeaway" callout in Markdown (using >) for this context: "${context}". Make it succinct and insightful.`,
+      checklist: `Generate an actionable 5-step checklist in Markdown for this context: "${context}". Use bullet points with checkmarks if possible.`
     };
 
     const response = await ai.models.generateContent({
@@ -150,6 +166,7 @@ export const geminiService = {
   },
 
   async generateSocialCaption(platform: 'Instagram' | 'Facebook' | 'LinkedIn', content: string): Promise<string> {
+    await this.ensureApiKey();
     const ai = getAI();
     const platformGuides = {
       Instagram: "Use engaging visual language, include relevant emojis, and add a block of 5-10 strategic hashtags. Keep it concise and focused on a visual hook.",
@@ -172,39 +189,16 @@ export const geminiService = {
     return response.text?.trim() || '';
   },
 
-  async suggestSchedule(articles: {id: string, title: string, topic: string}[]): Promise<Partial<ScheduledPost>[]> {
-    const ai = getAI();
-    const prompt = `Analyze these articles and suggest an optimized cross-platform social media distribution schedule.
-    Articles: ${articles.map(a => `"${a.title}" (Topic: ${a.topic})`).join(', ')}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              articleId: { type: Type.STRING },
-              date: { type: Type.STRING },
-              platform: { type: Type.STRING, enum: ['LinkedIn', 'Twitter', 'Facebook', 'Blog'] },
-              reason: { type: Type.STRING }
-            }
-          }
-        }
-      }
-    });
-
-    return JSON.parse(response.text);
-  },
-
   async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
+    await this.ensureApiKey();
     const ai = getAI();
+    
+    // Ensure keywords is never empty for schema generation
+    const targetKeywords = keywords.length > 0 ? keywords : ['general'];
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Critically evaluate the following content for SEO excellence against target keywords: ${keywords.join(', ')}. 
+      contents: `Critically evaluate the following content for SEO excellence against target keywords: ${targetKeywords.join(', ')}. 
       Content: ${text.substring(0, 5000)}`,
       config: {
         responseMimeType: 'application/json',
@@ -215,7 +209,7 @@ export const geminiService = {
             readability: { type: Type.STRING },
             keywordDensity: { 
                 type: Type.OBJECT,
-                properties: keywords.reduce((acc, k) => ({...acc, [k]: {type: Type.NUMBER}}), {})
+                properties: targetKeywords.reduce((acc, k) => ({...acc, [k]: {type: Type.NUMBER}}), {})
             },
             suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
             keywordSuggestions: {
@@ -230,15 +224,28 @@ export const geminiService = {
                 required: ['keyword', 'action', 'explanation']
               }
             }
-          }
+          },
+          required: ['score', 'readability', 'suggestions', 'keywordSuggestions']
         }
       }
     });
 
-    return JSON.parse(response.text);
+    try {
+      return JSON.parse(response.text || '{}');
+    } catch (e) {
+      console.error("SEO Analysis Parse Failed", e);
+      return {
+        score: 0,
+        readability: 'Unknown',
+        keywordDensity: {},
+        suggestions: ['Could not analyze content structure.'],
+        keywordSuggestions: []
+      };
+    }
   },
 
   async refineImagePrompt(currentPrompt: string, contextTitle: string): Promise<string> {
+    await this.ensureApiKey();
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -248,7 +255,8 @@ export const geminiService = {
   },
 
   async generateArticleImage(prompt: string): Promise<string> {
-    // Creating instance right before call as per guidelines for gemini-3-pro-image-preview.
+    await this.ensureApiKey();
+    // Use gemini-3-pro-image-preview for high quality
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
@@ -269,5 +277,43 @@ export const geminiService = {
       }
     }
     throw new Error("No image data returned from model");
+  },
+
+  // FIX: Added missing suggestSchedule method called in Planner.tsx
+  async suggestSchedule(articles: { id: string; title: string; topic: string }[]): Promise<{ articleId: string; date: string; platform: string }[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Given the following list of articles, suggest an optimal social media posting schedule for the next 30 days.
+    Articles: ${JSON.stringify(articles)}
+    
+    Assign each article to a platform (LinkedIn, Twitter, Facebook, or Blog) and a specific date/time in the next month starting from today (${new Date().toISOString()}). 
+    Balance the schedule to maintain consistent engagement. Return the result in the specified JSON format.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              articleId: { type: Type.STRING },
+              date: { type: Type.STRING, description: "ISO 8601 format string" },
+              platform: { type: Type.STRING, description: "The platform for the post: LinkedIn, Twitter, Facebook, or Blog." }
+            },
+            required: ['articleId', 'date', 'platform']
+          }
+        }
+      }
+    });
+
+    try {
+      return JSON.parse(response.text || '[]');
+    } catch (e) {
+      console.error("Failed to parse schedule suggestions", e);
+      return [];
+    }
   }
 };
