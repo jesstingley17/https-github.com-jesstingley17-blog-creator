@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { 
   Search, 
@@ -6,12 +5,17 @@ import {
   Loader2, 
   CheckCircle2, 
   Layout, 
-  Type as FontIcon, 
   Target,
   Sparkles,
   RefreshCw,
   Globe,
-  Info
+  Info,
+  Terminal,
+  Database,
+  ShieldCheck,
+  Cpu,
+  Binary,
+  Layers
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -25,6 +29,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState('');
   const [companyUrl, setCompanyUrl] = useState('');
+  const [statusLogs, setStatusLogs] = useState<string[]>([]);
+  const [progress, setProgress] = useState(0);
   
   const [brief, setBrief] = useState<Partial<ContentBrief>>({
     topic: '',
@@ -32,24 +38,55 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     brandContext: '',
     targetKeywords: [],
     secondaryKeywords: [],
-    audience: 'General Readers',
-    tone: 'Professional & Authoritative',
+    audience: 'Professional Stakeholders',
+    tone: 'Authoritative & Strategic',
     length: 'medium'
   });
 
   const [outline, setOutline] = useState<ContentOutline | null>(null);
 
+  const addLog = (msg: string) => {
+    setStatusLogs(prev => [...prev.slice(-4), msg]);
+  };
+
   const handleInitialAnalysis = async () => {
-    if (!topic) return;
+    if (!topic.trim()) return;
     setLoading(true);
+    setProgress(5);
+    setStatusLogs(['Initializing intelligence core...', 'Connecting to semantic web...']);
+    
+    const logs = [
+      'Analyzing topic clusters...',
+      'Crawling competitor blueprints...',
+      'Synthesizing brand resonance...',
+      'Mapping semantic networks...',
+      'Finalizing strategic brief...'
+    ];
+    
+    let logIdx = 0;
+    const interval = setInterval(() => {
+      if (logIdx < logs.length) {
+        addLog(logs[logIdx]);
+        setProgress(prev => Math.min(prev + 18, 95));
+        logIdx++;
+      }
+    }, 1500);
+
     try {
       const details = await geminiService.generateBriefDetails(topic, companyUrl);
-      setBrief({ ...brief, topic, companyUrl, ...details });
-      setStep(2);
+      clearInterval(interval);
+      setProgress(100);
+      setTimeout(() => {
+        setBrief(prev => ({ ...prev, topic, companyUrl, ...details }));
+        setStep(2);
+        setLoading(false);
+      }, 500);
     } catch (error) {
       console.error(error);
-    } finally {
+      clearInterval(interval);
+      addLog('CRITICAL ERROR: Analysis sequence interrupted.');
       setLoading(false);
+      setProgress(0);
     }
   };
 
@@ -67,230 +104,251 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   };
 
   const steps = [
-    { num: 1, label: 'Topic & Brand', icon: Search },
-    { num: 2, label: 'SEO Brief', icon: Target },
-    { num: 3, label: 'Outline Review', icon: Layout },
+    { num: 1, label: 'Research', icon: Search },
+    { num: 2, label: 'Strategy', icon: Target },
+    { num: 3, label: 'Structure', icon: Layout },
   ];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-      {/* Stepper */}
-      <div className="flex items-center justify-between px-4">
+    <div className="max-w-5xl mx-auto space-y-12 animate-in slide-in-from-bottom-8 duration-700">
+      <div className="flex items-center justify-between px-16">
         {steps.map((s, i) => (
           <React.Fragment key={s.num}>
-            <div className="flex flex-col items-center gap-2 relative">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                step >= s.num ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'bg-gray-100 text-gray-400'
+            <div className="flex flex-col items-center gap-4 relative z-10">
+              <div className={`w-14 h-14 rounded-[22px] flex items-center justify-center transition-all duration-700 ${
+                step >= s.num ? 'bg-indigo-600 text-white shadow-2xl shadow-indigo-200 scale-110' : 'bg-white border border-gray-100 text-gray-300'
               }`}>
-                {step > s.num ? <CheckCircle2 className="w-6 h-6" /> : <s.icon className="w-5 h-5" />}
+                {step > s.num ? <CheckCircle2 className="w-7 h-7" /> : <s.icon className="w-7 h-7" />}
               </div>
-              <span className={`text-xs font-semibold ${step >= s.num ? 'text-indigo-600' : 'text-gray-400'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${step >= s.num ? 'text-indigo-600' : 'text-gray-300'}`}>
                 {s.label}
               </span>
             </div>
             {i < steps.length - 1 && (
-              <div className={`flex-1 h-0.5 mx-4 mb-6 transition-colors ${step > s.num ? 'bg-indigo-600' : 'bg-gray-100'}`} />
+              <div className="flex-1 px-6 mb-10">
+                <div className={`h-1.5 rounded-full transition-all duration-1000 ${step > s.num ? 'bg-indigo-600' : 'bg-gray-100'}`} />
+              </div>
             )}
           </React.Fragment>
         ))}
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-8 min-h-[500px] flex flex-col">
+      <div className="bg-white rounded-[60px] border border-gray-100 shadow-[0_50px_100px_rgba(0,0,0,0.05)] p-16 min-h-[650px] flex flex-col relative overflow-hidden group">
+        {/* Decorative elements - strictly pointer-events-none to prevent click blockage */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-[120px] -mr-64 -mt-64 group-hover:bg-indigo-100/40 transition-colors duration-1000 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-50/20 rounded-full blur-[80px] -ml-32 -mb-32 pointer-events-none" />
+        
         {step === 1 && (
-          <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-8">
-            <div className="space-y-3">
-              <h2 className="text-3xl font-bold text-gray-900">Configure Your Content</h2>
-              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity via ZR Content Creator.</p>
+          <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-12 relative z-10 animate-in fade-in duration-500">
+            <div className="space-y-6">
+              <h2 className="text-6xl font-black text-gray-900 tracking-tighter italic">SOURCE DISCOVERY</h2>
+              <p className="text-gray-400 text-xl leading-relaxed">Define your semantic vector. We will extract intelligence from the competitive landscape to build your foundation.</p>
             </div>
             
-            <div className="space-y-4 text-left">
-              <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Primary Topic</label>
-                <div className="relative group">
-                  <input
-                    type="text"
-                    placeholder="e.g. The Science of Metacognition in Early Education"
-                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all shadow-inner"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                  />
-                </div>
+            <div className="space-y-8 text-left">
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1">PRIMARY DISCOURSE TOPIC</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Cognitive Load Theory in Interface Design"
+                  className="w-full px-10 py-6 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[32px] outline-none text-2xl transition-all font-bold shadow-inner placeholder:text-gray-200"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                />
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block flex items-center gap-2">
-                  Company URL (Optional) <Info className="w-3 h-3 text-gray-300" title="We'll use this to match your brand's voice and identity." />
+              <div className="space-y-3">
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1 flex items-center gap-2">
+                  CONTEXT URL <Info className="w-4 h-4 text-indigo-200" />
                 </label>
-                <div className="relative group">
-                  <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="relative">
+                  <Globe className="absolute left-8 top-1/2 -translate-y-1/2 w-7 h-7 text-gray-300 pointer-events-none" />
                   <input
                     type="url"
-                    placeholder="e.g. https://yourcompany.com"
-                    className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all shadow-inner"
+                    placeholder="https://brand.identity"
+                    className="w-full pl-20 pr-10 py-6 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[32px] outline-none text-2xl transition-all font-bold shadow-inner placeholder:text-gray-200"
                     value={companyUrl}
                     onChange={(e) => setCompanyUrl(e.target.value)}
                   />
                 </div>
               </div>
 
-              <button
-                disabled={!topic || loading}
-                onClick={handleInitialAnalysis}
-                className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-100 mt-4"
-              >
-                {loading ? (
-                  <><Loader2 className="w-6 h-6 animate-spin" /> Researching Brand Context...</>
-                ) : (
-                  <><Sparkles className="w-6 h-6" /> Start Intelligence Gathering</>
-                )}
-              </button>
+              {loading ? (
+                <div className="bg-gray-900 rounded-[40px] p-10 space-y-8 shadow-2xl border border-gray-800 animate-in zoom-in-95 relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gray-800">
+                    <div className="h-full bg-indigo-500 transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20">
+                          <Binary className="w-6 h-6 text-indigo-400 animate-pulse" />
+                       </div>
+                       <div>
+                         <p className="text-white font-black text-sm uppercase tracking-widest italic">Intelligence Core</p>
+                         <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest">Synthesis active</p>
+                       </div>
+                    </div>
+                    <span className="text-indigo-400 font-mono text-xl tabular-nums">{progress}%</span>
+                  </div>
+
+                  <div className="space-y-3 font-mono text-sm leading-tight border-t border-gray-800 pt-6">
+                    {statusLogs.map((log, i) => (
+                      <p key={i} className={`${i === statusLogs.length - 1 ? 'text-indigo-300' : 'text-gray-600'} flex gap-3 animate-in slide-in-from-left-2`}>
+                        <span className="text-gray-800">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
+                        <span>{i === statusLogs.length - 1 ? '> ' : '  '}{log}</span>
+                      </p>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-4 pt-4">
+                    <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                       <div className="h-full bg-indigo-600 animate-pulse" style={{ width: '40%' }} />
+                    </div>
+                    <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  disabled={!topic.trim() || loading}
+                  onClick={handleInitialAnalysis}
+                  className="w-full py-8 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-100 text-white rounded-[40px] font-black text-2xl flex items-center justify-center gap-6 transition-all shadow-[0_30px_60px_rgba(79,70,229,0.3)] mt-4 group/btn active:scale-95"
+                >
+                  <Sparkles className="w-10 h-10 group-hover/btn:rotate-12 transition-transform" /> START INTELLIGENCE GATHERING
+                </button>
+              )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              {['Inclusive Classroom Strategies', 'Modern Educational Leadership', 'Early Literacy Development', 'Digital Literacy in K-12'].map((t) => (
-                <button 
-                  key={t}
-                  onClick={() => setTopic(t)}
-                  className="text-left px-4 py-3 rounded-xl border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 text-gray-600 text-sm transition-all"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+            {!loading && (
+              <div className="grid grid-cols-2 gap-4 pt-4">
+                {[
+                  'Cognitive Architectures',
+                  'SEO Semantic Clusters',
+                  'Hyper-Personalization',
+                  'Market Fluidity'
+                ].map((t) => (
+                  <button 
+                    key={t}
+                    onClick={() => setTopic(t)}
+                    className="text-center px-6 py-5 rounded-3xl border border-gray-100 hover:border-indigo-600 hover:text-indigo-600 font-black text-gray-400 text-xs transition-all uppercase tracking-widest bg-white shadow-sm hover:shadow-xl active:scale-95"
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {step === 2 && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div className="flex items-center justify-between">
+          <div className="space-y-12 animate-in fade-in zoom-in-95 duration-700">
+            <div className="flex items-center justify-between border-b pb-8">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Content Strategy Brief</h2>
-                <p className="text-gray-500">We've generated a high-fidelity brief aligned with your {brief.brandContext ? 'brand' : 'topic'}.</p>
+                <h2 className="text-4xl font-black text-gray-900 tracking-tight italic">SEMANTIC BRIEF</h2>
+                <p className="text-gray-400 text-lg mt-1">Strategic alignment based on discovered discourse patterns.</p>
               </div>
-              <button 
-                onClick={() => setStep(1)}
-                className="text-sm text-gray-500 hover:text-indigo-600 flex items-center gap-1"
-              >
-                <RefreshCw className="w-4 h-4" /> Start Over
+              <button onClick={() => setStep(1)} className="p-4 bg-gray-50 rounded-3xl text-gray-400 hover:text-indigo-600 transition-all hover:bg-white border hover:border-indigo-100">
+                <RefreshCw className="w-7 h-7" />
               </button>
             </div>
 
-            {brief.brandContext && (
-              <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl">
-                <h3 className="text-indigo-900 font-bold flex items-center gap-2 mb-2">
-                  <Globe className="w-4 h-4" /> Brand Persona Intelligence
-                </h3>
-                <p className="text-indigo-700 text-sm leading-relaxed">{brief.brandContext}</p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Target Keywords</label>
-                  <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+              <div className="space-y-10">
+                <div className="space-y-5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">PRIMARY SEMANTIC TARGETS</label>
+                  <div className="flex flex-wrap gap-3">
                     {brief.targetKeywords?.map((k, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-sm font-medium border border-indigo-100">{k}</span>
+                      <span key={i} className="px-6 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-100">{k}</span>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Semantic Keywords</label>
-                  <div className="flex flex-wrap gap-2">
+                <div className="space-y-5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">SECONDARY NODES</label>
+                  <div className="flex flex-wrap gap-3">
                     {brief.secondaryKeywords?.map((k, i) => (
-                      <span key={i} className="px-3 py-1.5 bg-gray-50 text-gray-600 rounded-lg text-sm font-medium border border-gray-100">{k}</span>
+                      <span key={i} className="px-6 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-xs font-bold uppercase tracking-widest hover:border-indigo-400 transition-colors">{k}</span>
                     ))}
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-6">
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Target Audience</label>
+              <div className="space-y-10">
+                <div className="space-y-5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">DISCOURSE AUDIENCE</label>
                   <input 
-                    className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-3xl outline-none font-black text-gray-800 text-lg transition-all shadow-inner"
                     value={brief.audience}
                     onChange={(e) => setBrief({...brief, audience: e.target.value})}
                   />
                 </div>
 
-                <div>
-                  <label className="text-sm font-semibold text-gray-700 block mb-2 uppercase tracking-wider">Voice & Tone</label>
+                <div className="space-y-5">
+                  <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">CONTENT RESONANCE TONE</label>
                   <select 
-                    className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-3xl outline-none font-black text-gray-800 text-lg transition-all shadow-inner appearance-none cursor-pointer"
                     value={brief.tone}
                     onChange={(e) => setBrief({...brief, tone: e.target.value})}
                   >
                     <option>Professional & Authoritative</option>
-                    <option>Conversational & Friendly</option>
-                    <option>Technical & In-depth</option>
-                    <option>Inspirational & Bold</option>
-                    <option>Empathetic & Caring</option>
-                    <option>Academic & Rigorous</option>
+                    <option>Futuristic & Bold</option>
+                    <option>Technical & Academic</option>
+                    <option>Conversational & Human</option>
                   </select>
                 </div>
               </div>
             </div>
 
-            <div className="pt-8 border-t flex justify-end">
+            <div className="pt-12 flex justify-end">
               <button 
                 onClick={generateOutline}
                 disabled={loading}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
+                className="bg-indigo-600 text-white px-12 py-6 rounded-[32px] font-black text-xl flex items-center gap-4 shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 transition-all"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <>Next: Review Structure <ArrowRight className="w-5 h-5" /></>}
+                {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : <>MAP STRUCTURAL HIERARCHY <ArrowRight className="w-8 h-8" /></>}
               </button>
             </div>
           </div>
         )}
 
         {step === 3 && outline && (
-          <div className="space-y-8 animate-in fade-in duration-500">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">ZR Content Creator Structure</h2>
-              <p className="text-gray-500">Review the AI-generated structure before final content synthesis.</p>
+          <div className="space-y-12 animate-in slide-in-from-right-16 duration-700">
+            <div className="flex items-center justify-between border-b pb-8">
+              <div>
+                <h2 className="text-4xl font-black text-gray-900 tracking-tight italic">STRUCTURAL ARCHITECTURE</h2>
+                <p className="text-gray-400 text-lg mt-1">Hierarchical mapping complete. Finalize information flow.</p>
+              </div>
             </div>
 
-            <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200 space-y-6 max-h-[400px] overflow-y-auto custom-scrollbar">
-              <h3 className="text-xl font-bold text-indigo-700">{outline.title}</h3>
-              {outline.sections.map((section, idx) => (
-                <div key={idx} className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
-                  <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">{idx + 1}</span>
-                    {section.heading}
-                  </h4>
-                  <ul className="space-y-2 ml-8">
-                    {section.subheadings.map((sub, sIdx) => (
-                      <li key={sIdx} className="text-sm text-gray-600 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                        {sub}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-4 pt-4 border-t border-dashed flex flex-wrap gap-2">
-                    {section.keyPoints.map((point, pIdx) => (
-                      <span key={pIdx} className="text-[10px] uppercase font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded">
-                        {point}
-                      </span>
-                    ))}
+            <div className="bg-gray-50 rounded-[50px] p-12 border-2 border-indigo-50 space-y-10 max-h-[550px] overflow-y-auto custom-scrollbar shadow-inner">
+              <h3 className="text-4xl font-black text-indigo-700 leading-tight italic tracking-tighter">{outline.title}</h3>
+              <div className="grid grid-cols-1 gap-8">
+                {outline.sections.map((section, idx) => (
+                  <div key={idx} className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm relative group hover:shadow-2xl transition-all duration-500">
+                    <div className="flex items-center gap-6 mb-8">
+                      <span className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-xl shadow-indigo-100">{idx + 1}</span>
+                      <h4 className="font-black text-gray-900 text-2xl tracking-tighter italic">{section.heading}</h4>
+                    </div>
+                    <ul className="space-y-4 ml-16">
+                      {section.subheadings.map((sub, sIdx) => (
+                        <li key={sIdx} className="text-sm font-black text-gray-400 flex items-center gap-4 uppercase tracking-widest">
+                          <div className="w-3 h-3 rounded-full bg-indigo-100 group-hover:bg-indigo-500 transition-colors" />
+                          {sub}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="pt-8 border-t flex justify-between">
-              <button 
-                onClick={() => setStep(2)}
-                className="text-gray-500 font-medium hover:text-gray-700"
-              >
-                Back to Brief
-              </button>
+            <div className="pt-12 flex justify-between items-center">
+              <button onClick={() => setStep(2)} className="text-gray-300 font-black uppercase tracking-[0.3em] text-[11px] hover:text-indigo-600 transition-colors">Return to Brief</button>
               <button 
                 onClick={() => onComplete(brief as ContentBrief, outline)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200"
+                className="bg-indigo-600 text-white px-16 py-7 rounded-[40px] font-black text-2xl flex items-center gap-6 shadow-[0_30px_70px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 transition-all"
               >
-                Synthesize Final Content <Sparkles className="w-5 h-5" />
+                INITIALIZE SYNTHESIS <Sparkles className="w-8 h-8" />
               </button>
             </div>
           </div>

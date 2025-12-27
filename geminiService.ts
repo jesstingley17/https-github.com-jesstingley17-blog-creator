@@ -1,17 +1,29 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./types";
 
-// Always initialize GoogleGenAI with process.env.API_KEY directly as a named parameter.
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Factory to get a fresh AI instance with the current injected API key.
+ * Strictly follows SDK guidelines to instantiate right before usage.
+ */
+const getAI = () => {
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
 
 export const geminiService = {
   async ensureApiKey(): Promise<boolean> {
+    // If we have an API key in the environment (Production/Vercel), we're good to go.
+    if (process.env.API_KEY) return true;
+
+    // Fallback for AI Studio interactive environment
     // @ts-ignore
-    const hasKey = await window.aistudio.hasSelectedApiKey();
-    if (!hasKey) {
+    if (typeof window.aistudio !== 'undefined') {
       // @ts-ignore
-      await window.aistudio.openSelectKey();
-      return true; // Proceed assuming selection success as per race condition guidelines
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        // @ts-ignore
+        await window.aistudio.openSelectKey();
+        return true; // Proceed assuming selection success per race condition guidelines
+      }
     }
     return true;
   },
@@ -19,17 +31,16 @@ export const geminiService = {
   async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
     await this.ensureApiKey();
     const ai = getAI();
-    let prompt = `Analyze the topic "${topic}" and provide highly detailed SEO brief details.`;
+    let prompt = `Act as an elite SEO Content Strategist. Analyze the topic "${topic}" and provide a deep semantic brief.`;
     
     if (companyUrl) {
-      prompt += ` Conduct deep research on the company at ${companyUrl} using Google Search. 
-      Identify their core brand pillars, tone of voice (e.g., sophisticated, aggressive, helpful), target audience segments, and primary value propositions. 
-      Ensure the suggested keywords and brand context are perfectly aligned with their existing market positioning. 
-      Prioritize information from official company pages, press releases, and verified professional profiles.`;
+      prompt += ` Conduct deep intelligence gathering on the brand at ${companyUrl} using Google Search. 
+      Identify brand pillars, tone, audience segments, and value propositions. 
+      Align all suggestions with their existing market positioning.`;
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview', // High-reasoning model for strategy
       contents: prompt,
       config: {
         tools: companyUrl ? [{ googleSearch: {} }] : undefined,
@@ -41,7 +52,7 @@ export const geminiService = {
             secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
             audience: { type: Type.STRING },
             tone: { type: Type.STRING },
-            brandContext: { type: Type.STRING, description: "A summary of the brand's identity and voice found from their URL." }
+            brandContext: { type: Type.STRING, description: "Deep summary of brand identity." }
           },
           required: ['targetKeywords', 'secondaryKeywords', 'audience', 'tone']
         }
@@ -51,7 +62,7 @@ export const geminiService = {
     try {
       return JSON.parse(response.text || '{}');
     } catch (e) {
-      console.error("Failed to parse brief", e);
+      console.error("Brief parsing error:", e);
       return {};
     }
   },
@@ -59,17 +70,15 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Create a detailed, high-converting SEO content outline for: "${brief.topic}". 
+    const prompt = `Construct a detailed SEO-optimized hierarchical outline for: "${brief.topic}". 
     Target Audience: ${brief.audience}. 
-    Tone of Voice: ${brief.tone}. 
-    Primary SEO Keywords: ${brief.targetKeywords.join(', ')}.
-    ${brief.brandContext ? `Brand Guidelines: ${brief.brandContext}` : ''}
-    ${brief.companyUrl ? `Align with the business goals of: ${brief.companyUrl}` : ''}
-    
-    Structure the outline to maximize user engagement and search engine visibility. Each section should have specific goals and semantic keyword targets.`;
+    Tone: ${brief.tone}. 
+    Core Keywords: ${brief.targetKeywords.join(', ')}.
+    ${brief.brandContext ? `Brand Guardrails: ${brief.brandContext}` : ''}
+    ${brief.companyUrl ? `Strategic Goal: Align with ${brief.companyUrl}` : ''}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -99,21 +108,19 @@ export const geminiService = {
   async *streamContent(brief: ContentBrief, outline: ContentOutline) {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as a world-class SEO content strategist and editor. 
-    Write an authoritative, comprehensive, and engaging long-form article based on this outline:
+    const prompt = `Write a world-class authoritative article. 
     Title: ${outline.title}
-    Core Topic: ${brief.topic}
-    Voice/Tone: ${brief.tone}
+    Topic: ${brief.topic}
+    Tone: ${brief.tone}
     Keywords: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
-    ${brief.brandContext ? `Brand Voice Constraints: ${brief.brandContext}` : ''}
 
-    REQUIRED VISUAL ARCHITECTURE:
-    1. USE COMPARISON TABLES: Include at least one Markdown table (e.g., Feature Comparisons, Pros vs. Cons, or Data Snapshots).
-    2. KEY TAKEAWAY CALLOUTS: Use Markdown blockquotes (>) for "Pro-Tips" or "Strategic Insights."
-    3. ACTIONABLE CHECKLISTS: Use bulleted lists for steps.
-    4. HIERARCHY: Use clear H2 and H3 structures.
+    Requirements:
+    1. Visual Hierarchy: Use clean H2/H3 Markdown.
+    2. Data Viz: Include at least one Markdown comparison table.
+    3. Strategic Insights: Use blockquotes (>) for 'Pro Tips'.
+    4. Practicality: Use bulleted checklists.
     
-    Structure the article with clean, visually rich Markdown. Use search grounding for up-to-date facts.`;
+    Cross-reference current facts using Google Search.`;
 
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
@@ -133,11 +140,11 @@ export const geminiService = {
     await this.ensureApiKey();
     const ai = getAI();
     const prompts = {
-      rephrase: `Rephrase the following text to be more professional and engaging: "${text}"`,
-      expand: `Expand upon this idea with more detail and expert insights. Text: "${text}"`,
-      summarize: `Summarize the following text concisely: "${text}"`,
-      draft: `Draft a high-quality section for: "${text}". Context: "${context}"`,
-      custom: `${customInstruction}. Context: "${context}". Target text: "${text}"`
+      rephrase: `Politely rephrase this for high-end professional readability: "${text}"`,
+      expand: `Elaborate with expert detail and nuance: "${text}"`,
+      summarize: `Summarize for an executive briefing: "${text}"`,
+      draft: `Synthesize a new section for topic "${text}" given context: "${context}"`,
+      custom: `${customInstruction}. Context: "${context}". Target: "${text}"`
     };
 
     const response = await ai.models.generateContent({
@@ -152,9 +159,9 @@ export const geminiService = {
     await this.ensureApiKey();
     const ai = getAI();
     const prompts = {
-      table: `Generate a professional Markdown comparison table based on this context: "${context}". Ensure it has at least 3 columns and 4 rows. Focus on comparing key features or data points.`,
-      callout: `Generate a high-impact "Key Takeaway" callout in Markdown (using >) for this context: "${context}". Make it succinct and insightful.`,
-      checklist: `Generate an actionable 5-step checklist in Markdown for this context: "${context}". Use bullet points with checkmarks if possible.`
+      table: `Generate a high-contrast Markdown comparison table based on: "${context}". At least 3 columns.`,
+      callout: `Create a profound Markdown blockquote (>) insight for: "${context}".`,
+      checklist: `Generate a 5-step strategic checklist in Markdown for: "${context}".`
     };
 
     const response = await ai.models.generateContent({
@@ -165,41 +172,14 @@ export const geminiService = {
     return response.text || '';
   },
 
-  async generateSocialCaption(platform: 'Instagram' | 'Facebook' | 'LinkedIn', content: string): Promise<string> {
-    await this.ensureApiKey();
-    const ai = getAI();
-    const platformGuides = {
-      Instagram: "Use engaging visual language, include relevant emojis, and add a block of 5-10 strategic hashtags. Keep it concise and focused on a visual hook.",
-      Facebook: "Write a friendly, shareable summary. Use a conversational tone and include a clear call to action (CTA). Emojis are welcome but keep it professional.",
-      LinkedIn: "Focus on professional value, industry insights, and thought leadership. Use structured points or short paragraphs. Include 3-5 high-value professional hashtags."
-    };
-
-    const prompt = `Act as a social media manager. Condense the following article into a high-converting ${platform} post caption.
-    Platform Guidelines: ${platformGuides[platform]}
-    
-    Article Content: ${content.substring(0, 4000)}
-    
-    Return only the caption text.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-
-    return response.text?.trim() || '';
-  },
-
   async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
     await this.ensureApiKey();
     const ai = getAI();
-    
-    // Ensure keywords is never empty for schema generation
-    const targetKeywords = keywords.length > 0 ? keywords : ['general'];
+    const targetKeywords = keywords.length > 0 ? keywords : ['core topic'];
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Critically evaluate the following content for SEO excellence against target keywords: ${targetKeywords.join(', ')}. 
-      Content: ${text.substring(0, 5000)}`,
+      model: 'gemini-3-pro-preview',
+      contents: `Critically analyze this content for SEO excellence using keywords: ${targetKeywords.join(', ')}. Content: ${text.substring(0, 8000)}`,
       config: {
         responseMimeType: 'application/json',
         responseSchema: {
@@ -207,10 +187,6 @@ export const geminiService = {
           properties: {
             score: { type: Type.NUMBER },
             readability: { type: Type.STRING },
-            keywordDensity: { 
-                type: Type.OBJECT,
-                properties: targetKeywords.reduce((acc, k) => ({...acc, [k]: {type: Type.NUMBER}}), {})
-            },
             suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
             keywordSuggestions: {
               type: Type.ARRAY,
@@ -218,10 +194,9 @@ export const geminiService = {
                 type: Type.OBJECT,
                 properties: {
                   keyword: { type: Type.STRING },
-                  action: { type: Type.STRING },
-                  explanation: { type: Type.STRING }
-                },
-                required: ['keyword', 'action', 'explanation']
+                  action: { type: Type.STRING, description: "e.g., 'ADD', 'OPTIMIZE', 'LIMIT'" },
+                  explanation: { type: Type.STRING, description: "Explain why this keyword improves search intent or semantic depth." }
+                }
               }
             }
           },
@@ -233,61 +208,45 @@ export const geminiService = {
     try {
       return JSON.parse(response.text || '{}');
     } catch (e) {
-      console.error("SEO Analysis Parse Failed", e);
-      return {
-        score: 0,
-        readability: 'Unknown',
-        keywordDensity: {},
-        suggestions: ['Could not analyze content structure.'],
-        keywordSuggestions: []
-      };
+      return { score: 0, readability: 'Inconclusive', keywordDensity: {}, suggestions: [], keywordSuggestions: [] };
     }
-  },
-
-  async refineImagePrompt(currentPrompt: string, contextTitle: string): Promise<string> {
-    await this.ensureApiKey();
-    const ai = getAI();
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Refine this image prompt: "${currentPrompt}" for an article titled "${contextTitle}". Make it descriptive for high-end AI generation.`,
-    });
-    return response.text?.trim() || currentPrompt;
   },
 
   async generateArticleImage(prompt: string): Promise<string> {
     await this.ensureApiKey();
-    // Use gemini-3-pro-image-preview for high quality
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
-      contents: {
-        parts: [{ text: prompt }]
-      },
-      config: {
-        imageConfig: {
-          aspectRatio: "16:9",
-          imageSize: "1K"
-        }
-      }
+      contents: { parts: [{ text: prompt }] },
+      config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } }
     });
 
     for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) {
-        return `data:image/png;base64,${part.inlineData.data}`;
-      }
+      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
     }
-    throw new Error("No image data returned from model");
+    throw new Error("Asset generation failed");
   },
 
-  // FIX: Added missing suggestSchedule method called in Planner.tsx
+  async refineImagePrompt(currentPrompt: string, context: string): Promise<string> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Refine this visual generation prompt to be more cinematic and professional. 
+    Topic: "${context}"
+    Current: "${currentPrompt}"
+    Return ONLY the refined prompt.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+
+    return response.text?.trim() || currentPrompt;
+  },
+
   async suggestSchedule(articles: { id: string; title: string; topic: string }[]): Promise<{ articleId: string; date: string; platform: string }[]> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Given the following list of articles, suggest an optimal social media posting schedule for the next 30 days.
-    Articles: ${JSON.stringify(articles)}
-    
-    Assign each article to a platform (LinkedIn, Twitter, Facebook, or Blog) and a specific date/time in the next month starting from today (${new Date().toISOString()}). 
-    Balance the schedule to maintain consistent engagement. Return the result in the specified JSON format.`;
+    const prompt = `Balance a 30-day distribution schedule for: ${JSON.stringify(articles)}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -300,20 +259,14 @@ export const geminiService = {
             type: Type.OBJECT,
             properties: {
               articleId: { type: Type.STRING },
-              date: { type: Type.STRING, description: "ISO 8601 format string" },
-              platform: { type: Type.STRING, description: "The platform for the post: LinkedIn, Twitter, Facebook, or Blog." }
-            },
-            required: ['articleId', 'date', 'platform']
+              date: { type: Type.STRING },
+              platform: { type: Type.STRING }
+            }
           }
         }
       }
     });
 
-    try {
-      return JSON.parse(response.text || '[]');
-    } catch (e) {
-      console.error("Failed to parse schedule suggestions", e);
-      return [];
-    }
+    return JSON.parse(response.text || '[]');
   }
 };
