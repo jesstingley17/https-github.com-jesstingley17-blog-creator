@@ -1,7 +1,8 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./types";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// Always initialize GoogleGenAI with process.env.API_KEY directly as a named parameter.
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const geminiService = {
   async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
@@ -93,17 +94,12 @@ export const geminiService = {
     ${brief.brandContext ? `Brand Voice Constraints: ${brief.brandContext}` : ''}
 
     REQUIRED VISUAL ARCHITECTURE:
-    1. USE COMPARISON TABLES: Include at least one Markdown table (e.g., Feature Comparisons, Pros vs. Cons, or Data Snapshots) to make complex info scannable.
-    2. KEY TAKEAWAY CALLOUTS: Use Markdown blockquotes (>) for "Pro-Tips," "Key Takeaways," or "Strategic Insights."
-    3. ACTIONABLE CHECKLISTS: Use bulleted lists for steps or checklists.
+    1. USE COMPARISON TABLES: Include at least one Markdown table (e.g., Feature Comparisons, Pros vs. Cons, or Data Snapshots).
+    2. KEY TAKEAWAY CALLOUTS: Use Markdown blockquotes (>) for "Pro-Tips" or "Strategic Insights."
+    3. ACTIONABLE CHECKLISTS: Use bulleted lists for steps.
     4. HIERARCHY: Use clear H2 and H3 structures.
     
-    REQUIRED SEARCH & GROUNDING STRATEGY:
-    1. Use Google Search to verify all technical claims, statistics, and current market trends.
-    2. PRIORITIZE AUTHORITATIVE SOURCES: Favor .gov, .edu, industry-leading publications.
-    3. DATA INTEGRITY: Ensure every "fact" or "stat" is grounded in search results.
-    
-    Structure the article with clean, visually rich Markdown. Include expert-level depth and a compelling narrative flow.`;
+    Structure the article with clean, visually rich Markdown.`;
 
     const responseStream = await ai.models.generateContentStream({
       model: 'gemini-3-flash-preview',
@@ -122,30 +118,64 @@ export const geminiService = {
   async performWritingTask(task: 'rephrase' | 'expand' | 'summarize' | 'draft' | 'custom', text: string, context: string, customInstruction?: string): Promise<string> {
     const ai = getAI();
     const prompts = {
-      rephrase: `Rephrase the following text to be more professional, engaging, and SEO-friendly while maintaining the original meaning: "${text}"`,
-      expand: `Expand upon this idea with more detail, context, and expert-level insights. Use research if needed. Text: "${text}"`,
-      summarize: `Summarize the following text into a concise, high-impact paragraph: "${text}"`,
-      draft: `Draft a complete, high-quality section based on this heading: "${text}". Context of the article: "${context}"`,
+      rephrase: `Rephrase the following text to be more professional and engaging: "${text}"`,
+      expand: `Expand upon this idea with more detail and expert insights. Text: "${text}"`,
+      summarize: `Summarize the following text concisely: "${text}"`,
+      draft: `Draft a high-quality section for: "${text}". Context: "${context}"`,
       custom: `${customInstruction}. Context: "${context}". Target text: "${text}"`
     };
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: prompts[task],
-      config: {
-        tools: (task === 'expand' || task === 'draft') ? [{ googleSearch: {} }] : undefined,
-      }
     });
 
     return response.text || '';
   },
 
+  async generateVisualBlock(type: 'table' | 'callout' | 'checklist', context: string): Promise<string> {
+    const ai = getAI();
+    const prompts = {
+      table: `Generate a professional Markdown comparison table based on this context: "${context}". Ensure it has at least 3 columns and 4 rows.`,
+      callout: `Generate a high-impact "Key Takeaway" callout in Markdown (using >) for this context: "${context}".`,
+      checklist: `Generate an actionable 5-step checklist in Markdown for this context: "${context}".`
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompts[type],
+    });
+
+    return response.text || '';
+  },
+
+  async generateSocialCaption(platform: 'Instagram' | 'Facebook' | 'LinkedIn', content: string): Promise<string> {
+    const ai = getAI();
+    const platformGuides = {
+      Instagram: "Use engaging visual language, include relevant emojis, and add a block of 5-10 strategic hashtags. Keep it concise and focused on a visual hook.",
+      Facebook: "Write a friendly, shareable summary. Use a conversational tone and include a clear call to action (CTA). Emojis are welcome but keep it professional.",
+      LinkedIn: "Focus on professional value, industry insights, and thought leadership. Use structured points or short paragraphs. Include 3-5 high-value professional hashtags."
+    };
+
+    const prompt = `Act as a social media manager. Condense the following article into a high-converting ${platform} post caption.
+    Platform Guidelines: ${platformGuides[platform]}
+    
+    Article Content: ${content.substring(0, 4000)}
+    
+    Return only the caption text.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+    });
+
+    return response.text?.trim() || '';
+  },
+
   async suggestSchedule(articles: {id: string, title: string, topic: string}[]): Promise<Partial<ScheduledPost>[]> {
     const ai = getAI();
     const prompt = `Analyze these articles and suggest an optimized cross-platform social media distribution schedule.
-    Articles: ${articles.map(a => `"${a.title}" (Topic: ${a.topic})`).join(', ')}
-    
-    Consider current social media trends and peak engagement times for the respective niches.`;
+    Articles: ${articles.map(a => `"${a.title}" (Topic: ${a.topic})`).join(', ')}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -175,12 +205,6 @@ export const geminiService = {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Critically evaluate the following content for SEO excellence against target keywords: ${keywords.join(', ')}. 
-      
-      Analysis Criteria:
-      - Semantic relevance and topical depth.
-      - Keyword integration (avoiding stuffing, ensuring natural flow).
-      - Readability and structure (E-E-A-T principles).
-      
       Content: ${text.substring(0, 5000)}`,
       config: {
         responseMimeType: 'application/json',
@@ -218,23 +242,14 @@ export const geminiService = {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `You are a world-class prompt engineer for AI image generators. 
-      Take this basic user input: "${currentPrompt}" 
-      And this article title for context: "${contextTitle}"
-      
-      Rewrite it into a detailed, high-quality editorial prompt that includes:
-      - Specific artistic style (minimalist, cinematic, 3D render, or professional photography)
-      - Lighting descriptions (soft volumetric lighting, golden hour, studio light)
-      - Composition (wide shot, shallow depth of field)
-      - High-end textures and 8k resolution keywords.
-      
-      Return ONLY the refined prompt text. No quotes, no explanation.`,
+      contents: `Refine this image prompt: "${currentPrompt}" for an article titled "${contextTitle}". Make it descriptive for high-end AI generation.`,
     });
     return response.text?.trim() || currentPrompt;
   },
 
   async generateArticleImage(prompt: string): Promise<string> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+    // Creating instance right before call as per guidelines for gemini-3-pro-image-preview.
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {
