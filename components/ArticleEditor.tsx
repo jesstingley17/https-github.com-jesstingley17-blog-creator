@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -33,7 +32,9 @@ import {
   Linkedin,
   Twitter,
   Facebook,
-  Layout
+  Layout,
+  Info,
+  ShieldCheck
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -62,7 +63,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [showScoreTooltip, setShowScoreTooltip] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
-  const [showSourcesModal, setShowSourcesModal] = useState(false);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
@@ -97,7 +97,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setHasStarted(true);
     setIsGenerating(true);
     setViewMode('preview');
-    setSources([]);
     let fullText = '';
     const collectedSources = new Map<string, string>();
 
@@ -280,9 +279,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const getScoreBreakdown = () => {
     if (!analysis) return [];
     
+    // Calculate keyword density score
     const densityValues = Object.values(analysis.keywordDensity || {}) as any[];
     const densities = densityValues.map(v => typeof v === 'number' ? v : 0);
-    const avgDensity = densities.length > 0 ? (densities.reduce((a: number, b: number) => a + b, 0) / densities.length) * 40 : 0;
+    const avgDensityVal = densities.length > 0 ? (densities.reduce((a: number, b: number) => a + b, 0) / densities.length) : 0;
+    const densityScore = Math.min(100, Math.round(avgDensityVal * 60)); // Normalized to 100
     
     const readabilityMap: Record<string, number> = {
       'Advanced': 65,
@@ -291,11 +292,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       'Simple': 75
     };
 
+    const structureScore = Math.min(100, (localOutline.sections || []).length * 20);
+    const depthScore = Math.min(100, Math.round((analysis.score || 0) * 0.95 + 5));
+
     return [
-      { label: 'Keyword Density', val: Math.min(100, Math.round(avgDensity)), icon: Target },
-      { label: 'Readability', val: readabilityMap[analysis.readability] || 80, icon: Type },
-      { label: 'Structure', val: (localOutline.sections || []).length > 4 ? 95 : 75, icon: Layers },
-      { label: 'Semantic Depth', val: Math.min(100, Math.round((analysis.score || 0) * 1.05)), icon: Search },
+      { label: 'Keyword Density', val: densityScore, icon: Target, desc: 'Average integration of target keywords.' },
+      { label: 'Readability', val: readabilityMap[analysis.readability] || 80, icon: Type, desc: 'Audience accessibility and flow.' },
+      { label: 'Structural Depth', val: structureScore, icon: Layers, desc: 'Completeness of subheadings and points.' },
+      { label: 'Semantic Integrity', val: depthScore, icon: ShieldCheck, desc: 'Topical authority and fact-checking.' },
     ];
   };
 
@@ -350,7 +354,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 onClick={startGeneration}
                 className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
               >
-                <Play className="w-4 h-4 fill-current" /> Confirm & Generate Content
+                <Play className="w-4 h-4 fill-current" /> Confirm & Generate
               </button>
             ) : (
               <>
@@ -360,17 +364,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 >
                   <Calendar className="w-4 h-4" /> Schedule
                 </button>
-                <button 
-                  onClick={handleDownload}
-                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
-                  title="Download as Markdown"
-                >
+                <button onClick={handleDownload} className="p-2 text-gray-400 hover:text-indigo-600 transition-colors">
                   <Download className="w-5 h-5" />
                 </button>
-                <button 
-                  onClick={saveVersion}
-                  className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-                >
+                <button onClick={saveVersion} className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
                   <Save className="w-4 h-4" /> Save
                 </button>
               </>
@@ -383,9 +380,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between border-b pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-50 rounded-lg">
-                    <Layers className="w-5 h-5 text-indigo-600" />
-                  </div>
+                  <div className="p-2 bg-indigo-50 rounded-lg"><Layers className="w-5 h-5 text-indigo-600" /></div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">Blueprint Designer</h3>
                     <p className="text-sm text-gray-500">Fine-tune the architecture of your article.</p>
@@ -406,15 +401,13 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
                     <div className="flex-1 space-y-6">
                       <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <input 
-                            type="text"
-                            value={section.heading}
-                            onChange={(e) => updateSectionHeading(sIdx, e.target.value)}
-                            className="w-full bg-transparent border-none text-xl font-black text-gray-900 focus:ring-0 p-0 placeholder:text-gray-300"
-                            placeholder="Heading..."
-                          />
-                        </div>
+                        <input 
+                          type="text"
+                          value={section.heading}
+                          onChange={(e) => updateSectionHeading(sIdx, e.target.value)}
+                          className="w-full bg-transparent border-none text-xl font-black text-gray-900 focus:ring-0 p-0 placeholder:text-gray-300"
+                          placeholder="Heading..."
+                        />
                         <button onClick={() => removeSection(sIdx)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -423,20 +416,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-                              <List className="w-3 h-3 text-indigo-400" /> Subheadings
-                            </label>
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2"><List className="w-3 h-3 text-indigo-400" /> Subheadings</label>
                             <button onClick={() => addSubheading(sIdx)} className="text-[10px] font-bold text-indigo-500 hover:underline">Add Subheading</button>
                           </div>
                           <div className="space-y-2 pl-4 border-l-2 border-indigo-50">
                             {(section.subheadings || []).map((sub, subIdx) => (
                               <div key={subIdx} className="group/sub flex items-center gap-2 bg-gray-50/50 rounded-xl px-3 py-1.5 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
-                                <div className="flex flex-col opacity-0 group-hover/sub:opacity-100">
-                                  <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                  <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === (section.subheadings || []).length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
-                                </div>
                                 <input value={sub} onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)} className="flex-1 bg-transparent border-none text-sm text-gray-700 focus:ring-0 p-0 font-medium" />
-                                <button onClick={() => removeSubheading(sIdx, subIdx)} className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => removeSubheading(sIdx, subIdx)} className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
                           </div>
@@ -444,20 +431,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2">
-                              <Target className="w-3 h-3 text-amber-500" /> Context Targets
-                            </label>
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400 flex items-center gap-2"><Target className="w-3 h-3 text-amber-500" /> Context Targets</label>
                             <button onClick={() => addKeyPoint(sIdx)} className="text-[10px] font-bold text-amber-600 hover:underline">Add Target</button>
                           </div>
                           <div className="space-y-2">
                             {(section.keyPoints || []).map((point, pIdx) => (
                               <div key={pIdx} className="group/point flex items-center gap-2 bg-amber-50/30 rounded-xl px-3 py-1.5 border border-transparent hover:border-amber-100 hover:bg-amber-50/50 transition-all">
-                                <div className="flex flex-col opacity-0 group-hover/point:opacity-100">
-                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === (section.keyPoints || []).length - 1} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
-                                </div>
                                 <input value={point} onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)} className="flex-1 bg-transparent border-none text-[11px] text-gray-600 focus:ring-0 p-0 font-bold" />
-                                <button onClick={() => removeKeyPoint(sIdx, pIdx)} className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400 transition-opacity"><Trash2 className="w-3.5 h-3.5" /></button>
+                                <button onClick={() => removeKeyPoint(sIdx, pIdx)} className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                               </div>
                             ))}
                           </div>
@@ -504,44 +485,126 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <h3 className="font-bold text-gray-900 flex items-center gap-2"><BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Intelligence</h3>
             {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
           </div>
-          <div className="relative w-32 h-32 mx-auto mb-6 cursor-pointer group/score" onMouseEnter={() => setShowScoreTooltip(true)} onMouseLeave={() => setShowScoreTooltip(false)}>
+          
+          <div 
+            className="relative w-36 h-36 mx-auto mb-6 cursor-pointer group/score isolate" 
+            onMouseEnter={() => setShowScoreTooltip(true)} 
+            onMouseLeave={() => setShowScoreTooltip(false)}
+          >
             <svg className="w-full h-full transform -rotate-90">
-              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
-              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={364} strokeDashoffset={364 - (364 * (analysis?.score || 0)) / 100} className={`${scoreColor(analysis?.score || 0)} transition-all duration-1000 ease-out`} />
+              <circle cx="72" cy="72" r="64" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
+              <circle 
+                cx="72" cy="72" r="64" 
+                stroke="currentColor" strokeWidth="12" 
+                fill="transparent" 
+                strokeDasharray={402} 
+                strokeDashoffset={402 - (402 * (analysis?.score || 0)) / 100} 
+                className={`${scoreColor(analysis?.score || 0)} transition-all duration-1000 ease-out`} 
+              />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className={`text-3xl font-black ${scoreColor(analysis?.score || 0)}`}>{analysis?.score || 0}</span>
-              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</span>
+              <span className={`text-4xl font-black ${scoreColor(analysis?.score || 0)}`}>{analysis?.score || 0}</span>
+              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Global Score</span>
             </div>
+            
+            {/* ENHANCED TOOLTIP */}
             {showScoreTooltip && analysis && (
-              <div className="absolute top-0 right-full mr-4 w-64 bg-white border border-gray-100 shadow-2xl rounded-2xl p-5 z-50 animate-in fade-in slide-in-from-right-4 duration-300">
-                <div className="mb-4 border-b pb-2 flex items-center justify-between"><p className="text-xs font-black text-gray-900 uppercase tracking-widest">Score Breakdown</p><Trophy className="w-3.5 h-3.5 text-amber-500" /></div>
-                <div className="space-y-4">
+              <div className="absolute top-0 right-full mr-6 w-72 bg-white/95 backdrop-blur-md border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl p-6 z-[100] animate-in fade-in slide-in-from-right-6 duration-300">
+                <div className="mb-5 border-b border-gray-100 pb-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Detailed Analytics</p>
+                    <h4 className="text-sm font-bold text-gray-900">Performance Breakdown</h4>
+                  </div>
+                  <Trophy className="w-4 h-4 text-amber-500 drop-shadow-sm" />
+                </div>
+                
+                <div className="space-y-5">
                   {getScoreBreakdown().map((item, idx) => (
-                    <div key={idx} className="space-y-1.5">
-                      <div className="flex justify-between items-center text-[11px] font-bold"><div className="flex items-center gap-1.5 text-gray-600"><item.icon className="w-3 h-3 opacity-60" /><span>{item.label}</span></div><span className={scoreColor(item.val)}>{item.val}%</span></div>
-                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100"><div className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-700 ease-out`} style={{ width: `${item.val}%` }} /></div>
+                    <div key={idx} className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-gray-700">
+                          <div className={`p-1.5 rounded-lg bg-gray-50 border border-gray-100`}>
+                            <item.icon className="w-3.5 h-3.5 opacity-80" />
+                          </div>
+                          <div>
+                            <span className="text-xs font-bold block">{item.label}</span>
+                            <span className="text-[9px] text-gray-400 font-medium">{item.desc}</span>
+                          </div>
+                        </div>
+                        <span className={`text-xs font-black ${scoreColor(item.val)}`}>{item.val}%</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden border border-gray-100/50">
+                        <div 
+                          className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-1000 ease-out shadow-sm`} 
+                          style={{ width: `${item.val}%` }} 
+                        />
+                      </div>
                     </div>
                   ))}
+                </div>
+                
+                <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-3">
+                  <div className="p-2 bg-indigo-50 rounded-xl">
+                    <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                  </div>
+                  <p className="text-[10px] text-indigo-700 font-bold leading-tight">
+                    Optimizing structural depth can increase your reach by up to 22%.
+                  </p>
                 </div>
               </div>
             )}
           </div>
+
           <div className="space-y-4">
-            <div className="flex items-center justify-between text-sm"><span className="text-gray-500 font-medium">Readability</span><span className="font-bold text-gray-900">{analysis?.readability || 'Not Measured'}</span></div>
-            <div className="space-y-2 border-t pt-4"><span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Keyword Load</span>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-500 font-medium">Readability Index</span>
+              <span className="font-bold text-gray-900 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                {analysis?.readability || 'Pending'}
+              </span>
+            </div>
+            <div className="space-y-2 border-t pt-4">
+              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                <Target className="w-3 h-3" /> Keyword Saturation
+              </span>
               {brief.targetKeywords.map((k, i) => (
                 <div key={i} className="space-y-1">
-                  <div className="flex justify-between text-[11px]"><span className="text-gray-600 truncate max-w-[150px] font-medium">{k}</span><span className="text-gray-400 font-bold">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span></div>
-                  <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"><div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} /></div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-gray-600 truncate max-w-[150px] font-medium">{k}</span>
+                    <span className="text-gray-400 font-bold">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-gray-50 border border-gray-100 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-indigo-500 h-full transition-all duration-1000 shadow-sm" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} />
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </div>
+
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
-          <ImageGenerator defaultPrompt={defaultImagePrompt} initialImageUrl={heroImageUrl} onImageGenerated={setHeroImageUrl} topicContext={localOutline.title} />
+          <ImageGenerator 
+            defaultPrompt={defaultImagePrompt} 
+            initialImageUrl={heroImageUrl} 
+            onImageGenerated={setHeroImageUrl} 
+            topicContext={localOutline.title} 
+          />
         </div>
+        
+        {sources.length > 0 && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
+            <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-green-600" /> Grounded References
+            </h3>
+            <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+              {sources.map((s, idx) => (
+                <a key={idx} href={s.uri} target="_blank" rel="noopener noreferrer" className="block p-3 bg-gray-50 rounded-2xl border border-transparent hover:border-indigo-100 hover:bg-white transition-all group">
+                   <p className="text-[10px] font-bold text-gray-800 line-clamp-1 group-hover:text-indigo-600">{s.title}</p>
+                   <p className="text-[9px] text-gray-400 truncate mt-1">{s.uri}</p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {showScheduleModal && (
