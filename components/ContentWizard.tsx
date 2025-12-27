@@ -1,22 +1,12 @@
-
 import React, { useState } from 'react';
 import { 
-  Search, 
   ArrowRight, 
   Loader2, 
-  CheckCircle2, 
-  Layout, 
-  Target,
-  Sparkles,
-  RefreshCw,
-  Globe,
-  Binary,
-  Link2,
-  Users,
-  UserPlus,
+  Sparkles, 
+  RefreshCw, 
+  Globe, 
   Zap,
-  MousePointer2,
-  Database
+  Info
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -44,9 +34,9 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     length: 'medium',
     status: 'draft',
     author: {
-      name: 'Author Name',
+      name: 'Content Expert',
       title: 'Senior Strategist',
-      bio: 'Professional content creator with expertise in SEO and high-value discourse.'
+      bio: 'Professional writer with expertise in industry analysis and digital growth.'
     },
     createdAt: Date.now()
   });
@@ -55,7 +45,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
 
   const addLog = (msg: string) => {
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-    setStatusLogs(prev => [...prev.slice(-5), `[${timestamp}] ${msg}`]);
+    setStatusLogs(prev => [...prev.slice(-4), `[${timestamp}] ${msg}`]);
   };
 
   const handleDeepResearch = async () => {
@@ -63,16 +53,16 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     setLoading(true);
     setProgress(10);
     setStatusLogs([]);
-    addLog(`Initializing research protocol for: ${topic}`);
+    addLog(`Protocol initiated for: ${topic}`);
 
     try {
-      addLog('Scanning global discourse nodes...');
+      addLog('Scanning digital discourse...');
       setProgress(30);
       const research = await geminiService.deepResearch(topic);
       
-      addLog(`Found ${research.competitorUrls?.length} competitors automatically.`);
-      addLog(`Mapped ${research.backlinkUrls?.length} high-authority backlink nodes.`);
-      setProgress(60);
+      addLog(`Competitor nodes mapped (${research.competitorUrls?.length || 0}).`);
+      addLog(`Authority links identified (${research.backlinkUrls?.length || 0}).`);
+      setProgress(70);
       
       const newBrief = {
         ...brief,
@@ -81,44 +71,44 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       } as ContentBrief;
       
       setBrief(newBrief);
-      addLog('Drafting semantic hierarchy...');
-      setProgress(85);
+      addLog('Generating semantic structure...');
+      setProgress(90);
       
       const generatedOutline = await geminiService.generateOutline(newBrief);
       setOutline(generatedOutline);
       setProgress(100);
-      addLog('Architecture complete. Ready for synthesis.');
+      addLog('Strategy node finalized.');
       
       setTimeout(() => {
         setStep(2);
         setLoading(false);
-      }, 1000);
+      }, 600);
     } catch (e) {
-      addLog('CRITICAL: Research nodes unresponsive.');
+      addLog('Protocol error. Check connection.');
       setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-12 animate-in fade-in duration-700">
-      <div className="bg-white rounded-[60px] border border-gray-100 shadow-[0_50px_100px_rgba(0,0,0,0.05)] p-16 min-h-[500px] flex flex-col justify-center relative overflow-hidden">
+    <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 py-6">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-10 md:p-14 relative overflow-hidden">
         
         {step === 1 && (
-          <div className="space-y-12 animate-in fade-in zoom-in-95 duration-500">
-            <div className="text-center space-y-4">
-              <h2 className="text-6xl font-black text-gray-900 tracking-tighter italic uppercase">Automated Intelligence</h2>
-              <p className="text-gray-400 text-xl font-medium">Enter a URL or Topic. We'll find the competitors, keywords, and backlinks.</p>
+          <div className="space-y-10 animate-in fade-in zoom-in-95">
+            <div className="text-center space-y-3">
+              <h2 className="text-4xl font-bold text-slate-900 tracking-tight italic uppercase">Deep Research</h2>
+              <p className="text-slate-500 font-medium">Automate competitor mapping, keyword analysis, and link discovery.</p>
             </div>
 
             <div className="space-y-6">
               <div className="relative group">
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-indigo-400 group-focus-within:text-indigo-600 transition-colors">
-                  <Globe className="w-8 h-8" />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-600 transition-colors">
+                  <Globe className="w-6 h-6" />
                 </div>
                 <input
                   type="text"
-                  placeholder="Paste URL or type Topic here..."
-                  className="w-full pl-24 pr-10 py-8 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[40px] outline-none text-2xl transition-all font-bold shadow-inner"
+                  placeholder="Enter topic or website URL..."
+                  className="w-full pl-16 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-2xl outline-none text-lg transition-all font-bold placeholder:text-slate-300"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleDeepResearch()}
@@ -126,24 +116,20 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
               </div>
 
               {loading ? (
-                <div className="bg-slate-900 rounded-[40px] p-10 space-y-6 animate-pulse">
+                <div className="bg-slate-900 rounded-2xl p-6 space-y-4 shadow-sm">
                   <div className="flex items-center justify-between text-white">
-                    <span className="font-black text-xs uppercase tracking-widest italic">Research in progress</span>
-                    <span className="text-indigo-400 font-mono">{progress}%</span>
+                    <span className="font-bold text-[10px] uppercase tracking-widest text-indigo-400">In Progress</span>
+                    <span className="text-indigo-400 font-mono text-xs">{progress}%</span>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1">
                     {statusLogs.map((log, i) => (
-                      <p key={i} className={`font-mono text-[11px] ${i === statusLogs.length - 1 ? 'text-indigo-300' : 'text-slate-600'}`}>{log}</p>
+                      <p key={i} className={`font-mono text-[10px] ${i === statusLogs.length - 1 ? 'text-indigo-300' : 'text-slate-600'}`}>{log}</p>
                     ))}
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={handleDeepResearch}
-                  disabled={!topic.trim()}
-                  className="w-full py-7 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-[40px] font-black text-xl flex items-center justify-center gap-6 shadow-2xl transition-all active:scale-95"
-                >
-                  <Sparkles className="w-8 h-8" /> START AI RESEARCH
+                <button onClick={handleDeepResearch} disabled={!topic.trim()} className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-2xl font-bold text-base flex items-center justify-center gap-3 shadow-md transition-all active:scale-95">
+                  <Sparkles className="w-5 h-5" /> Start Research
                 </button>
               )}
             </div>
@@ -151,45 +137,48 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         )}
 
         {step === 2 && (
-          <div className="space-y-10 animate-in slide-in-from-right-16 duration-700">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-8">
-               <h2 className="text-4xl font-black text-gray-900 italic uppercase tracking-tighter">Strategy Node</h2>
-               <button onClick={() => setStep(1)} className="p-4 bg-gray-50 rounded-2xl border text-gray-400"><RefreshCw className="w-5 h-5" /></button>
+          <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-6">
+               <h2 className="text-2xl font-bold text-slate-900">Strategy Node</h2>
+               <button onClick={() => setStep(1)} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-400 hover:text-indigo-600 transition-all"><RefreshCw className="w-4 h-4" /></button>
             </div>
 
-            <div className="grid grid-cols-2 gap-12">
-               <div className="space-y-8">
-                  <div className="p-8 bg-indigo-50/30 rounded-[40px] border border-indigo-100 space-y-4">
-                     <h3 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Target Keywords</h3>
-                     <div className="flex flex-wrap gap-2">
-                        {brief.targetKeywords?.map((k, i) => <span key={i} className="px-3 py-1 bg-white border border-indigo-100 text-[10px] font-black uppercase text-indigo-600 rounded-lg">{k}</span>)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               <div className="space-y-6">
+                  <div className="p-6 bg-indigo-50/30 rounded-2xl border border-indigo-100 space-y-3">
+                     <h3 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Keywords</h3>
+                     <div className="flex flex-wrap gap-1.5">
+                        {brief.targetKeywords?.map((k, i) => <span key={i} className="px-2.5 py-1 bg-white border border-indigo-100 text-[9px] font-bold uppercase text-indigo-600 rounded-md">{k}</span>)}
                      </div>
                   </div>
-                  <div className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 space-y-4">
-                     <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Competitors Mapped</h3>
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Market Context</h3>
+                     <div className="space-y-1">
+                        {brief.competitorUrls?.map((u, i) => <p key={i} className="text-[10px] font-medium text-slate-500 truncate">{u}</p>)}
+                     </div>
+                  </div>
+               </div>
+
+               <div className="space-y-6">
+                  <div className="space-y-3">
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Author Settings</label>
                      <div className="space-y-2">
-                        {brief.competitorUrls?.map((u, i) => <p key={i} className="text-[10px] font-bold text-slate-500 truncate">{u}</p>)}
+                        <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:bg-white focus:border-indigo-500 transition-all outline-none" placeholder="Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
+                        <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:bg-white focus:border-indigo-500 transition-all outline-none" placeholder="Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
                      </div>
                   </div>
-               </div>
-
-               <div className="space-y-8">
-                  <div className="space-y-4">
-                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Author Profile</label>
-                     <div className="space-y-3">
-                        <input className="w-full px-5 py-3 rounded-2xl border border-gray-100 font-bold text-sm" placeholder="Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
-                        <input className="w-full px-5 py-3 rounded-2xl border border-gray-100 font-bold text-sm" placeholder="Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
+                  <div className="p-6 bg-slate-900 rounded-2xl text-white space-y-2 border border-slate-800">
+                     <div className="flex items-center gap-2 mb-1">
+                        <Info className="w-3 h-3 text-indigo-400" />
+                        <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest italic">Research Digest</p>
                      </div>
-                  </div>
-                  <div className="p-8 bg-slate-900 rounded-[40px] text-white space-y-2">
-                     <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest italic">Research Summary</p>
-                     <p className="text-xs font-medium leading-relaxed opacity-70">AI has mapped ${brief.competitorUrls?.length} competitors and ${brief.backlinkUrls?.length} backlink nodes based on your input.</p>
+                     <p className="text-xs font-medium leading-relaxed opacity-70">Research models identified high semantic value for this topic. Ready to synthesize authority content.</p>
                   </div>
                </div>
             </div>
 
-            <button onClick={() => onComplete(brief as ContentBrief, outline!)} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black text-2xl flex items-center justify-center gap-6 shadow-2xl hover:scale-[1.02] active:scale-95 transition-all">
-              SYNTHESIZE CONTENT <Zap className="w-8 h-8" />
+            <button onClick={() => onComplete(brief as ContentBrief, outline!)} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
+              Synthesize Content <Zap className="w-6 h-6 fill-current" />
             </button>
           </div>
         )}

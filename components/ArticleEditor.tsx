@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -6,46 +5,27 @@ import {
   Loader2, 
   Play, 
   X,
-  Calendar,
   Check,
   Globe,
-  Wand2,
-  Sparkles,
   ArrowRight,
-  RefreshCw,
-  Trash2,
   Zap,
   Target,
-  Cloud,
-  Rocket,
-  ShieldCheck,
   BrainCircuit,
-  Terminal,
-  Database,
   ArrowUpRight,
-  Share2,
-  Copy,
-  Link,
-  Type as FontType,
-  Maximize2,
-  Command,
   Plus,
   Image as ImageIcon,
   Star,
   Quote,
-  LayoutTemplate,
-  Info,
   Flame,
   User,
   ExternalLink,
-  FileText,
   Link2,
   Search,
-  Bookmark
+  Info
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration, ArticleImage, AppRoute, Citation, BacklinkOpportunity } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, ArticleImage, AppRoute, Citation, BacklinkOpportunity } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -66,7 +46,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [analyzing, setAnalyzing] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
   
-  const [showShareModal, setShowShareModal] = useState(false);
   const [showForge, setShowForge] = useState(false);
   const [forgeInput, setForgeInput] = useState('');
   const [isForging, setIsForging] = useState(false);
@@ -78,11 +57,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [showSourcesInline, setShowSourcesInline] = useState(false);
   const [isDiscoveringBacklinks, setIsDiscoveringBacklinks] = useState(false);
 
-  const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState('');
-  const [isAiWorking, setIsAiWorking] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
   const [localOutline, setLocalOutline] = useState<ContentOutline>(() => {
     return initialOutline && Array.isArray(initialOutline?.sections) 
@@ -111,7 +86,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     loadDraft();
   }, [brief?.id]);
 
-  // Unified save effect
   useEffect(() => {
     if (!hasStarted) return;
     
@@ -163,7 +137,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         fullText += c.text || '';
         setContent(fullText);
 
-        // Extract grounding metadata if present
         const metadata = c.candidates?.[0]?.groundingMetadata;
         if (metadata?.groundingChunks) {
           const newSources: Citation[] = metadata.groundingChunks
@@ -185,7 +158,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       }
       performAnalysis(fullText);
       
-      const heroUrl = await geminiService.generateArticleImage(`High-authority hero image for: ${localOutline.title}. Cinematic professional digital style.`);
+      const heroUrl = await geminiService.generateArticleImage(`Hero image for ${localOutline.title}. Professional studio style.`);
       setArticleImages([{ id: Math.random().toString(36).substr(2, 9), url: heroUrl, prompt: localOutline.title, isHero: true }]);
     } catch (error) {} finally { setIsGenerating(false); }
   };
@@ -195,23 +168,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setIsForging(true);
     setForgeLogs([]);
     addForgeLog('Initializing Forge...');
-    addForgeLog('Aligning context with Title...');
+    addForgeLog('Processing synthesis nodes...');
     
     try {
       const refined = await geminiService.refineTextWithContext(forgeInput, localOutline.title, brief.tone, brief.author);
-      addForgeLog('Synthesis Successful.');
-      
-      const newContent = content + "\n\n" + refined;
-      setContent(newContent);
-      
+      addForgeLog('Refinement successful.');
+      setContent(prev => prev + "\n\n" + refined);
       setTimeout(() => {
         setShowForge(false);
         setForgeInput('');
         setIsForging(false);
         setViewMode('edit');
-      }, 1000);
+      }, 800);
     } catch (e) {
-      addForgeLog('Critical Fault.');
+      addForgeLog('Process error.');
       setIsForging(false);
     }
   };
@@ -220,16 +190,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     if (!content || isOptimizing) return;
     setIsOptimizing(true);
     setOptimizationLogs([]);
-    addOptLog('Benchmarking Semantic Authority...');
-    addOptLog('Rephrasing sentences for flow...');
-    addOptLog('Enhancing keyword density...');
+    addOptLog('Analyzing semantic structure...');
+    addOptLog('Optimizing keyword density...');
     
     try {
       const optimized = await geminiService.optimizeContent(content, brief, brief.author);
-      addOptLog('Optimization Sync Complete.');
       setContent(optimized);
       performAnalysis(optimized);
-      setTimeout(() => setIsOptimizing(false), 2000);
+      setTimeout(() => setIsOptimizing(false), 1500);
     } catch (e) { setIsOptimizing(false); }
   };
 
@@ -260,107 +228,89 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const heroImage = articleImages.find(img => img.isHero);
 
   return (
-    <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
-      <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden relative">
-        <header className="px-8 py-5 border-b flex items-center justify-between bg-white sticky top-0 z-40">
-          <div className="flex items-center gap-6">
-            <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5 text-gray-400" /></button>
+    <div className="flex h-[calc(100vh-64px)] gap-6 animate-in fade-in duration-500 overflow-hidden pr-4">
+      <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden relative">
+        <header className="px-6 py-4 border-b flex items-center justify-between bg-white/50 backdrop-blur-md sticky top-0 z-40">
+          <div className="flex items-center gap-4">
+            <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-500" /></button>
             <div className="flex flex-col">
-              <h2 className="font-black text-gray-900 line-clamp-1 italic text-lg uppercase leading-tight tracking-tighter">{localOutline?.title}</h2>
+              <h2 className="font-bold text-slate-900 line-clamp-1 text-base leading-tight">{localOutline?.title}</h2>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest italic">Node: {brief.author.name}</span>
+                <span className="text-[10px] font-bold uppercase text-indigo-600 tracking-wider">By {brief.author.name}</span>
                 {saveStatus !== 'idle' && (
-                  <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-1">
-                    {saveStatus === 'saving' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5 text-green-500" />}
-                    {saveStatus === 'saving' ? 'Syncing' : 'Vaulted'}
+                  <span className="text-[10px] text-slate-400 font-medium flex items-center gap-1">
+                    {saveStatus === 'saving' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5 text-emerald-500" />}
+                    {saveStatus === 'saving' ? 'Saving...' : 'Saved'}
                   </span>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="flex bg-gray-100 p-1 rounded-2xl">
-              <button onClick={() => setViewMode('preview')} className={`px-5 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Preview</button>
-              <button onClick={() => setViewMode('edit')} className={`px-5 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Edit</button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-slate-100 p-1 rounded-xl">
+              <button onClick={() => setViewMode('preview')} className={`px-4 py-1.5 rounded-lg text-xs font-bold ${viewMode === 'preview' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Preview</button>
+              <button onClick={() => setViewMode('edit')} className={`px-4 py-1.5 rounded-lg text-xs font-bold ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}>Editor</button>
             </div>
             {hasStarted && (
-              <button 
-                onClick={handleFullOptimization}
-                disabled={isOptimizing}
-                className="px-6 py-3 bg-indigo-50 text-indigo-600 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-indigo-100 transition-all active:scale-95 border border-indigo-100"
-              >
-                {isOptimizing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
-                Optimize SEO & Flow
+              <button onClick={handleFullOptimization} disabled={isOptimizing} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-indigo-100 disabled:opacity-50 transition-all">
+                {isOptimizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />} Optimize
               </button>
             )}
-            <button 
-              onClick={() => setShowForge(true)}
-              className="px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-slate-800 transition-all active:scale-95"
-            >
-              <Flame className="w-4 h-4 text-orange-500" /> Open Forge
+            <button onClick={() => setShowForge(true)} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all">
+              <Flame className="w-3.5 h-3.5 text-orange-400" /> Forge
             </button>
-            <button onClick={hasStarted ? () => {} : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg active:scale-95">
-              {hasStarted ? <ArrowUpRight className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Deploy' : 'Synthesize'}
+            <button onClick={hasStarted ? () => {} : startGeneration} className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm hover:bg-indigo-700 transition-all">
+              {hasStarted ? <ArrowUpRight className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />} {hasStarted ? 'Export' : 'Generate'}
             </button>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar relative bg-white">
+        <div className="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar bg-white">
           {!hasStarted ? (
-            <div className="max-w-3xl mx-auto space-y-12 py-10">
-               <div className="text-center space-y-4">
-                 <h3 className="text-5xl font-black text-gray-900 italic uppercase">Hierarchy Confirmed</h3>
-                 <p className="text-gray-400 text-lg">Cross-referencing global SEO nodes for authoritative synthesis.</p>
+            <div className="max-w-2xl mx-auto space-y-8 py-10">
+               <div className="text-center space-y-2">
+                 <h3 className="text-3xl font-bold text-slate-900">Research Complete</h3>
+                 <p className="text-slate-500">Ready to synthesize the full article based on your strategy.</p>
                </div>
-               <div className="space-y-6">
+               <div className="grid gap-4">
                  {localOutline.sections?.map((s, i) => (
-                   <div key={i} className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 shadow-sm">
-                     <h4 className="font-black text-gray-900 text-xl mb-4 italic tracking-tighter">{i+1}. {s.heading}</h4>
-                     <ul className="grid grid-cols-2 gap-4">
+                   <div key={i} className="p-5 bg-slate-50 rounded-2xl border border-slate-100">
+                     <h4 className="font-bold text-slate-900 text-base mb-2">{i+1}. {s.heading}</h4>
+                     <div className="flex flex-wrap gap-2">
                        {s.subheadings?.map((sub, j) => (
-                         <li key={j} className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                           <div className="w-1.5 h-1.5 rounded-full bg-indigo-200" /> {sub}
-                         </li>
+                         <span key={j} className="text-[10px] px-2 py-1 bg-white border border-slate-100 rounded-md text-slate-500 font-medium">{sub}</span>
                        ))}
-                     </ul>
+                     </div>
                    </div>
                  ))}
                </div>
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto space-y-10 pb-32">
-              {/* About the Author Section with Refined Photo Placeholder */}
-              <div className="p-10 bg-slate-50 rounded-[48px] border border-gray-100 flex items-center gap-10 shadow-sm">
-                <div className="w-24 h-24 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-4 border-white overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 relative group">
+            <div className="max-w-3xl mx-auto space-y-12 pb-32">
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 flex items-center gap-6 shadow-sm">
+                <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden relative">
                   {brief.author.photoUrl ? (
-                    <img 
-                      src={brief.author.photoUrl} 
-                      alt={brief.author.name} 
-                      className="w-full h-full object-cover animate-in fade-in duration-300" 
-                    />
+                    <img src={brief.author.photoUrl} alt={brief.author.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="flex flex-col items-center">
-                      <User className="w-10 h-10 text-slate-200" />
-                      <div className="absolute inset-0 bg-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
+                    <User className="w-8 h-8 text-slate-200" />
                   )}
                 </div>
-                <div className="space-y-2">
-                  <p className="text-2xl font-black italic text-slate-900 uppercase tracking-tighter leading-none">{brief.author.name}</p>
-                  <p className="font-black text-indigo-600 text-[10px] uppercase tracking-widest">{brief.author.title}</p>
-                  <p className="text-slate-500 font-medium text-sm leading-relaxed max-w-lg italic line-clamp-2">{brief.author.bio}</p>
+                <div>
+                  <p className="text-lg font-bold text-slate-900 leading-tight">{brief.author.name}</p>
+                  <p className="font-bold text-indigo-600 text-[10px] uppercase tracking-wider mb-1">{brief.author.title}</p>
+                  <p className="text-slate-500 text-xs line-clamp-2 max-w-md">{brief.author.bio}</p>
                 </div>
               </div>
 
-              {heroImage && <img src={heroImage.url} className="w-full h-[500px] object-cover rounded-[56px] shadow-2xl mb-12 ring-1 ring-gray-100" alt="Hero" />}
+              {heroImage && <img src={heroImage.url} className="w-full h-auto aspect-video object-cover rounded-3xl shadow-md ring-1 ring-slate-100" alt="Hero" />}
               
               {viewMode === 'preview' ? (
                 <div className="markdown-body">
-                  <ReactMarkdown>{content || "Connecting to discourse core..."}</ReactMarkdown>
+                  <ReactMarkdown>{content || "Awaiting neural synthesis..."}</ReactMarkdown>
                   {isGenerating && (
-                    <div className="flex flex-col items-center gap-6 my-20 animate-pulse">
-                      <Loader2 className="w-16 h-16 animate-spin text-indigo-400" />
-                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">Streaming Neural Nodes...</p>
+                    <div className="flex flex-col items-center gap-4 my-12 animate-pulse">
+                      <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Streaming content nodes...</p>
                     </div>
                   )}
                 </div>
@@ -369,53 +319,35 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   ref={textareaRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full min-h-[1200px] bg-transparent border-none outline-none font-mono text-xl resize-none leading-relaxed text-gray-800"
-                  placeholder="Drafting Workspace Active..."
+                  className="w-full min-h-[800px] bg-transparent border-none outline-none font-mono text-sm resize-none leading-relaxed text-slate-800 placeholder:text-slate-300"
+                  placeholder="Drafting workspace..."
                 />
               )}
 
-              {/* Cite Sources Button below generated content */}
               {hasStarted && (
-                <div className="mt-16 pt-16 border-t border-gray-100">
-                  <button 
-                    onClick={() => setShowSourcesInline(!showSourcesInline)}
-                    className="flex items-center gap-3 px-8 py-4 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition-all shadow-sm group active:scale-95"
-                  >
-                    <Link2 className={`w-5 h-5 transition-transform duration-500 ${showSourcesInline ? 'text-indigo-600 rotate-45' : 'group-hover:rotate-12'}`} />
-                    {showSourcesInline ? 'Hide Bibliography' : 'Cite Sources'}
-                    {citations.length > 0 && (
-                      <span className="ml-2 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg border border-indigo-100">
-                        {citations.length}
-                      </span>
-                    )}
+                <div className="pt-12 border-t border-slate-100">
+                  <button onClick={() => setShowSourcesInline(!showSourcesInline)} className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-sm active:scale-95">
+                    <Link2 className={`w-4 h-4 ${showSourcesInline ? 'text-indigo-600' : ''}`} />
+                    {showSourcesInline ? 'Hide Bibliography' : `Cite Sources (${citations.length})`}
                   </button>
 
                   {showSourcesInline && (
-                    <div className="mt-8 animate-in slide-in-from-top-4 duration-500 space-y-4">
+                    <div className="mt-6 animate-in slide-in-from-top-4 duration-300 space-y-3">
                       {citations.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           {citations.map((c) => (
-                            <div key={c.id} className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 group hover:border-indigo-100 hover:bg-white transition-all shadow-sm">
-                              <div className="flex items-center justify-between mb-4">
-                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-3 py-1 bg-white border border-indigo-50 rounded-xl">Node {c.id}</span>
-                                <a 
-                                  href={c.url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="p-3 bg-white rounded-2xl shadow-sm text-gray-300 hover:text-indigo-600 transition-all active:scale-90"
-                                >
-                                  <ExternalLink className="w-5 h-5" />
-                                </a>
+                            <div key={c.id} className="p-5 bg-slate-50 rounded-2xl border border-slate-100 hover:bg-white transition-all group">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[9px] font-bold text-indigo-500 uppercase">Ref [{c.id}]</span>
+                                <a href={c.url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white rounded-lg border border-slate-100 opacity-0 group-hover:opacity-100 transition-opacity"><ExternalLink className="w-3 h-3" /></a>
                               </div>
-                              <h4 className="font-black text-gray-900 text-lg italic tracking-tight line-clamp-2 leading-tight">{c.title}</h4>
-                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 truncate italic">{c.url}</p>
+                              <h4 className="font-bold text-slate-800 text-sm line-clamp-2 leading-snug">{c.title}</h4>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="p-16 text-center bg-gray-50 rounded-[48px] border-2 border-dashed border-gray-200">
-                           <Info className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                           <p className="text-xs font-black text-gray-400 uppercase tracking-widest italic">No verified citations were linked in this synthesis pass.</p>
+                        <div className="p-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                           <p className="text-xs font-medium text-slate-400 italic">No referenced sources found for this pass.</p>
                         </div>
                       )}
                     </div>
@@ -427,18 +359,15 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         </div>
 
         {isOptimizing && (
-          <div className="absolute inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-8">
-            <div className="bg-slate-900 w-full max-w-md rounded-[40px] p-10 space-y-6 shadow-2xl border border-slate-800 animate-in zoom-in-95 duration-500">
-               <div className="flex items-center gap-4 text-white border-b border-slate-800 pb-6">
-                 <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
-                 <div>
-                   <h3 className="font-black text-lg uppercase italic tracking-tighter">SEO Optimization Pass</h3>
-                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Rephrasing & Authority Calibration</p>
-                 </div>
+          <div className="absolute inset-0 z-50 bg-slate-900/10 backdrop-blur-[2px] flex items-center justify-center p-6">
+            <div className="bg-white w-full max-w-xs rounded-2xl p-6 space-y-4 shadow-2xl border border-slate-200 animate-in zoom-in-95">
+               <div className="flex items-center gap-3 pb-3 border-b border-slate-100">
+                 <Loader2 className="w-5 h-5 animate-spin text-indigo-600" />
+                 <h3 className="font-bold text-sm text-slate-900">Optimizing SEO</h3>
                </div>
-               <div className="space-y-2">
+               <div className="space-y-1">
                  {optimizationLogs.map((log, i) => (
-                   <p key={i} className={`font-mono text-[10px] ${i === optimizationLogs.length - 1 ? 'text-indigo-300' : 'text-slate-600'}`}>{log}</p>
+                   <p key={i} className={`font-mono text-[9px] ${i === optimizationLogs.length - 1 ? 'text-indigo-600' : 'text-slate-400'}`}>{log}</p>
                  ))}
                </div>
             </div>
@@ -446,118 +375,64 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         )}
       </div>
 
-      <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4 pb-12">
-        {/* SEO Laboratory */}
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-100 transition-opacity">
-            <BrainCircuit className="w-12 h-12 text-indigo-600" />
-          </div>
-          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-indigo-600" /> SEO Laboratory</h3>
-          <div className="text-center py-6">
-            <div className="text-8xl font-black text-indigo-600 italic tracking-tighter">
-              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto text-indigo-100" /> : analysis?.score || 0}
+      <div className="w-80 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-10">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2"><Target className="w-3.5 h-3.5 text-indigo-600" /> SEO Laboratory</h3>
+          <div className="text-center py-4 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="text-6xl font-black text-indigo-600 tracking-tight">
+              {analyzing ? <Loader2 className="w-10 h-10 animate-spin mx-auto text-indigo-200" /> : analysis?.score || 0}
             </div>
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-4">Semantic Index Score</p>
+            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-2">Semantic Index</p>
           </div>
-          <button onClick={handleFullOptimization} disabled={isOptimizing || !content} className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-[28px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all">
-            <Zap className="w-5 h-5 text-indigo-400" /> RE-SYNTHESIZE NODES
+          <button onClick={handleFullOptimization} disabled={isOptimizing || !content} className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95">
+            <Zap className="w-4 h-4 text-indigo-400" /> Run Optimizer
           </button>
         </div>
 
-        {/* Cited Sources Sidebar Section */}
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2">
-              <Quote className="w-4 h-4 text-purple-600" /> Bibliography
-            </h3>
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{citations.length} Nodes</span>
-          </div>
-          <div className="space-y-3">
-            {citations.length > 0 ? citations.slice(0, 3).map((cite) => (
-              <div key={cite.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">Source [{cite.id}]</span>
-                  <a href={cite.url} target="_blank" className="text-gray-400 hover:text-indigo-600"><ExternalLink className="w-3 h-3" /></a>
-                </div>
-                <p className="text-[11px] font-bold text-gray-800 line-clamp-1">{cite.title}</p>
-              </div>
-            )) : (
-              <div className="py-8 text-center border-2 border-dashed border-gray-100 rounded-[32px]">
-                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">No citations yet.</p>
-              </div>
-            )}
-            {citations.length > 3 && (
-              <button 
-                onClick={() => { setShowSourcesInline(true); document.querySelector('.mt-16')?.scrollIntoView({ behavior: 'smooth' }); }} 
-                className="w-full text-[10px] font-black uppercase text-indigo-600 hover:underline"
-              >
-                View {citations.length - 3} more...
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Generate Backlinks (Outreach Nodes) Section */}
-        <div className="bg-slate-900 rounded-[40px] p-8 space-y-6 relative overflow-hidden">
-           <div className="absolute top-0 right-0 p-4 opacity-10">
-             <Link2 className="w-20 h-20 text-indigo-400 -rotate-12" />
-           </div>
-           
+        <div className="bg-slate-900 rounded-2xl p-6 space-y-4 shadow-sm relative overflow-hidden">
            <div className="flex items-center justify-between relative z-10">
-              <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2"><Globe className="w-4 h-4 text-indigo-400" /> Backlink Forge</h3>
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{backlinkOps.length} Active</span>
+              <h3 className="text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2"><Globe className="w-3.5 h-3.5 text-indigo-400" /> Backlink Forge</h3>
+              <span className="text-[9px] font-bold text-slate-500 uppercase">{backlinkOps.length} Ops</span>
            </div>
            
-           <div className="space-y-3 relative z-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+           <div className="space-y-2 relative z-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
              {backlinkOps.length > 0 ? backlinkOps.map((op) => (
-               <div key={op.id} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 hover:border-indigo-500/50 transition-colors animate-in slide-in-from-right-2">
-                 <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
-                      op.authority === 'High' ? 'bg-indigo-600 text-white' : 
-                      op.authority === 'Medium' ? 'bg-slate-600 text-slate-300' : 
-                      'bg-emerald-600 text-white'
-                    }`}>
-                      {op.authority} Authority
-                    </span>
+               <div key={op.id} className="bg-white/5 p-3 rounded-xl border border-white/5 hover:border-indigo-500/50 transition-colors animate-in slide-in-from-right-2">
+                 <div className="flex items-center justify-between mb-1">
+                    <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                      op.authority === 'High' ? 'bg-indigo-600 text-white' : 'bg-slate-700 text-slate-300'
+                    }`}>{op.authority}</span>
                     <a href={op.url} target="_blank" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>
                  </div>
-                 <p className="text-xs font-black text-slate-200 line-clamp-1">{op.title}</p>
-                 <p className="text-[10px] text-slate-500 font-medium italic mt-1 leading-tight">{op.reason}</p>
+                 <p className="text-[11px] font-bold text-slate-200 line-clamp-1">{op.title}</p>
+                 <p className="text-[9px] text-slate-500 font-medium mt-1 leading-tight">{op.reason}</p>
                </div>
              )) : (
-               <div className="py-10 text-center space-y-3 border-2 border-dashed border-slate-700 rounded-[32px]">
-                 <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest italic">Awaiting outreach nodes...</p>
+               <div className="py-8 text-center border border-dashed border-slate-800 rounded-xl">
+                 <p className="text-[10px] text-slate-600 font-medium italic">Click to discover nodes...</p>
                </div>
              )}
            </div>
 
-           <button 
-             onClick={handleDiscoverBacklinks}
-             disabled={isDiscoveringBacklinks || !hasStarted}
-             className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 relative z-10 shadow-xl shadow-indigo-950"
-           >
-             {isDiscoveringBacklinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-             Generate Backlinks
+           <button onClick={handleDiscoverBacklinks} disabled={isDiscoveringBacklinks || !hasStarted} className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50">
+             {isDiscoveringBacklinks ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+             Find Backlinks
            </button>
         </div>
 
-        {/* Visual Discourse (Image Gen) */}
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
-           <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><ImageIcon className="w-4 h-4 text-purple-600" /> Visual Discourse</h3>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+           <h3 className="font-bold text-slate-900 text-xs uppercase tracking-wider flex items-center gap-2"><ImageIcon className="w-3.5 h-3.5 text-indigo-600" /> Asset Synthesis</h3>
            <ImageGenerator 
-              defaultPrompt={`Professional authority illustration for: ${localOutline?.title || brief?.topic}.`} 
+              defaultPrompt={`Studio professional photo for ${localOutline?.title || brief?.topic}.`} 
               onImageGenerated={(url, prompt) => handleAddImage({ id: Math.random().toString(36).substr(2,9), url, prompt, isHero: articleImages.length === 0 })}
               topicContext={localOutline?.title || brief?.topic}
             />
             
-            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-50">
+            <div className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50">
               {articleImages.map(img => (
-                <div key={img.id} className="relative aspect-square rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 group hover:ring-2 hover:ring-indigo-600 transition-all cursor-pointer">
-                   <img src={img.url} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-700" alt="Asset" />
-                   {img.isHero && <div className="absolute top-3 right-3 bg-indigo-600 text-white p-1.5 rounded-xl shadow-lg"><Star className="w-3 h-3" /></div>}
-                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                     <Plus className="w-6 h-6 text-white" />
-                   </div>
+                <div key={img.id} className="relative aspect-square rounded-xl overflow-hidden border border-slate-100 bg-slate-50 group hover:ring-2 hover:ring-indigo-600 transition-all cursor-pointer">
+                   <img src={img.url} className="w-full h-full object-cover transition-transform group-hover:scale-105" alt="Asset" />
+                   {img.isHero && <div className="absolute top-1.5 right-1.5 bg-indigo-600 text-white p-1 rounded-md shadow-sm"><Star className="w-2.5 h-2.5" /></div>}
                 </div>
               ))}
             </div>
@@ -565,48 +440,38 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       </div>
 
       {showForge && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[60px] p-12 space-y-10 shadow-2xl relative border border-gray-100">
-            <div className="flex justify-between items-center relative z-10">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 bg-orange-100 rounded-3xl flex items-center justify-center shadow-inner">
-                  <Flame className="w-8 h-8 text-orange-600" />
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-6 bg-slate-950/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-xl rounded-3xl p-8 space-y-6 shadow-2xl relative border border-slate-100">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center">
+                  <Flame className="w-6 h-6 text-orange-600" />
                 </div>
                 <div>
-                  <h3 className="font-black text-3xl uppercase italic tracking-tighter text-slate-900 leading-none">The Refinement Forge</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Paste raw nodes for AI re-synthesis</p>
+                  <h3 className="font-bold text-xl text-slate-900">Refinement Forge</h3>
+                  <p className="text-xs text-slate-400">Re-synthesize raw content into your article.</p>
                 </div>
               </div>
-              <button onClick={() => setShowForge(false)} className="p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors border"><X className="w-6 h-6 text-slate-400" /></button>
+              <button onClick={() => setShowForge(false)} className="p-2 hover:bg-slate-100 rounded-lg transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
             </div>
 
-            <textarea 
-              autoFocus
-              value={forgeInput}
-              onChange={e => setForgeInput(e.target.value)}
-              className="w-full h-64 p-8 bg-gray-50 border-2 border-dashed border-gray-200 focus:border-orange-500 focus:bg-white rounded-[40px] outline-none font-medium text-lg leading-relaxed shadow-inner resize-none transition-all"
-              placeholder="Paste raw research nodes, competitor snippets, or draft paragraphs here..."
-            />
+            <textarea autoFocus value={forgeInput} onChange={e => setForgeInput(e.target.value)} className="w-full h-48 p-5 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-sm leading-relaxed transition-all resize-none" placeholder="Paste research notes, competitor text, or raw snippets..." />
 
             {isForging ? (
-              <div className="bg-slate-900 rounded-[32px] p-8 space-y-4 border border-slate-800">
-                <div className="flex items-center gap-4 border-b border-slate-800 pb-4 text-white">
-                  <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
-                  <span className="text-[10px] font-black uppercase tracking-widest italic">Forging Content Node...</span>
+              <div className="bg-slate-900 rounded-2xl p-5 space-y-3 border border-slate-800">
+                <div className="flex items-center gap-3 text-white">
+                  <Loader2 className="w-4 h-4 animate-spin text-orange-400" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest">Processing Synthesis...</span>
                 </div>
                 <div className="space-y-1">
                   {forgeLogs.map((log, i) => (
-                    <p key={i} className="font-mono text-[9px] text-slate-600">{log}</p>
+                    <p key={i} className="font-mono text-[9px] text-slate-500">{log}</p>
                   ))}
                 </div>
               </div>
             ) : (
-              <button 
-                onClick={handleForgeRefinement}
-                disabled={!forgeInput.trim()}
-                className="w-full py-6 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white rounded-[32px] font-black text-xl uppercase tracking-widest shadow-2xl shadow-orange-100 active:scale-95 transition-all flex items-center justify-center gap-4 disabled:opacity-50"
-              >
-                REFINE & SYNC <ArrowRight className="w-6 h-6" />
+              <button onClick={handleForgeRefinement} disabled={!forgeInput.trim()} className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-sm uppercase tracking-wider shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
+                Sync to Article <ArrowRight className="w-4 h-4" />
               </button>
             )}
           </div>
