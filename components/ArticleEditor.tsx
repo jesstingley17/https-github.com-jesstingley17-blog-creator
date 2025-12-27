@@ -43,6 +43,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
   const [content, setContent] = useState('');
   const [title, setTitle] = useState(initialOutline?.title || '');
   const [slug, setSlug] = useState(initialBrief?.slug || '');
+  const [researchUrl, setResearchUrl] = useState(initialBrief?.companyUrl || '');
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -53,7 +54,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  // Prompt Optimization States
   const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
   const [optimizedPrompt, setOptimizedPrompt] = useState<Partial<SavedPrompt> | null>(null);
   const [promptSaved, setPromptSaved] = useState(false);
@@ -70,6 +70,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
           if (data.analysis) setAnalysis(data.analysis);
           if (data.images) setArticleImages(data.images);
           if (data.content) setHasStarted(true);
+          if (data.brief?.companyUrl) setResearchUrl(data.brief.companyUrl);
         }
       } catch (e) {}
     };
@@ -83,7 +84,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
       try {
         await storageService.upsertArticle({
           id: initialBrief.id,
-          brief: { ...initialBrief, slug },
+          brief: { ...initialBrief, slug, companyUrl: researchUrl },
           outline: { ...initialOutline, title },
           content,
           slug,
@@ -99,7 +100,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
     };
     const timer = setTimeout(saveArticle, 3000);
     return () => clearTimeout(timer);
-  }, [content, title, slug, articleImages, analysis]);
+  }, [content, title, slug, researchUrl, articleImages, analysis]);
 
   const startGeneration = async () => {
     setHasStarted(true);
@@ -111,7 +112,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
         const generatedSlug = await geminiService.generateSlug(title);
         setSlug(generatedSlug);
       }
-      const stream = geminiService.streamContent(initialBrief, { ...initialOutline, title });
+      const currentBrief = { ...initialBrief, companyUrl: researchUrl };
+      const stream = geminiService.streamContent(currentBrief, { ...initialOutline, title });
       for await (const chunk of stream) {
         const c = chunk as any;
         fullText += c.text || '';
@@ -159,25 +161,25 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
   };
 
   return (
-    <div className="flex h-[calc(100vh-100px)] gap-10 overflow-hidden max-w-[1600px] mx-auto">
+    <div className="flex h-[calc(100vh-100px)] gap-10 overflow-hidden w-full">
       {/* 1. Main Content Generator Interface */}
-      <div className="flex-1 flex flex-col bg-white rounded-[48px] border-2 border-pink-100 shadow-2xl overflow-hidden relative">
+      <div className="flex-1 min-w-0 flex flex-col bg-white rounded-[48px] border-2 border-pink-100 shadow-2xl overflow-hidden relative">
         <header className="px-12 py-8 border-b border-pink-50 flex items-center justify-between bg-white sticky top-0 z-40">
-          <div className="flex items-center gap-8">
-            <button onClick={onBack} className="p-4 bg-pink-50 hover:bg-pink-100 rounded-3xl transition-all group">
+          <div className="flex items-center gap-8 min-w-0">
+            <button onClick={onBack} className="flex-shrink-0 p-4 bg-pink-50 hover:bg-pink-100 rounded-3xl transition-all group">
               <ChevronLeft className="w-6 h-6 text-pink-700 group-hover:scale-110" />
             </button>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-0">
               <div className="flex items-center gap-2">
-                <Anchor className="w-4 h-4 text-pink-700" />
-                <span className="text-[11px] font-black text-pink-500 uppercase tracking-widest font-heading">Content Synthesis</span>
+                <Anchor className="flex-shrink-0 w-4 h-4 text-pink-700" />
+                <span className="text-[11px] font-black text-pink-500 uppercase tracking-widest font-heading truncate">Content Synthesis</span>
               </div>
-              <h2 className="font-bold text-slate-900 text-xl tracking-tight mt-1 font-heading">
+              <h2 className="font-bold text-slate-900 text-xl tracking-tight mt-1 font-heading truncate">
                 {title || 'Untitled Creation'}
               </h2>
             </div>
           </div>
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-6 flex-shrink-0">
             <div className="flex bg-pink-50 p-1.5 rounded-[22px] border border-pink-100">
               <button onClick={() => setViewMode('preview')} className={`px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${viewMode === 'preview' ? 'bg-white shadow-md text-pink-700' : 'text-pink-400 hover:text-pink-600'}`}>Preview</button>
               <button onClick={() => setViewMode('edit')} className={`px-8 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${viewMode === 'edit' ? 'bg-white shadow-md text-pink-700' : 'text-pink-400 hover:text-pink-600'}`}>Edit</button>
@@ -187,7 +189,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-16 md:p-24 custom-scrollbar bg-white scroll-smooth h-full">
+        <div className="flex-1 overflow-y-auto p-12 md:p-16 custom-scrollbar bg-white scroll-smooth h-full">
           <div className="max-w-4xl mx-auto space-y-20 pb-32">
             
             {/* STEP 1: TITLE */}
@@ -205,32 +207,39 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
               />
             </div>
 
-            {/* STEP 2: CONTENT BOX */}
+            {/* STEP 2: RESEARCH URL */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 ml-2">
+                <Globe className="w-5 h-5 text-pink-700" />
+                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">2. Research Source URL</label>
+              </div>
+              <input 
+                type="url"
+                value={researchUrl}
+                onChange={(e) => setResearchUrl(e.target.value)}
+                className="w-full bg-pink-50/20 border-2 border-pink-50 rounded-[32px] px-10 py-6 font-medium text-pink-900 outline-none focus:border-pink-300 transition-all shadow-inner placeholder:text-pink-100"
+                placeholder="https://www.perplexity.ai/search/..."
+              />
+            </div>
+
+            {/* STEP 3: CONTENT BOX */}
             <div className="space-y-6">
               <div className="flex items-center justify-between ml-2">
                 <div className="flex items-center gap-3">
                   <PenTool className="w-5 h-5 text-pink-700" />
-                  <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">2. Content Forge</label>
+                  <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Content Forge</label>
                 </div>
-                {viewMode === 'edit' && <span className="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-bold text-slate-400">Manual Override Active</span>}
               </div>
               
-              <div className={`rounded-[40px] transition-all min-h-[800px] ${viewMode === 'edit' ? 'bg-pink-50/20 border-2 border-pink-100 shadow-inner' : ''}`}>
+              <div className={`rounded-[40px] transition-all min-h-[600px] ${viewMode === 'edit' ? 'bg-pink-50/20 border-2 border-pink-100 shadow-inner' : ''}`}>
                 {viewMode === 'preview' ? (
                   <div className="markdown-body p-8">
                     {content ? (
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-60 gap-10">
-                        <div className="relative group">
-                          <div className="absolute inset-0 bg-pink-200 blur-3xl rounded-full opacity-30 group-hover:opacity-50 transition-opacity" />
-                          <Loader2 className="w-24 h-24 animate-spin text-pink-100 relative z-10" />
-                          <Anchor className="w-10 h-10 text-pink-400 absolute inset-0 m-auto" />
-                        </div>
-                        <div className="text-center space-y-2">
-                          <p className="text-sm font-black text-pink-300 uppercase tracking-[0.5em] font-heading">Forge Empty</p>
-                          <p className="text-xs font-medium text-pink-200 italic uppercase tracking-widest">Awaiting digital synthesis</p>
-                        </div>
+                      <div className="flex flex-col items-center justify-center py-40 gap-10">
+                        <Loader2 className="w-16 h-16 animate-spin text-pink-100" />
+                        <p className="text-xs font-black text-pink-200 uppercase tracking-widest">Awaiting synthesis</p>
                       </div>
                     )}
                   </div>
@@ -245,11 +254,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
               </div>
             </div>
 
-            {/* STEP 3: URL */}
+            {/* STEP 4: URL */}
             <div className="space-y-4">
               <div className="flex items-center gap-3 ml-2">
                 <Link2 className="w-5 h-5 text-pink-700" />
-                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. URL Destination</label>
+                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">4. URL Destination</label>
               </div>
               <div className="group relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-10 pointer-events-none">
@@ -259,7 +268,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                   type="text" 
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[150px] pr-16 py-8 font-medium text-lg text-pink-900 outline-none transition-all shadow-sm focus:shadow-xl focus:shadow-pink-100"
+                  className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[150px] pr-16 py-8 font-medium text-lg text-pink-900 outline-none transition-all shadow-sm focus:shadow-xl"
                   placeholder="optimized-path"
                 />
                 <button 
@@ -271,7 +280,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
               </div>
             </div>
 
-            {/* STEP 4: AI GENERATE BUTTON */}
+            {/* GENERATE BUTTON */}
             <div className="pt-10">
               <button 
                 onClick={startGeneration} 
@@ -281,7 +290,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                 }`}
               >
                 {isGenerating ? <Loader2 className="w-8 h-8 animate-spin" /> : <Wand2 className="w-8 h-8 group-hover:rotate-45 transition-transform" />}
-                <span>{isGenerating ? 'Synthesizing...' : '4. AI Generates All'}</span>
+                <span>{isGenerating ? 'Synthesizing...' : 'AI Generates All'}</span>
               </button>
             </div>
 
@@ -289,94 +298,70 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
         </div>
       </div>
 
-      {/* 2. Sidebars (Analysis & Assets & Prompt Optimizer) */}
-      <div className="w-96 flex-shrink-0 flex flex-col gap-10 overflow-y-auto custom-scrollbar pb-12 pr-1 h-full">
+      {/* 2. Sidebars (Analysis & Assets) */}
+      <div className="w-80 flex-shrink-0 flex flex-col gap-8 overflow-y-auto custom-scrollbar pb-12 h-full min-w-[320px]">
         {/* Matrix Score */}
-        <div className="bg-white rounded-[48px] border-2 border-pink-100 shadow-xl p-10 space-y-10">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-pink-800 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
-              <Target className="w-5 h-5 text-pink-700" /> Matrix Score
-            </h3>
-            <Settings className="w-4 h-4 text-pink-200 hover:text-pink-400 cursor-pointer" />
-          </div>
-          <div className="text-center py-16 girly-gradient rounded-[56px] relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl" />
-            <div className="text-9xl font-black text-white tracking-tighter relative z-10 font-heading drop-shadow-xl">
-              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto opacity-50" /> : (analysis?.score || 0)}
+        <div className="bg-white rounded-[40px] border-2 border-pink-100 shadow-xl p-8 space-y-8">
+          <h3 className="font-black text-pink-800 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
+            <Target className="w-5 h-5 text-pink-700" /> Matrix Score
+          </h3>
+          <div className="text-center py-10 girly-gradient rounded-[40px] shadow-2xl">
+            <div className="text-7xl font-black text-white tracking-tighter font-heading">
+              {analyzing ? <Loader2 className="w-12 h-12 animate-spin mx-auto opacity-50" /> : (analysis?.score || 0)}
             </div>
-            <p className="text-xs font-black text-pink-100 uppercase tracking-[0.5em] mt-6 relative z-10 italic">Trust Efficiency</p>
-          </div>
-          
-          <div className="space-y-4 pt-4">
-             <div className="p-6 bg-pink-50/50 rounded-3xl border border-pink-100">
-                <p className="text-[11px] font-black text-pink-700 uppercase tracking-widest mb-3">Core Suggestions</p>
-                <div className="space-y-3">
-                   {analysis?.suggestions.slice(0, 3).map((s, i) => (
-                     <div key={i} className="flex gap-2 items-start text-[11px] text-slate-600 font-medium">
-                        <Star className="w-3 h-3 text-pink-400 shrink-0 mt-0.5" />
-                        <span>{s}</span>
-                     </div>
-                   ))}
-                </div>
-             </div>
+            <p className="text-[9px] font-black text-pink-100 uppercase tracking-[0.4em] mt-4">Trust Factor</p>
           </div>
         </div>
 
-        {/* Prompt Saver / Optimizer */}
-        <div className="bg-slate-900 rounded-[48px] shadow-xl p-10 space-y-8 relative overflow-hidden">
-           <div className="absolute top-0 right-0 w-32 h-32 bg-pink-600/10 rounded-full blur-3xl -mr-16 -mt-16" />
-           <h3 className="font-black text-pink-100 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading relative z-10">
+        {/* Stencil Optimizer */}
+        <div className="bg-slate-900 rounded-[40px] shadow-xl p-8 space-y-6">
+           <h3 className="font-black text-pink-100 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
              <BookmarkPlus className="w-5 h-5 text-pink-500" /> Stencil Optimizer
            </h3>
-           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
-             Summarize and refine this topic into a persistent Magic Stencil for future high-authority generation.
-           </p>
-
            {!optimizedPrompt ? (
              <button 
                onClick={handleOptimizePrompt}
                disabled={isOptimizingPrompt}
-               className="w-full py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border border-slate-700"
+               className="w-full py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-3xl font-black text-[9px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border border-slate-700"
              >
                {isOptimizingPrompt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-pink-500" />}
-               {isOptimizingPrompt ? 'Optimizing...' : 'Refine Topic Prompt'}
+               Optimize Topic
              </button>
            ) : (
-             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
-               <div className="p-6 bg-slate-800 rounded-3xl border border-pink-900/30 space-y-3">
-                 <p className="text-[9px] font-black text-pink-400 uppercase tracking-[0.4em]">Optimized Stencil</p>
-                 <p className="text-[11px] text-slate-300 font-medium italic leading-relaxed line-clamp-4">
+             <div className="space-y-4">
+               <div className="p-4 bg-slate-800 rounded-2xl border border-pink-900/30">
+                 <p className="text-[10px] text-slate-300 font-medium italic line-clamp-3 leading-relaxed">
                    "{optimizedPrompt.optimizedPrompt}"
                  </p>
                </div>
                <button 
                  onClick={handleSaveOptimizedPrompt}
                  disabled={promptSaved}
-                 className={`w-full py-5 rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all ${
-                   promptSaved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'girly-gradient text-white shadow-lg'
+                 className={`w-full py-4 rounded-2xl font-black text-[9px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all ${
+                   promptSaved ? 'bg-emerald-500/20 text-emerald-400' : 'girly-gradient text-white shadow-lg'
                  }`}
                >
                  {promptSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                 {promptSaved ? 'Stencil Saved' : 'Save as Magic Stencil'}
+                 {promptSaved ? 'Saved' : 'Save Stencil'}
                </button>
              </div>
            )}
         </div>
 
         {/* Digital Assets */}
-        <div className="bg-white rounded-[48px] border-2 border-pink-100 shadow-xl p-10 space-y-10">
+        <div className="bg-white rounded-[40px] border-2 border-pink-100 shadow-xl p-8 space-y-8">
            <h3 className="font-black text-pink-800 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
              <ImageIcon className="w-5 h-5 text-pink-700" /> Digital Assets
            </h3>
            <ImageGenerator 
-              defaultPrompt={`High-end professional photography, clean aesthetic background, soft lighting, 8k resolution.`} 
+              defaultPrompt={`Professional photography, aesthetic background, soft lighting.`} 
               onImageGenerated={(url, prompt) => setArticleImages(prev => [...prev, { id: Math.random().toString(36).substr(2,9), url, prompt, isHero: false }])}
               topicContext={title}
             />
-            <div className="grid grid-cols-2 gap-5">
+            <div className="grid grid-cols-2 gap-4">
               {articleImages.map(img => (
-                <div key={img.id} className="aspect-square rounded-[36px] overflow-hidden border-4 border-pink-50 bg-pink-50 group hover:ring-8 hover:ring-pink-400 transition-all cursor-pointer shadow-lg">
-                   <img src={img.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" alt="Asset" />
+                <div key={img.id} className="aspect-square rounded-2xl overflow-hidden border-2 border-pink-50 bg-pink-50 shadow-sm">
+                   <img src={img.url} className="w-full h-full object-cover" alt="Asset" />
                 </div>
               ))}
             </div>

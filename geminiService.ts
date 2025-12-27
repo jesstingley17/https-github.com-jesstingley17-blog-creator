@@ -84,9 +84,10 @@ export const geminiService = {
   async deepResearch(urlOrTopic: string): Promise<Partial<ContentBrief>> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Perform deep web research for: "${urlOrTopic}".
-    Identify 3-5 top organic competitors or related high-authority sources.
-    Extract 5 target keywords and 5 secondary keywords.
+    const isUrl = urlOrTopic.startsWith('http');
+    const prompt = `Perform research based on: "${urlOrTopic}".
+    ${isUrl ? 'THIS IS A PRIMARY RESEARCH URL. Access and extract the core facts, data, and arguments from this page.' : 'Search for high-authority sources on this topic.'}
+    Identify top keywords and structure requirements.
     Return as JSON.`;
 
     try {
@@ -155,7 +156,10 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate a high-authority content outline for: "${brief.topic}". Use Google Search to find current industry sub-topics. Return as JSON.`;
+    const researchContext = brief.companyUrl ? `GROUNDING DATA SOURCE: ${brief.companyUrl}. USE DATA FROM THIS URL AS THE PRIMARY TRUTH.` : '';
+    const prompt = `Generate a high-authority content outline for: "${brief.topic}". 
+    ${researchContext}
+    Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -193,6 +197,7 @@ export const geminiService = {
       await this.ensureApiKey();
       const ai = getAI();
       const lengthMap = { short: "600 words", medium: "1200 words", long: "2500 words" };
+      const researchContext = brief.companyUrl ? `PRIMARY RESEARCH DATA SOURCE: ${brief.companyUrl}. DO NOT HALLUCINATE. Use facts and data directly from this URL. If it's a Perplexity research link, treat it as the absolute source of truth.` : '';
 
       const prompt = `Task: Synthesize a high-authority content piece.
       Title: ${outline.title}.
@@ -202,11 +207,12 @@ export const geminiService = {
       Detail Level: ${brief.detailLevel}.
 
       CRITICAL INSTRUCTIONS:
-      1. USE GOOGLE SEARCH to pull specific, real-time data, statistics, and authoritative facts from the entire internet.
-      2. Write with professional authority and neutral objectivity.
-      3. Use detailed Markdown including lists, bolding, and headers.
-      4. MANDATORY: Include at least one complex GFM table (| Column 1 | Column 2 |) for data comparison or feature breakdown.
-      5. Output ONLY the Markdown content. Do not include introductory conversational filler.`;
+      1. ${researchContext}
+      2. If no source URL is provided, USE GOOGLE SEARCH to pull specific, real-time data from the entire internet.
+      3. Write with professional authority and neutral objectivity.
+      4. Use detailed Markdown including lists, bolding, and headers.
+      5. MANDATORY: Include at least one complex GFM table (| Column 1 | Column 2 |) for data comparison or feature breakdown.
+      6. Output ONLY the Markdown content. Do not include introductory conversational filler.`;
       
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-pro-preview',
@@ -279,7 +285,6 @@ export const geminiService = {
     };
   },
 
-  // Added suggestSchedule method to handle social media content planning
   async suggestSchedule(articles: { id: string; title: string; topic: string }[]): Promise<{ articleId: string; date: string; platform: string }[]> {
     await this.ensureApiKey();
     const ai = getAI();

@@ -12,7 +12,7 @@ import Settings from './components/Settings';
 import Stats from './components/Stats';
 import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
-import { Key, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
+import { Key, Sparkles, ShieldCheck, Loader2, Anchor } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentRoute, setRoute] = useState<AppRoute>(AppRoute.DASHBOARD);
@@ -21,7 +21,6 @@ const App: React.FC = () => {
   const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([]);
   const [shareId, setShareId] = useState<string | null>(null);
 
-  // Check for existing API key or handle selection logic
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sId = params.get('share');
@@ -46,7 +45,6 @@ const App: React.FC = () => {
           setHasApiKey(true);
         }
       } catch (e) {
-        console.error("Key check failed", e);
         setHasApiKey(true);
       }
     };
@@ -72,7 +70,6 @@ const App: React.FC = () => {
         // @ts-ignore
         await window.aistudio.openSelectKey();
       }
-      // Assume success to avoid race conditions with hasSelectedApiKey
       setHasApiKey(true);
     } catch (e) {
       console.error(e);
@@ -83,94 +80,90 @@ const App: React.FC = () => {
     return <PublicArticle shareId={shareId} onExit={() => setRoute(AppRoute.DASHBOARD)} />;
   }
 
-  if (hasApiKey === null) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-[#be185d]" />
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Initializing Environment</p>
-        </div>
-      </div>
-    );
-  }
-
   if (hasApiKey === false) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
-        <div className="bg-white rounded-[40px] shadow-2xl p-12 max-w-xl w-full text-center space-y-8">
-          <div className="w-20 h-20 bg-pink-50 rounded-3xl flex items-center justify-center mx-auto">
-            <Key className="w-10 h-10 text-[#be185d]" />
+      <div className="min-h-screen flex items-center justify-center bg-[#fff1f2] p-6">
+        <div className="max-w-md w-full bg-white rounded-[48px] p-12 text-center shadow-2xl border-2 border-pink-100 space-y-8 animate-in zoom-in-95">
+          <div className="w-24 h-24 bg-pink-100 rounded-[32px] flex items-center justify-center mx-auto">
+             <Key className="w-12 h-12 text-[#be185d]" />
           </div>
           <div className="space-y-4">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight font-heading">API Access Required</h1>
-            <p className="text-slate-500 font-medium">Please select a project with Gemini API enabled to continue using AnchorChartPRO.</p>
+            <h2 className="text-3xl font-black text-slate-900 uppercase italic tracking-tighter">Captain's Key Needed</h2>
+            <p className="text-slate-500 font-medium leading-relaxed">Please select an API key to initialize the AnchorPRO synthesis systems.</p>
           </div>
           <button 
             onClick={handleOpenKeySelector}
-            className="w-full py-5 girly-gradient text-white rounded-2xl font-black text-xl shadow-xl shadow-pink-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+            className="w-full py-6 girly-gradient text-white rounded-[24px] font-black text-xs uppercase tracking-[0.3em] shadow-xl shadow-pink-200 flex items-center justify-center gap-4 transition-all hover:scale-[1.02] active:scale-95"
           >
-            <Sparkles className="w-6 h-6" /> Select API Key
+            <Sparkles className="w-5 h-5" /> Select API Key
           </button>
-          <div className="pt-4 flex items-center justify-center gap-2 text-slate-300">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="text-[10px] font-black tracking-widest uppercase">Encryption Active</span>
-          </div>
+          <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="block text-[10px] font-black text-pink-400 uppercase tracking-widest hover:text-[#be185d]">Billing Documentation</a>
         </div>
       </div>
     );
   }
 
-  const renderContent = () => {
-    switch (currentRoute) {
-      case AppRoute.DASHBOARD:
-        return <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} onSelectArticle={handleSelectArticle} />;
-      case AppRoute.CREATE:
-        return <ContentWizard onComplete={(brief, outline) => {
-          setActiveWorkflow({ brief, outline });
-          setRoute(AppRoute.EDITOR);
-        }} />;
-      case AppRoute.EDITOR:
-        return activeWorkflow ? (
-          <ArticleEditor 
-            brief={activeWorkflow.brief} 
-            outline={activeWorkflow.outline} 
-            onBack={() => setRoute(AppRoute.DASHBOARD)} 
-            onNavigate={setRoute}
-          />
-        ) : <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} />;
-      case AppRoute.PLANNER:
-        return <Planner scheduledPosts={scheduledPosts} setScheduledPosts={setScheduledPosts} />;
-      case AppRoute.INTEGRATIONS:
-        return <Integrations />;
-      case AppRoute.SETTINGS:
-        return <Settings />;
-      case AppRoute.STATS:
-        return <Stats />;
-      case AppRoute.PROMPTS:
-        return <PromptLibrary onUsePrompt={(text) => {
-          setRoute(AppRoute.CREATE);
-          setTimeout(() => {
-            const input = document.querySelector('input[placeholder*="Drop anchor"]') as HTMLInputElement;
-            if (input) {
-              input.value = text;
-              const event = new Event('input', { bubbles: true });
-              input.dispatchEvent(event);
-            }
-          }, 100);
-        }} />;
-      case AppRoute.HISTORY:
-        return <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} onSelectArticle={handleSelectArticle} />;
-      default:
-        return <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} />;
-    }
-  };
+  if (hasApiKey === null) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#fff1f2]">
+        <div className="flex flex-col items-center gap-6">
+          <div className="relative">
+            <Loader2 className="w-16 h-16 animate-spin text-[#be185d]" />
+            <Anchor className="w-6 h-6 text-pink-300 absolute inset-0 m-auto" />
+          </div>
+          <p className="text-[10px] font-black text-[#be185d] uppercase tracking-[0.5em] animate-pulse">Scanning Horizon...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#fff1f2] flex overflow-hidden">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#fff1f2]">
       <Sidebar currentRoute={currentRoute} setRoute={setRoute} />
-      <main className="flex-1 ml-64 p-8 h-screen overflow-y-auto custom-scrollbar">
-        <div className="max-w-[1600px] mx-auto">
-          {renderContent()}
+      
+      <main className="flex-1 min-w-0 relative h-full flex flex-col pl-64 overflow-hidden">
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 lg:p-16">
+          <div className="max-w-[1400px] mx-auto w-full">
+            {currentRoute === AppRoute.DASHBOARD && (
+              <Dashboard 
+                onNewContent={() => setRoute(AppRoute.CREATE)} 
+                onSelectArticle={handleSelectArticle}
+              />
+            )}
+            {currentRoute === AppRoute.CREATE && (
+              <ContentWizard 
+                onComplete={(brief, outline) => {
+                  setActiveWorkflow({ brief, outline });
+                  setRoute(AppRoute.EDITOR);
+                }} 
+              />
+            )}
+            {currentRoute === AppRoute.EDITOR && activeWorkflow && (
+              <ArticleEditor 
+                brief={activeWorkflow.brief} 
+                outline={activeWorkflow.outline}
+                onBack={() => setRoute(AppRoute.DASHBOARD)}
+                onNavigate={(route) => setRoute(route)}
+              />
+            )}
+            {currentRoute === AppRoute.PLANNER && (
+              <Planner 
+                scheduledPosts={scheduledPosts} 
+                setScheduledPosts={setScheduledPosts} 
+              />
+            )}
+            {currentRoute === AppRoute.INTEGRATIONS && <Integrations />}
+            {currentRoute === AppRoute.PROMPTS && (
+              <PromptLibrary 
+                onUsePrompt={(text) => {
+                  // Logic to use prompt in creation
+                  setRoute(AppRoute.CREATE);
+                }} 
+              />
+            )}
+            {currentRoute === AppRoute.SETTINGS && <Settings />}
+            {currentRoute === AppRoute.STATS && <Stats />}
+          </div>
         </div>
       </main>
     </div>

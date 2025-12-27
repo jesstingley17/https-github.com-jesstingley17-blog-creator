@@ -14,12 +14,19 @@
   </script>
   <style>
     :root {
-      --primary: #be185d; /* Dark Rose 700 - Highly Legible */
-      --primary-dark: #9d174d; /* Rose 800 */
-      --secondary: #fdf2f8; /* Rose 50 */
-      --accent-teal: #0d9488; /* Teal 600 */
+      --primary: #be185d;
+      --primary-dark: #9d174d;
+      --secondary: #fdf2f8;
+      --accent-teal: #0d9488;
       --text-main: #310d20;
       --bg-soft: #fff1f2;
+    }
+
+    body, html, #root {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
     }
 
     body {
@@ -53,7 +60,6 @@
     .markdown-body h2 { font-size: 2.25rem; font-weight: 700; margin: 2.5rem 0 1.5rem; color: #310d20; border-bottom: 2px solid #fce7f3; padding-bottom: 0.5rem; font-family: 'Outfit'; }
     .markdown-body h3 { font-size: 1.75rem; font-weight: 700; margin: 2rem 0 1rem; color: #4a042e; font-family: 'Outfit'; }
     .markdown-body p { margin-bottom: 1.5rem; }
-    .markdown-body blockquote { border-left: 6px solid var(--primary); background: white; padding: 1.5rem 2rem; font-style: italic; border-radius: 0 1.5rem 1.5rem 0; margin: 2rem 0; }
     
     .markdown-body table { 
       width: 100%; 
@@ -74,39 +80,31 @@
       color: var(--primary); 
       text-transform: uppercase;
       font-size: 0.75rem;
-      letter-spacing: 0.15em;
       border-bottom: 2px solid #fce7f3;
     }
     .markdown-body td { 
       padding: 1.25rem 1.5rem; 
       border-bottom: 1px solid #fdf2f8; 
       color: #4a042e;
-      font-size: 1rem;
-      font-weight: 500;
     }
-    .markdown-body tr:nth-child(even) td {
-      background-color: #fff9fb;
-    }
-    .markdown-body tr:hover td {
-      background-color: #fff1f6;
-    }
-    .markdown-body tr:last-child td { border-bottom: none; }
+    .markdown-body tr:nth-child(even) td { background-color: #fff9fb; }
 
     .custom-scrollbar::-webkit-scrollbar { width: 8px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #fce7f3; border-radius: 10px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
-    .input-field {
-      border-radius: 1.5rem;
-      border: 2px solid #fce7f3;
-      transition: all 0.2s ease;
-      background: white;
+    .layout-grid {
+      display: grid;
+      grid-template-columns: 256px 1fr;
+      height: 100vh;
+      overflow: hidden;
     }
-    .input-field:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 4px rgba(190, 24, 93, 0.05);
-      outline: none;
+
+    .main-viewport {
+      overflow-y: auto;
+      height: 100%;
+      background-color: var(--bg-soft);
     }
   </style>
 <script type="importmap">
