@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -72,7 +71,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [isScheduled, setIsScheduled] = useState(false);
 
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
-  const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
+  const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline || { title: '', sections: [] });
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
 
@@ -179,76 +178,96 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const addSection = () => {
     setLocalOutline({
       ...localOutline,
-      sections: [...localOutline.sections, { heading: 'New Section', subheadings: [], keyPoints: [] }]
+      sections: [...(localOutline.sections || []), { heading: 'New Section', subheadings: [], keyPoints: [] }]
     });
   };
 
   const updateSectionHeading = (idx: number, val: string) => {
-    const newSections = [...localOutline.sections];
-    newSections[idx].heading = val;
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[idx]) {
+      newSections[idx].heading = val;
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const removeSection = (idx: number) => {
-    setLocalOutline({ ...localOutline, sections: localOutline.sections.filter((_, i) => i !== idx) });
+    setLocalOutline({ 
+      ...localOutline, 
+      sections: (localOutline.sections || []).filter((_, i) => i !== idx) 
+    });
   };
 
   const moveSection = (idx: number, dir: number) => {
     const newIdx = idx + dir;
-    if (newIdx < 0 || newIdx >= localOutline.sections.length) return;
-    const newSections = [...localOutline.sections];
+    const sections = localOutline.sections || [];
+    if (newIdx < 0 || newIdx >= sections.length) return;
+    const newSections = [...sections];
     [newSections[idx], newSections[newIdx]] = [newSections[newIdx], newSections[idx]];
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
   const addSubheading = (sIdx: number) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].subheadings.push('New Subheading');
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx]) {
+      newSections[sIdx].subheadings = [...(newSections[sIdx].subheadings || []), 'New Subheading'];
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const updateSubheading = (sIdx: number, subIdx: number, val: string) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].subheadings[subIdx] = val;
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx] && newSections[sIdx].subheadings) {
+      newSections[sIdx].subheadings[subIdx] = val;
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const removeSubheading = (sIdx: number, subIdx: number) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].subheadings = newSections[sIdx].subheadings.filter((_, i) => i !== subIdx);
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx]) {
+      newSections[sIdx].subheadings = (newSections[sIdx].subheadings || []).filter((_, i) => i !== subIdx);
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const moveSubheading = (sIdx: number, subIdx: number, dir: number) => {
     const newIdx = subIdx + dir;
-    if (newIdx < 0 || newIdx >= localOutline.sections[sIdx].subheadings.length) return;
-    const newSections = [...localOutline.sections];
+    const newSections = [...(localOutline.sections || [])];
+    if (!newSections[sIdx] || !newSections[sIdx].subheadings) return;
+    if (newIdx < 0 || newIdx >= newSections[sIdx].subheadings.length) return;
     [newSections[sIdx].subheadings[subIdx], newSections[sIdx].subheadings[newIdx]] = [newSections[sIdx].subheadings[newIdx], newSections[sIdx].subheadings[subIdx]];
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
   const addKeyPoint = (sIdx: number) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].keyPoints.push('New Key Point');
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx]) {
+      newSections[sIdx].keyPoints = [...(newSections[sIdx].keyPoints || []), 'New Goal'];
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const updateKeyPoint = (sIdx: number, pIdx: number, val: string) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].keyPoints[pIdx] = val;
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx] && newSections[sIdx].keyPoints) {
+      newSections[sIdx].keyPoints[pIdx] = val;
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const removeKeyPoint = (sIdx: number, pIdx: number) => {
-    const newSections = [...localOutline.sections];
-    newSections[sIdx].keyPoints = newSections[sIdx].keyPoints.filter((_, i) => i !== pIdx);
-    setLocalOutline({ ...localOutline, sections: newSections });
+    const newSections = [...(localOutline.sections || [])];
+    if (newSections[sIdx]) {
+      newSections[sIdx].keyPoints = (newSections[sIdx].keyPoints || []).filter((_, i) => i !== pIdx);
+      setLocalOutline({ ...localOutline, sections: newSections });
+    }
   };
 
   const moveKeyPoint = (sIdx: number, pIdx: number, dir: number) => {
     const newIdx = pIdx + dir;
-    if (newIdx < 0 || newIdx >= localOutline.sections[sIdx].keyPoints.length) return;
-    const newSections = [...localOutline.sections];
+    const newSections = [...(localOutline.sections || [])];
+    if (!newSections[sIdx] || !newSections[sIdx].keyPoints) return;
+    if (newIdx < 0 || newIdx >= newSections[sIdx].keyPoints.length) return;
     [newSections[sIdx].keyPoints[pIdx], newSections[sIdx].keyPoints[newIdx]] = [newSections[sIdx].keyPoints[newIdx], newSections[sIdx].keyPoints[pIdx]];
     setLocalOutline({ ...localOutline, sections: newSections });
   };
@@ -262,7 +281,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const getScoreBreakdown = () => {
     if (!analysis) return [];
     
-    const densities = Object.values(analysis.keywordDensity) as number[];
+    const densityValues = Object.values(analysis.keywordDensity || {}) as any[];
+    const densities = densityValues.map(v => typeof v === 'number' ? v : 0);
     const avgDensity = densities.length > 0 ? (densities.reduce((a: number, b: number) => a + b, 0) / densities.length) * 40 : 0;
     
     const readabilityMap: Record<string, number> = {
@@ -275,7 +295,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     return [
       { label: 'Keyword Density', val: Math.min(100, Math.round(avgDensity)), icon: Target },
       { label: 'Readability', val: readabilityMap[analysis.readability] || 80, icon: Type },
-      { label: 'Structure', val: localOutline.sections.length > 4 ? 95 : 75, icon: Layers },
+      { label: 'Structure', val: (localOutline.sections || []).length > 4 ? 95 : 75, icon: Layers },
       { label: 'Semantic Depth', val: Math.min(100, Math.round((analysis.score || 0) * 1.05)), icon: Search },
     ];
   };
@@ -382,11 +402,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               </div>
 
               <div className="space-y-6">
-                {localOutline.sections.map((section, sIdx) => (
+                {(localOutline.sections || []).map((section, sIdx) => (
                   <div key={sIdx} className="group bg-white border border-gray-100 rounded-3xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm relative">
                     <div className="absolute -left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-1 rounded-lg border shadow-sm z-10">
                       <button onClick={() => moveSection(sIdx, -1)} disabled={sIdx === 0} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronUp className="w-4 h-4" /></button>
-                      <button onClick={() => moveSection(sIdx, 1)} disabled={sIdx === localOutline.sections.length - 1} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronDown className="w-4 h-4" /></button>
+                      <button onClick={() => moveSection(sIdx, 1)} disabled={sIdx === (localOutline.sections || []).length - 1} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronDown className="w-4 h-4" /></button>
                     </div>
 
                     <div className="flex-1 space-y-6">
@@ -417,11 +437,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                             <button onClick={() => addSubheading(sIdx)} className="text-[10px] font-bold text-indigo-500 hover:underline">Add Subheading</button>
                           </div>
                           <div className="space-y-2 pl-4 border-l-2 border-indigo-50">
-                            {section.subheadings.map((sub, subIdx) => (
+                            {(section.subheadings || []).map((sub, subIdx) => (
                               <div key={subIdx} className="group/sub flex items-center gap-2 bg-gray-50/50 rounded-xl px-3 py-1.5 border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
                                 <div className="flex flex-col opacity-0 group-hover/sub:opacity-100">
                                   <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                  <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === section.subheadings.length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
+                                  <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === (section.subheadings || []).length - 1} className="text-gray-300 hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
                                 </div>
                                 <input 
                                   value={sub}
@@ -442,11 +462,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                             <button onClick={() => addKeyPoint(sIdx)} className="text-[10px] font-bold text-amber-600 hover:underline">Add Target</button>
                           </div>
                           <div className="space-y-2">
-                            {section.keyPoints.map((point, pIdx) => (
+                            {(section.keyPoints || []).map((point, pIdx) => (
                               <div key={pIdx} className="group/point flex items-center gap-2 bg-amber-50/30 rounded-xl px-3 py-1.5 border border-transparent hover:border-amber-100 hover:bg-amber-50/50 transition-all">
                                 <div className="flex flex-col opacity-0 group-hover/point:opacity-100">
                                   <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
-                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === section.keyPoints.length - 1} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
+                                  <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === (section.keyPoints || []).length - 1} className="text-gray-300 hover:text-amber-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
                                 </div>
                                 <input 
                                   value={point}
@@ -490,7 +510,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   </div>
                 ) : (
                   <textarea
-                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border border-gray-100 rounded-3xl shadow-inner focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                   />
