@@ -8,10 +8,13 @@ import {
   ChevronRight,
   Plus,
   Zap,
-  Layout
+  Layout,
+  // Added Loader2 to fix the missing import error
+  Loader2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ArticleMetadata, AppRoute } from '../types';
+import { storageService } from '../storageService';
 
 interface DashboardProps {
   onNewContent: () => void;
@@ -30,16 +33,16 @@ const data = [
 
 const Dashboard: React.FC<DashboardProps> = ({ onNewContent, onSelectArticle }) => {
   const [registry, setRegistry] = useState<ArticleMetadata[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const raw = localStorage.getItem('zr_registry');
-    if (raw) {
-      try {
-        setRegistry(JSON.parse(raw));
-      } catch (e) {
-        console.error("Failed to load registry", e);
-      }
-    }
+    const loadRegistry = async () => {
+      setLoading(true);
+      const data = await storageService.getRegistry();
+      setRegistry(data);
+      setLoading(false);
+    };
+    loadRegistry();
   }, []);
 
   return (
@@ -111,12 +114,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onNewContent, onSelectArticle }) 
           </div>
         </div>
 
-        <div className="bg-white p-8 rounded-[48px] border border-gray-100 shadow-sm">
+        <div className="bg-white p-8 rounded-[48px] border border-gray-100 shadow-sm relative">
           <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-8 flex items-center gap-2">
             <Layout className="w-4 h-4 text-indigo-600" /> Active Drafts
           </h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar pr-2">
-            {registry.length > 0 ? registry.map((item, i) => (
+            {loading ? (
+              <div className="flex flex-col items-center gap-4 py-20">
+                <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
+                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Fetching Cloud Nodes...</p>
+              </div>
+            ) : registry.length > 0 ? registry.map((item, i) => (
               <div 
                 key={item.id} 
                 onClick={() => onSelectArticle?.(item.id)}

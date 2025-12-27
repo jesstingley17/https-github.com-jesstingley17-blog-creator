@@ -23,6 +23,7 @@ import {
   CloudCheck
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
+import { storageService } from '../storageService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, ArticleMetadata } from '../types';
 import ImageGenerator from './ImageGenerator';
 
@@ -58,35 +59,30 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [lastSaved, setLastSaved] = useState<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
 
-  // Load existing draft on mount
   useEffect(() => {
-    const draftKey = `zr_article_${brief.id}`;
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
-      try {
-        const data: GeneratedContent = JSON.parse(savedDraft);
+    const loadDraft = async () => {
+      if (!brief?.id) return;
+      const data = await storageService.getArticle(brief.id);
+      if (data) {
         if (data.content) setContent(data.content);
         if (data.outline) setLocalOutline(data.outline);
         if (data.heroImageUrl) setHeroImageUrl(data.heroImageUrl);
         if (data.analysis) setAnalysis(data.analysis);
         if (data.content) setHasStarted(true);
         setLastSaved(data.updatedAt);
-      } catch (e) {
-        console.error("Failed to load draft", e);
       }
-    }
-  }, [brief.id]);
+    };
+    loadDraft();
+  }, [brief?.id]);
 
-  // Autosave Logic
   useEffect(() => {
-    // Prevent saving empty initial states
-    if (!content && !localOutline.title) return;
+    if (!content && !localOutline?.title) return;
 
     if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
     
     setSaveStatus('saving');
     
-    autosaveTimerRef.current = window.setTimeout(() => {
+    autosaveTimerRef.current = window.setTimeout(async () => {
       const now = Date.now();
       const articleData: GeneratedContent = {
         id: brief.id,
@@ -99,31 +95,15 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       };
 
       try {
-        // Save full content
-        localStorage.setItem(`zr_article_${brief.id}`, JSON.stringify(articleData));
-        
-        // Update registry for Dashboard/History
-        const registryRaw = localStorage.getItem('zr_registry') || '[]';
-        const registry: ArticleMetadata[] = JSON.parse(registryRaw);
-        const filtered = registry.filter(a => a.id !== brief.id);
-        const metadata: ArticleMetadata = {
-          id: brief.id,
-          title: localOutline.title || brief.topic,
-          topic: brief.topic,
-          score: analysis?.score || 0,
-          status: 'Draft',
-          updatedAt: now
-        };
-        localStorage.setItem('zr_registry', JSON.stringify([metadata, ...filtered].slice(0, 50)));
-
+        await storageService.upsertArticle(articleData);
         setSaveStatus('saved');
         setLastSaved(now);
         setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (e) {
-        console.error("Autosave failed", e);
+        console.error("Autosave failed:", e);
         setSaveStatus('idle');
       }
-    }, 2000); // 2 second debounce
+    }, 2000);
 
     return () => {
       if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
@@ -140,7 +120,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     try {
       const stream = geminiService.streamContent(brief, localOutline);
       for await (const chunk of stream) {
-        fullText += chunk.text || '';
+        fullText += (chunk as any).text || '';
         setContent(fullText);
         
         const groundingChunks = (chunk as any).candidates?.[0]?.groundingMetadata?.groundingChunks;
@@ -163,7 +143,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     if (!textToAnalyze || textToAnalyze.length < 50) return;
     setAnalyzing(true);
     try {
-      const result = await geminiService.analyzeSEO(textToAnalyze, brief.targetKeywords);
+      const result = await geminiService.analyzeSEO(textToAnalyze, brief.targetKeywords || []);
       setAnalysis(result);
     } catch (error) {
       console.error(error);
@@ -208,12 +188,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setViewMode('edit');
   };
 
-  // Fix: Added missing handleScheduleConfirm function to finalize scheduling
   const handleScheduleConfirm = () => {
     const post: ScheduledPost = {
       id: Math.random().toString(36).substring(2, 9),
       articleId: brief.id,
-      title: localOutline.title || brief.topic,
+      title: localOutline?.title || brief.topic,
       date: `${scheduleDate}T${scheduleTime}:00Z`,
       platform: schedulePlatform,
     };
@@ -231,7 +210,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </button>
             <div className="flex flex-col">
               <h2 className="font-black text-gray-900 line-clamp-1 tracking-tight italic text-lg leading-tight">
-                {localOutline.title || 'Untitled Draft'}
+                {localOutline?.title || brief?.topic || 'Untitled Draft'}
               </h2>
               <div className="flex items-center gap-3">
                 {saveStatus !== 'idle' ? (
@@ -242,14 +221,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                       <Check className="w-3 h-3 text-green-500" />
                     )}
                     <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-                      {saveStatus === 'saving' ? 'Syncing...' : 'Saved'}
+                      {saveStatus === 'saving' ? 'Syncing...' : 'Cloud Synced'}
                     </span>
                   </div>
                 ) : lastSaved ? (
                   <div className="flex items-center gap-1.5 text-gray-400">
                     <CloudCheck className="w-3 h-3" />
                     <span className="text-[9px] font-bold uppercase tracking-widest">
-                      Cloud synced {new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      Synced {new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 ) : null}
@@ -279,18 +258,18 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           {!hasStarted ? (
             <div className="max-w-3xl mx-auto space-y-12 py-10">
                <div className="text-center space-y-4">
-                 <h3 className="text-5xl font-black text-gray-900 tracking-tighter">SYNTHESIS ENGINE</h3>
+                 <h3 className="text-5xl font-black text-gray-900 tracking-tighter uppercase italic">Synthesis Engine</h3>
                  <p className="text-gray-400 text-lg max-w-lg mx-auto font-medium leading-relaxed">Confirm your hierarchical structure. We will cross-reference real-time nodes to build an authoritative draft.</p>
                </div>
                <div className="space-y-6">
-                 {localOutline.sections.map((s, i) => (
+                 {localOutline?.sections?.map((s, i) => (
                    <div key={i} className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 group hover:border-indigo-300 hover:bg-white transition-all duration-500 shadow-sm">
                      <div className="flex items-center gap-4 mb-6">
                        <span className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-indigo-100">{i+1}</span>
                        <h4 className="font-black text-gray-900 text-xl tracking-tight">{s.heading}</h4>
                      </div>
                      <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-3 ml-14">
-                       {s.subheadings.map((sub, j) => (
+                       {s.subheadings?.map((sub, j) => (
                          <li key={j} className="text-sm font-bold text-gray-400 flex items-center gap-3">
                            <div className="w-2 h-2 rounded-full bg-indigo-200" />
                            {sub}
@@ -371,7 +350,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
              </div>
              
              <div className="space-y-4">
-               {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 ? (
+               {analysis?.keywordSuggestions?.length ? (
                  analysis.keywordSuggestions.map((ks, i) => (
                    <div key={i} className="group p-5 bg-white border border-gray-100 rounded-3xl shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all duration-300">
                      <div className="flex items-center justify-between mb-3">
@@ -379,8 +358,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                          <TagIcon className="w-3.5 h-3.5 text-indigo-600" /> {ks.keyword}
                        </span>
                        <span className={`text-[8px] font-black px-2 py-1 rounded-lg uppercase tracking-tighter ${
-                         ks.action.toLowerCase().includes('add') ? 'bg-green-50 text-green-600 border border-green-100' : 
-                         ks.action.toLowerCase().includes('optimize') ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
+                         ks.action?.toLowerCase().includes('add') ? 'bg-green-50 text-green-600 border border-green-100' : 
+                         ks.action?.toLowerCase().includes('optimize') ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
                          'bg-indigo-50 text-indigo-600 border border-indigo-100'
                        }`}>
                          {ks.action}
@@ -435,10 +414,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         </div>
 
         <ImageGenerator 
-          defaultPrompt={`Cinematic, professional hero illustration for an article titled: ${localOutline.title}`} 
+          defaultPrompt={`Cinematic, professional hero illustration for an article titled: ${localOutline?.title}`} 
           initialImageUrl={heroImageUrl} 
           onImageGenerated={setHeroImageUrl}
-          topicContext={localOutline.title}
+          topicContext={localOutline?.title}
         />
       </div>
 
@@ -447,7 +426,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in">
           <div className="bg-white w-full max-w-md rounded-[48px] shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
             <div className="px-10 py-8 bg-gray-50 border-b flex items-center justify-between">
-               <h3 className="font-black text-gray-900 text-2xl tracking-tighter flex items-center gap-3 italic"><Calendar className="w-6 h-6 text-indigo-600" /> PLANNER</h3>
+               <h3 className="font-black text-gray-900 text-2xl tracking-tighter flex items-center gap-3 italic uppercase"><Calendar className="w-6 h-6 text-indigo-600" /> Planner</h3>
                <button onClick={() => setShowScheduleModal(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X className="w-6 h-6 text-gray-400" /></button>
             </div>
             <div className="p-10 space-y-8">

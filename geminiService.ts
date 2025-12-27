@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./types";
 
@@ -9,12 +10,16 @@ const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
+/**
+ * Utility to clean AI response text of markdown artifacts before parsing.
+ */
+const cleanJsonString = (text: string) => {
+  return text.replace(/```json/g, '').replace(/```/g, '').trim();
+};
+
 export const geminiService = {
   async ensureApiKey(): Promise<boolean> {
-    // If we have an API key in the environment (Production/Vercel), we're good to go.
     if (process.env.API_KEY) return true;
-
-    // Fallback for AI Studio interactive environment
     // @ts-ignore
     if (typeof window.aistudio !== 'undefined') {
       // @ts-ignore
@@ -22,7 +27,6 @@ export const geminiService = {
       if (!hasKey) {
         // @ts-ignore
         await window.aistudio.openSelectKey();
-        return true; // Proceed assuming selection success per race condition guidelines
       }
     }
     return true;
@@ -39,31 +43,36 @@ export const geminiService = {
       Align all suggestions with their existing market positioning.`;
     }
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview', // High-reasoning model for strategy
-      contents: prompt,
-      config: {
-        tools: companyUrl ? [{ googleSearch: {} }] : undefined,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            targetKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-            secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
-            audience: { type: Type.STRING },
-            tone: { type: Type.STRING },
-            brandContext: { type: Type.STRING, description: "Deep summary of brand identity." }
-          },
-          required: ['targetKeywords', 'secondaryKeywords', 'audience', 'tone']
-        }
-      }
-    });
-
     try {
-      return JSON.parse(response.text || '{}');
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview', 
+        contents: prompt,
+        config: {
+          tools: companyUrl ? [{ googleSearch: {} }] : undefined,
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              targetKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              audience: { type: Type.STRING },
+              tone: { type: Type.STRING },
+              brandContext: { type: Type.STRING, description: "Deep summary of brand identity." }
+            },
+            required: ['targetKeywords', 'secondaryKeywords', 'audience', 'tone']
+          }
+        }
+      });
+
+      return JSON.parse(cleanJsonString(response.text || '{}'));
     } catch (e) {
-      console.error("Brief parsing error:", e);
-      return {};
+      console.error("Brief generation error:", e);
+      return {
+        targetKeywords: [topic],
+        secondaryKeywords: [],
+        audience: 'General Audience',
+        tone: 'Professional'
+      };
     }
   },
 
@@ -74,35 +83,47 @@ export const geminiService = {
     Target Audience: ${brief.audience}. 
     Tone: ${brief.tone}. 
     Core Keywords: ${brief.targetKeywords.join(', ')}.
-    ${brief.brandContext ? `Brand Guardrails: ${brief.brandContext}` : ''}
-    ${brief.companyUrl ? `Strategic Goal: Align with ${brief.companyUrl}` : ''}`;
+    ${brief.brandContext ? `Brand Guardrails: ${brief.brandContext}` : ''}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            title: { type: Type.STRING },
-            sections: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  heading: { type: Type.STRING },
-                  subheadings: { type: Type.ARRAY, items: { type: Type.STRING } },
-                  keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              sections: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    heading: { type: Type.STRING },
+                    subheadings: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    keyPoints: { type: Type.ARRAY, items: { type: Type.STRING } }
+                  }
                 }
               }
-            }
+            },
+            required: ['title', 'sections']
           }
         }
-      }
-    });
+      });
 
-    return JSON.parse(response.text || '{}');
+      const parsed = JSON.parse(cleanJsonString(response.text || '{}'));
+      return {
+        title: parsed.title || brief.topic,
+        sections: parsed.sections || []
+      };
+    } catch (e) {
+      console.error("Outline generation error:", e);
+      return {
+        title: brief.topic,
+        sections: [{ heading: 'Introduction', subheadings: [], keyPoints: [] }]
+      };
+    }
   },
 
   async *streamContent(brief: ContentBrief, outline: ContentOutline) {
@@ -112,7 +133,7 @@ export const geminiService = {
     Title: ${outline.title}
     Topic: ${brief.topic}
     Tone: ${brief.tone}
-    Keywords: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
+    Keywords: ${[...(brief.targetKeywords || []), ...(brief.secondaryKeywords || [])].join(', ')}
 
     Requirements:
     1. Visual Hierarchy: Use clean H2/H3 Markdown.
@@ -122,17 +143,21 @@ export const geminiService = {
     
     Cross-reference current facts using Google Search.`;
 
-    const responseStream = await ai.models.generateContentStream({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        temperature: 0.7,
-      }
-    });
+    try {
+      const responseStream = await ai.models.generateContentStream({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          temperature: 0.7,
+        }
+      });
 
-    for await (const chunk of responseStream) {
-      yield chunk;
+      for await (const chunk of responseStream) {
+        yield chunk;
+      }
+    } catch (e) {
+      console.error("Content stream error:", e);
     }
   },
 
@@ -175,40 +200,84 @@ export const geminiService = {
   async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
     await this.ensureApiKey();
     const ai = getAI();
-    const targetKeywords = keywords.length > 0 ? keywords : ['core topic'];
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
-      contents: `Critically analyze this content for SEO excellence using keywords: ${targetKeywords.join(', ')}. Content: ${text.substring(0, 8000)}`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            score: { type: Type.NUMBER },
-            readability: { type: Type.STRING },
-            suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
-            keywordSuggestions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  keyword: { type: Type.STRING },
-                  action: { type: Type.STRING, description: "e.g., 'ADD', 'OPTIMIZE', 'LIMIT'" },
-                  explanation: { type: Type.STRING, description: "Explain why this keyword improves search intent or semantic depth." }
-                }
-              }
-            }
-          },
-          required: ['score', 'readability', 'suggestions', 'keywordSuggestions']
-        }
-      }
-    });
+    const targetKeywords = keywords?.length > 0 ? keywords : ['core topic'];
 
     try {
-      return JSON.parse(response.text || '{}');
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: `Critically analyze this content for SEO excellence using keywords: ${targetKeywords.join(', ')}. Content: ${text.substring(0, 8000)}`,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              score: { type: Type.NUMBER },
+              readability: { type: Type.STRING },
+              suggestions: { type: Type.ARRAY, items: { type: Type.STRING } },
+              keywordSuggestions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    keyword: { type: Type.STRING },
+                    action: { type: Type.STRING },
+                    explanation: { type: Type.STRING }
+                  }
+                }
+              }
+            },
+            required: ['score', 'readability', 'suggestions', 'keywordSuggestions']
+          }
+        }
+      });
+
+      const parsed = JSON.parse(cleanJsonString(response.text || '{}'));
+      return {
+        score: parsed.score || 0,
+        readability: parsed.readability || 'Unknown',
+        keywordDensity: {},
+        suggestions: parsed.suggestions || [],
+        keywordSuggestions: parsed.keywordSuggestions || []
+      };
     } catch (e) {
-      return { score: 0, readability: 'Inconclusive', keywordDensity: {}, suggestions: [], keywordSuggestions: [] };
+      console.error("SEO Analysis error:", e);
+      return { score: 0, readability: 'Error', keywordDensity: {}, suggestions: [], keywordSuggestions: [] };
+    }
+  },
+
+  // Added suggestSchedule method to handle AI-powered content scheduling
+  async suggestSchedule(articles: { id: string, title: string, topic: string }[]): Promise<{ articleId: string, date: string, platform: string }[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Suggest an optimized social media posting schedule for these articles: ${JSON.stringify(articles)}. 
+    Suggest a date within the next 14 days and a distribution platform (LinkedIn, Twitter, Facebook, or Blog) for each article. 
+    Aim for high engagement by spacing them out logically.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                articleId: { type: Type.STRING },
+                date: { type: Type.STRING, description: 'ISO format date string' },
+                platform: { type: Type.STRING, description: 'One of: LinkedIn, Twitter, Facebook, Blog' }
+              },
+              required: ['articleId', 'date', 'platform']
+            }
+          }
+        }
+      });
+
+      return JSON.parse(cleanJsonString(response.text || '[]'));
+    } catch (e) {
+      console.error("Schedule suggestion error:", e);
+      return [];
     }
   },
 
@@ -221,8 +290,10 @@ export const geminiService = {
       config: { imageConfig: { aspectRatio: "16:9", imageSize: "1K" } }
     });
 
-    for (const part of response.candidates[0].content.parts) {
-      if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+    if (response?.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData) return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
     throw new Error("Asset generation failed");
   },
@@ -241,32 +312,5 @@ export const geminiService = {
     });
 
     return response.text?.trim() || currentPrompt;
-  },
-
-  async suggestSchedule(articles: { id: string; title: string; topic: string }[]): Promise<{ articleId: string; date: string; platform: string }[]> {
-    await this.ensureApiKey();
-    const ai = getAI();
-    const prompt = `Balance a 30-day distribution schedule for: ${JSON.stringify(articles)}`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              articleId: { type: Type.STRING },
-              date: { type: Type.STRING },
-              platform: { type: Type.STRING }
-            }
-          }
-        }
-      }
-    });
-
-    return JSON.parse(response.text || '[]');
   }
 };

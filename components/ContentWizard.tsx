@@ -69,14 +69,21 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         setProgress(prev => Math.min(prev + 18, 95));
         logIdx++;
       }
-    }, 1500);
+    }, 1200);
 
     try {
       const details = await geminiService.generateBriefDetails(topic, companyUrl);
       clearInterval(interval);
       setProgress(100);
       setTimeout(() => {
-        setBrief(prev => ({ ...prev, topic, companyUrl, ...details }));
+        setBrief(prev => ({ 
+          ...prev, 
+          topic, 
+          companyUrl, 
+          ...details,
+          targetKeywords: details.targetKeywords || [topic],
+          secondaryKeywords: details.secondaryKeywords || []
+        }));
         setStep(2);
         setLoading(false);
       }, 500);
@@ -133,8 +140,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       </div>
 
       <div className="bg-white rounded-[60px] border border-gray-100 shadow-[0_50px_100px_rgba(0,0,0,0.05)] p-16 min-h-[650px] flex flex-col relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-[120px] -mr-64 -mt-64 group-hover:bg-indigo-100/40 transition-colors duration-1000 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-50/20 rounded-full blur-[80px] -ml-32 -mb-32 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
         
         {step === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-12 relative z-10 animate-in fade-in duration-500">
@@ -216,20 +222,6 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 </button>
               )}
             </div>
-
-            {!loading && (
-              <div className="grid grid-cols-2 gap-4 pt-4">
-                {['Metacognition in K-12', 'Semantic SEO Architecture', 'Hyper-Personalized UX', 'Market Fluidity'].map((t) => (
-                  <button 
-                    key={t}
-                    onClick={() => setTopic(t)}
-                    className="text-center px-6 py-5 rounded-3xl border border-gray-100 hover:border-indigo-600 hover:text-indigo-600 font-black text-gray-400 text-xs transition-all uppercase tracking-widest bg-white shadow-sm hover:shadow-xl active:scale-95"
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         )}
 
@@ -250,18 +242,18 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 <div className="space-y-5">
                   <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">PRIMARY SEMANTIC TARGETS</label>
                   <div className="flex flex-wrap gap-3">
-                    {brief.targetKeywords?.map((k, i) => (
+                    {brief.targetKeywords?.length ? brief.targetKeywords.map((k, i) => (
                       <span key={i} className="px-6 py-4 bg-indigo-600 text-white rounded-2xl text-xs font-black uppercase tracking-widest shadow-xl shadow-indigo-100">{k}</span>
-                    ))}
+                    )) : <span className="text-gray-300 italic text-xs font-bold">No keywords identified</span>}
                   </div>
                 </div>
 
                 <div className="space-y-5">
                   <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">SECONDARY NODES</label>
                   <div className="flex flex-wrap gap-3">
-                    {brief.secondaryKeywords?.map((k, i) => (
+                    {brief.secondaryKeywords?.length ? brief.secondaryKeywords.map((k, i) => (
                       <span key={i} className="px-6 py-4 bg-white border border-gray-200 text-gray-500 rounded-2xl text-xs font-bold uppercase tracking-widest hover:border-indigo-400 transition-colors">{k}</span>
-                    ))}
+                    )) : <span className="text-gray-300 italic text-xs font-bold">No secondary nodes found</span>}
                   </div>
                 </div>
               </div>
@@ -271,7 +263,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                   <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">DISCOURSE AUDIENCE</label>
                   <input 
                     className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-3xl outline-none font-black text-gray-800 text-lg transition-all shadow-inner"
-                    value={brief.audience}
+                    value={brief.audience || ''}
                     onChange={(e) => setBrief({...brief, audience: e.target.value})}
                   />
                 </div>
@@ -280,7 +272,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                   <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] block">CONTENT RESONANCE TONE</label>
                   <select 
                     className="w-full px-8 py-5 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-3xl outline-none font-black text-gray-800 text-lg transition-all shadow-inner appearance-none cursor-pointer"
-                    value={brief.tone}
+                    value={brief.tone || 'Professional'}
                     onChange={(e) => setBrief({...brief, tone: e.target.value})}
                   >
                     <option>Professional & Authoritative</option>
@@ -296,7 +288,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
               <button 
                 onClick={generateOutline}
                 disabled={loading}
-                className="bg-indigo-600 text-white px-12 py-6 rounded-[32px] font-black text-xl flex items-center gap-4 shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 transition-all"
+                className="bg-indigo-600 text-white px-12 py-6 rounded-[32px] font-black text-xl flex items-center gap-4 shadow-[0_20px_50px_rgba(79,70,229,0.3)] hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
               >
                 {loading ? <Loader2 className="w-8 h-8 animate-spin" /> : <>MAP STRUCTURAL HIERARCHY <ArrowRight className="w-8 h-8" /></>}
               </button>
@@ -316,14 +308,14 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="bg-gray-50 rounded-[50px] p-12 border-2 border-indigo-50 space-y-10 max-h-[550px] overflow-y-auto custom-scrollbar shadow-inner">
               <h3 className="text-4xl font-black text-indigo-700 leading-tight italic tracking-tighter">{outline.title}</h3>
               <div className="grid grid-cols-1 gap-8">
-                {outline.sections.map((section, idx) => (
+                {outline.sections?.map((section, idx) => (
                   <div key={idx} className="bg-white p-10 rounded-[40px] border border-gray-100 shadow-sm relative group hover:shadow-2xl transition-all duration-500">
                     <div className="flex items-center gap-6 mb-8">
                       <span className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center text-lg font-black shadow-xl shadow-indigo-100">{idx + 1}</span>
                       <h4 className="font-black text-gray-900 text-2xl tracking-tighter italic">{section.heading}</h4>
                     </div>
                     <ul className="space-y-4 ml-16">
-                      {section.subheadings.map((sub, sIdx) => (
+                      {section.subheadings?.map((sub, sIdx) => (
                         <li key={sIdx} className="text-sm font-black text-gray-400 flex items-center gap-4 uppercase tracking-widest">
                           <div className="w-3 h-3 rounded-full bg-indigo-100 group-hover:bg-indigo-500 transition-colors" />
                           {sub}

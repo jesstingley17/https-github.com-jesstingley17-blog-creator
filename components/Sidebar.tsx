@@ -7,9 +7,12 @@ import {
   Settings, 
   BarChart3,
   Sparkles,
-  CalendarDays
+  CalendarDays,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { AppRoute } from '../types';
+import { isSupabaseConfigured } from '../supabase';
 
 interface SidebarProps {
   currentRoute: AppRoute;
@@ -56,15 +59,31 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
         })}
       </nav>
 
-      <div className="p-4 border-t space-y-1">
-        <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
-          <BarChart3 className="w-5 h-5" />
-          <span className="font-medium">Analytics</span>
-        </button>
-        <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
-          <Settings className="w-5 h-5" />
-          <span className="font-medium">Settings</span>
-        </button>
+      <div className="p-4 border-t space-y-4">
+        <div className="px-4 py-3 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isSupabaseConfigured ? (
+              <Cloud className="w-4 h-4 text-green-500" />
+            ) : (
+              <CloudOff className="w-4 h-4 text-amber-500" />
+            )}
+            <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">
+              {isSupabaseConfigured ? 'Cloud Sync On' : 'Local Only'}
+            </span>
+          </div>
+          {isSupabaseConfigured && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />}
+        </div>
+        
+        <div className="space-y-1">
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
+            <BarChart3 className="w-5 h-5" />
+            <span className="font-medium">Analytics</span>
+          </button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
+            <Settings className="w-5 h-5" />
+            <span className="font-medium">Settings</span>
+          </button>
+        </div>
       </div>
     </div>
   );

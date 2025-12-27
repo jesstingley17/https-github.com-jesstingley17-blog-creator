@@ -5,8 +5,9 @@ import Dashboard from './components/Dashboard';
 import ContentWizard from './components/ContentWizard';
 import ArticleEditor from './components/ArticleEditor';
 import Planner from './components/Planner';
+import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost, GeneratedContent, ArticleMetadata } from './types';
-import { Search, UserCircle, Key, Sparkles, ShieldCheck, FileText, ChevronRight, Clock } from 'lucide-react';
+import { Search, UserCircle, Key, Sparkles, ShieldCheck, FileText, ChevronRight, Clock, Loader2 } from 'lucide-react';
 
 const App: React.FC = () => {
   const [currentRoute, setRoute] = useState<AppRoute>(AppRoute.DASHBOARD);
@@ -54,16 +55,11 @@ const App: React.FC = () => {
     setRoute(AppRoute.EDITOR);
   };
 
-  const handleSelectArticle = (id: string) => {
-    const raw = localStorage.getItem(`zr_article_${id}`);
-    if (raw) {
-      try {
-        const data: GeneratedContent = JSON.parse(raw);
-        setActiveWorkflow({ brief: data.brief, outline: data.outline });
-        setRoute(AppRoute.EDITOR);
-      } catch (e) {
-        console.error("Failed to restore article", e);
-      }
+  const handleSelectArticle = async (id: string) => {
+    const data = await storageService.getArticle(id);
+    if (data) {
+      setActiveWorkflow({ brief: data.brief, outline: data.outline });
+      setRoute(AppRoute.EDITOR);
     }
   };
 
@@ -124,9 +120,16 @@ const App: React.FC = () => {
 
   const HistoryPage = () => {
     const [history, setHistory] = useState<ArticleMetadata[]>([]);
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
-      const raw = localStorage.getItem('zr_registry');
-      if (raw) setHistory(JSON.parse(raw));
+      const loadHistory = async () => {
+        setLoading(true);
+        const data = await storageService.getRegistry();
+        setHistory(data);
+        setLoading(false);
+      };
+      loadHistory();
     }, []);
 
     return (
@@ -137,7 +140,12 @@ const App: React.FC = () => {
         </header>
 
         <div className="grid grid-cols-1 gap-4">
-          {history.length > 0 ? history.map(item => (
+          {loading ? (
+             <div className="text-center py-40 flex flex-col items-center gap-4">
+               <Loader2 className="w-12 h-12 text-indigo-400 animate-spin" />
+               <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Accessing Cloud Archive...</p>
+             </div>
+          ) : history.length > 0 ? history.map(item => (
             <div 
               key={item.id}
               onClick={() => handleSelectArticle(item.id)}
