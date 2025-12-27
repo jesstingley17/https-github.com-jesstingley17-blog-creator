@@ -20,7 +20,11 @@ import {
   Target,
   TrendingUp,
   Clock,
-  Cloud
+  Cloud,
+  Rocket,
+  ShieldCheck,
+  BrainCircuit,
+  Terminal
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
@@ -37,6 +41,8 @@ interface ArticleEditorProps {
 const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack, onSchedule }) => {
   const [content, setContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isOptimizing, setIsOptimizing] = useState(false);
+  const [optimizationLogs, setOptimizationLogs] = useState<string[]>([]);
   const [hasStarted, setHasStarted] = useState(false);
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
@@ -44,9 +50,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
-  const [scheduleTime, setScheduleTime] = useState('09:00');
-  const [schedulePlatform, setSchedulePlatform] = useState<ScheduledPost['platform']>('LinkedIn');
   const [isScheduled, setIsScheduled] = useState(false);
 
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
@@ -57,8 +60,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       : { title: brief?.topic || 'Untitled', sections: [] };
   });
 
-  const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
-  const [aiAssistantOutput, setAiAssistantOutput] = useState('');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [lastSaved, setLastSaved] = useState<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
@@ -129,17 +130,84 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     } catch (e) {} finally { setAnalyzing(false); }
   };
 
-  const handleAIAssistantTask = async (task: 'rephrase' | 'expand') => {
-    setAiAssistantLoading(true);
+  const handleFullOptimization = async () => {
+    if (!content || isOptimizing) return;
+    setIsOptimizing(true);
+    setOptimizationLogs(['Initializing Optimization Core...', 'Accessing Semantic Network...']);
+    
+    const logPool = [
+      'Injecting LSI Keywords...',
+      'Adjusting Readability Indices...',
+      'Restructuring Heading Hierarchy...',
+      'Optimizing Meta Description Nodes...',
+      'Synchronizing with E-E-A-T Framework...',
+      'Synthesizing Semantic Authority...'
+    ];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < logPool.length) {
+        setOptimizationLogs(prev => [...prev.slice(-3), logPool[i]]);
+        i++;
+      }
+    }, 1500);
+
     try {
-      const res = await geminiService.performWritingTask(task, content.slice(-500), content);
-      setAiAssistantOutput(res);
-    } catch (e) {} finally { setAiAssistantLoading(false); }
+      const optimized = await geminiService.optimizeContent(content, brief);
+      clearInterval(interval);
+      setOptimizationLogs(prev => [...prev, 'Optimization Success! Boosting Score...']);
+      setContent(optimized);
+      await performAnalysis(optimized);
+      setTimeout(() => {
+        setIsOptimizing(false);
+        setOptimizationLogs([]);
+      }, 2000);
+    } catch (e) {
+      clearInterval(interval);
+      setIsOptimizing(false);
+      setOptimizationLogs(['Critical Error: Optimization sequence interrupted.']);
+    }
   };
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
-      <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden">
+      <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden relative">
+        {isOptimizing && (
+          <div className="absolute inset-0 z-50 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center p-12 text-center animate-in fade-in zoom-in-95 duration-500">
+             <div className="relative mb-12">
+               <div className="w-32 h-32 rounded-full border-4 border-indigo-500/20 flex items-center justify-center">
+                 <Rocket className="w-16 h-16 text-indigo-400 animate-bounce" />
+               </div>
+               <div className="absolute inset-0 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+             </div>
+             
+             <h2 className="text-4xl font-black text-white italic uppercase tracking-tighter mb-4">Optimizing Everything</h2>
+             <p className="text-slate-400 text-lg max-w-md mb-12">Our AI is restructuring your content for maximum semantic authority and SEO dominance.</p>
+             
+             <div className="w-full max-w-lg bg-slate-950 rounded-[32px] p-8 border border-slate-800 shadow-2xl space-y-4">
+               <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+                 <div className="flex items-center gap-2">
+                   <Terminal className="w-4 h-4 text-green-500" />
+                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Lab Console</span>
+                 </div>
+                 <div className="flex gap-1.5">
+                   <div className="w-2 h-2 rounded-full bg-slate-800" />
+                   <div className="w-2 h-2 rounded-full bg-slate-800" />
+                   <div className="w-2 h-2 rounded-full bg-slate-800" />
+                 </div>
+               </div>
+               <div className="space-y-3 font-mono text-sm leading-tight text-left">
+                 {optimizationLogs.map((log, i) => (
+                   <p key={i} className={`${i === optimizationLogs.length - 1 ? 'text-indigo-400' : 'text-slate-600'} flex gap-3 animate-in slide-in-from-left-2`}>
+                     <span className="text-slate-800">[{new Date().toLocaleTimeString([], { hour12: false })}]</span>
+                     <span>{i === optimizationLogs.length - 1 ? '> ' : '  '}{log}</span>
+                   </p>
+                 ))}
+               </div>
+             </div>
+          </div>
+        )}
+
         <header className="px-8 py-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-6">
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5 text-gray-400" /></button>
@@ -162,7 +230,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 <button onClick={() => setViewMode('edit')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase ${viewMode === 'edit' ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}>Edit</button>
               </div>
             )}
-            <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2">
+            <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-indigo-100">
               {hasStarted ? <Calendar className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Schedule' : 'Start Synthesis'}
             </button>
           </div>
@@ -199,13 +267,19 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               {viewMode === 'preview' ? (
                 <div className="markdown-body">
                   <ReactMarkdown>{content || "Connecting..."}</ReactMarkdown>
-                  {isGenerating && <Loader2 className="w-12 h-12 animate-spin mx-auto my-20 text-indigo-400" />}
+                  {isGenerating && (
+                    <div className="flex flex-col items-center gap-6 my-20">
+                      <Loader2 className="w-12 h-12 animate-spin text-indigo-400" />
+                      <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.3em]">Streaming Neural Nodes...</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <textarea 
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
-                  className="w-full min-h-[800px] bg-transparent border-none outline-none font-mono text-lg"
+                  className="w-full min-h-[800px] bg-transparent border-none outline-none font-mono text-lg resize-none"
+                  placeholder="Drafting workspace active..."
                 />
               )}
             </div>
@@ -213,13 +287,57 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         </div>
       </div>
 
-      <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4">
-        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-8">
-          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4" /> SEO</h3>
-          <div className="text-center py-4">
-            <div className="text-7xl font-black text-indigo-600 italic tracking-tighter">{analysis?.score || 0}</div>
-            <div className="text-[10px] font-black text-gray-300 uppercase">Optimization Index</div>
+      <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4 pb-12">
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-8 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity">
+            <ShieldCheck className="w-10 h-10 text-indigo-600" />
           </div>
+          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-indigo-600" /> SEO Lab</h3>
+          
+          <div className="text-center py-4 space-y-2">
+            <div className="text-7xl font-black text-indigo-600 italic tracking-tighter animate-in zoom-in duration-500">
+              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto text-indigo-200" /> : analysis?.score || 0}
+            </div>
+            <div className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Optimization Index</div>
+          </div>
+
+          <div className="space-y-4">
+             <div className="flex items-center justify-between text-[10px] font-black uppercase text-gray-400 tracking-widest px-1">
+               <span>Readability</span>
+               <span className="text-indigo-600">{analysis?.readability || 'Analyzing...'}</span>
+             </div>
+             <div className="h-2 bg-gray-50 rounded-full overflow-hidden">
+               <div className="h-full bg-indigo-600 transition-all duration-1000" style={{ width: `${analysis?.score || 0}%` }} />
+             </div>
+          </div>
+
+          <button 
+            disabled={!content || analyzing || isOptimizing}
+            onClick={handleFullOptimization}
+            className="w-full py-5 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 bg-[length:200%_auto] hover:bg-right transition-all text-white rounded-[24px] font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+          >
+            <BrainCircuit className="w-5 h-5" />
+            Optimize Everything
+          </button>
+        </div>
+
+        <div className="bg-slate-900 rounded-[40px] p-8 space-y-6">
+           <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-4 h-4 text-indigo-400" /> Recommendations</h3>
+           <div className="space-y-3">
+             {analysis?.suggestions?.length ? analysis.suggestions.slice(0, 3).map((s, i) => (
+               <div key={i} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 flex items-start gap-3">
+                 <div className="w-5 h-5 bg-indigo-500/10 rounded flex items-center justify-center mt-0.5">
+                   <Zap className="w-3 h-3 text-indigo-400" />
+                 </div>
+                 <p className="text-xs text-slate-400 font-medium leading-relaxed">{s}</p>
+               </div>
+             )) : (
+               <div className="py-10 text-center space-y-3">
+                 <Cloud className="w-8 h-8 text-slate-700 mx-auto" />
+                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Awaiting Semantic Data</p>
+               </div>
+             )}
+           </div>
         </div>
 
         <ImageGenerator 
@@ -231,15 +349,37 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       </div>
 
       {showScheduleModal && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-md rounded-[48px] p-10 space-y-8">
-            <div className="flex justify-between items-center">
-              <h3 className="font-black text-2xl uppercase">Planner</h3>
-              <button onClick={() => setShowScheduleModal(false)}><X className="w-6 h-6" /></button>
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-md rounded-[56px] p-12 space-y-10 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
+            
+            <div className="flex justify-between items-center relative z-10">
+              <h3 className="font-black text-3xl uppercase italic tracking-tighter">Publisher</h3>
+              <button onClick={() => setShowScheduleModal(false)} className="p-3 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors"><X className="w-6 h-6" /></button>
             </div>
-            {isScheduled ? <div className="text-center font-black">Confirmed</div> : (
-              <button onClick={() => setIsScheduled(true)} className="w-full py-5 bg-indigo-600 text-white rounded-[32px] font-black">CONFIRM</button>
-            )}
+
+            <div className="space-y-8 relative z-10">
+               <div className="text-center py-10">
+                 <Calendar className="w-16 h-16 text-indigo-100 mx-auto mb-4" />
+                 <p className="text-gray-400 font-bold">Synchronize this article with your global content calendar.</p>
+               </div>
+
+               {isScheduled ? (
+                 <div className="bg-green-50 p-8 rounded-[32px] border border-green-100 flex flex-col items-center gap-4 animate-in zoom-in-95 duration-500">
+                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-100">
+                     <Check className="w-8 h-8 text-white" />
+                   </div>
+                   <p className="text-green-800 font-black uppercase tracking-widest">Deployment Scheduled</p>
+                 </div>
+               ) : (
+                 <button 
+                  onClick={() => setIsScheduled(true)} 
+                  className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[32px] font-black text-xl flex items-center justify-center gap-4 shadow-2xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
+                 >
+                   CONFIRM DEPLOYMENT <ArrowRight className="w-6 h-6" />
+                 </button>
+               )}
+            </div>
           </div>
         </div>
       )}

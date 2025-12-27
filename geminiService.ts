@@ -180,6 +180,33 @@ export const geminiService = {
     } catch (e) { return text; }
   },
 
+  async optimizeContent(text: string, brief: ContentBrief): Promise<string> {
+    try {
+      await this.ensureApiKey();
+      const ai = getAI();
+      const prompt = `Optimize the following article for SEO, readability, and engagement. 
+      Primary Keywords to naturally integrate: ${brief.targetKeywords.join(', ')}.
+      Target Audience: ${brief.audience}.
+      Target Tone: ${brief.tone}.
+      Improve sentence structure, inject semantic depth, and ensure high E-E-A-T.
+      Keep Markdown formatting intact.
+      Article Content:
+      ${text}`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents: prompt,
+        config: {
+          temperature: 0.6,
+        }
+      });
+      return response.text || text;
+    } catch (e) {
+      console.error("Optimization failed:", e);
+      return text;
+    }
+  },
+
   async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {
     try {
       await this.ensureApiKey();
