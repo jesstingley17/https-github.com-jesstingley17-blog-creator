@@ -38,7 +38,8 @@ import {
   Tag as TagIcon,
   Quote,
   Terminal,
-  Copy
+  Copy,
+  GripVertical
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -81,6 +82,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline || { title: '', sections: [] });
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
   const [showVersions, setShowVersions] = useState(false);
+
+  // Drag and Drop State
+  const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
 
   // Tags State
   const [tags, setTags] = useState<string[]>(brief.tags || []);
@@ -334,6 +338,15 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     });
   };
 
+  const duplicateSection = (idx: number) => {
+    const sectionToCopy = localOutline.sections[idx];
+    const newSections = [...localOutline.sections];
+    // Deep clone the section
+    const clonedSection = JSON.parse(JSON.stringify(sectionToCopy));
+    newSections.splice(idx + 1, 0, clonedSection);
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
   const moveSection = (idx: number, dir: number) => {
     const newIdx = idx + dir;
     const sections = localOutline.sections || [];
@@ -341,6 +354,37 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     const newSections = [...sections];
     [newSections[idx], newSections[newIdx]] = [newSections[newIdx], newSections[idx]];
     setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedItemIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    // For visual feedback
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "0.5";
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    const target = e.currentTarget as HTMLElement;
+    target.style.opacity = "1";
+    setDraggedItemIndex(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedItemIndex === null || draggedItemIndex === index) return;
+    
+    const newSections = [...localOutline.sections];
+    const [reorderedItem] = newSections.splice(draggedItemIndex, 1);
+    newSections.splice(index, 0, reorderedItem);
+    
+    setLocalOutline({ ...localOutline, sections: newSections });
+    setDraggedItemIndex(null);
   };
 
   const addSubheading = (sIdx: number) => {
@@ -541,7 +585,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   <div className="p-2 bg-indigo-50 rounded-lg"><Layers className="w-5 h-5 text-indigo-600" /></div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">Blueprint Designer</h3>
-                    <p className="text-sm text-gray-500">Fine-tune the architecture of your article.</p>
+                    <p className="text-sm text-gray-500">Fine-tune the architecture of your article. Drag to reorder.</p>
                   </div>
                 </div>
                 <button onClick={addSection} className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors border border-indigo-100">
@@ -551,8 +595,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
               <div className="space-y-6">
                 {(localOutline.sections || []).map((section, sIdx) => (
-                  <div key={sIdx} className="group bg-white border border-gray-100 rounded-3xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm relative">
-                    <div className="absolute -left-4 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-1 rounded-lg border shadow-sm z-10">
+                  <div 
+                    key={sIdx} 
+                    className={`group bg-white border border-gray-100 rounded-3xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm relative ${draggedItemIndex === sIdx ? 'opacity-50 ring-2 ring-indigo-500 border-dashed' : ''}`}
+                    draggable={true}
+                    onDragStart={(e) => handleDragStart(e, sIdx)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, sIdx)}
+                  >
+                    <div className="absolute -left-12 top-1/2 -translate-y-1/2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-2 rounded-xl border shadow-sm z-10">
+                      <div className="cursor-grab active:cursor-grabbing p-1 text-gray-400 hover:text-indigo-600 transition-colors">
+                        <GripVertical className="w-5 h-5" />
+                      </div>
+                      <div className="h-px bg-gray-100 my-1" />
                       <button onClick={() => moveSection(sIdx, -1)} disabled={sIdx === 0} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronUp className="w-4 h-4" /></button>
                       <button onClick={() => moveSection(sIdx, 1)} disabled={sIdx === (localOutline.sections || []).length - 1} className="p-1 hover:bg-indigo-50 rounded text-gray-400 disabled:opacity-20"><ChevronDown className="w-4 h-4" /></button>
                     </div>
@@ -566,9 +622,22 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                           className="w-full bg-transparent border-none text-xl font-black text-gray-900 focus:ring-0 p-0 placeholder:text-gray-300"
                           placeholder="Heading..."
                         />
-                        <button onClick={() => removeSection(sIdx)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button 
+                            onClick={() => duplicateSection(sIdx)} 
+                            className="p-2 text-gray-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                            title="Duplicate Section"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => removeSection(sIdx)} 
+                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            title="Remove Section"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
