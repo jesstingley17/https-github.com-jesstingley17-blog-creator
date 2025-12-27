@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { 
   ArrowRight, 
@@ -6,7 +7,9 @@ import {
   RefreshCw, 
   Globe, 
   Zap,
-  Info
+  Info,
+  Scale,
+  FileText
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -32,6 +35,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     audience: 'Professional Audience',
     tone: 'Professional & Authoritative',
     length: 'medium',
+    detailLevel: 'standard',
     status: 'draft',
     author: {
       name: 'Content Expert',
@@ -89,6 +93,18 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     }
   };
 
+  const lengthOptions: { value: ContentBrief['length']; label: string }[] = [
+    { value: 'short', label: 'Short' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'long', label: 'Long' }
+  ];
+
+  const detailOptions: { value: ContentBrief['detailLevel']; label: string }[] = [
+    { value: 'summary', label: 'Summary' },
+    { value: 'standard', label: 'Standard' },
+    { value: 'detailed', label: 'Very Detailed' }
+  ];
+
   return (
     <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-500 py-6">
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-10 md:p-14 relative overflow-hidden">
@@ -139,29 +155,66 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-8 animate-in slide-in-from-right-8 duration-500">
             <div className="flex items-center justify-between border-b border-slate-100 pb-6">
-               <h2 className="text-2xl font-bold text-slate-900">Strategy Node</h2>
+               <h2 className="text-2xl font-bold text-slate-900 italic">Strategy Node</h2>
                <button onClick={() => setStep(1)} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-400 hover:text-indigo-600 transition-all"><RefreshCw className="w-4 h-4" /></button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+               {/* Column 1: Config & Keywords */}
                <div className="space-y-6">
+                  {/* Content Configuration */}
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-5">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <Scale className="w-3 h-3" /> Content Length
+                      </div>
+                      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                        {lengthOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setBrief({ ...brief, length: opt.value })}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                              brief.length === opt.value ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        <FileText className="w-3 h-3" /> Detail Level
+                      </div>
+                      <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                        {detailOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => setBrief({ ...brief, detailLevel: opt.value })}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                              brief.detailLevel === opt.value ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="p-6 bg-indigo-50/30 rounded-2xl border border-indigo-100 space-y-3">
-                     <h3 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Keywords</h3>
+                     <h3 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">Target Keywords</h3>
                      <div className="flex flex-wrap gap-1.5">
                         {brief.targetKeywords?.map((k, i) => <span key={i} className="px-2.5 py-1 bg-white border border-indigo-100 text-[9px] font-bold uppercase text-indigo-600 rounded-md">{k}</span>)}
                      </div>
                   </div>
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
-                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Market Context</h3>
-                     <div className="space-y-1">
-                        {brief.competitorUrls?.map((u, i) => <p key={i} className="text-[10px] font-medium text-slate-500 truncate">{u}</p>)}
-                     </div>
-                  </div>
                </div>
 
+               {/* Column 2: Author & Research */}
                <div className="space-y-6">
                   <div className="space-y-3">
-                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Author Settings</label>
+                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Author Identity</label>
                      <div className="space-y-2">
                         <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:bg-white focus:border-indigo-500 transition-all outline-none" placeholder="Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
                         <input className="w-full px-4 py-2.5 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:bg-white focus:border-indigo-500 transition-all outline-none" placeholder="Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
@@ -172,13 +225,15 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                         <Info className="w-3 h-3 text-indigo-400" />
                         <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest italic">Research Digest</p>
                      </div>
-                     <p className="text-xs font-medium leading-relaxed opacity-70">Research models identified high semantic value for this topic. Ready to synthesize authority content.</p>
+                     <p className="text-xs font-medium leading-relaxed opacity-70">
+                       Research identifies high semantic volume for "{brief.topic}". Adhering to {brief.length} length and {brief.detailLevel} detail will optimize authority signals.
+                     </p>
                   </div>
                </div>
             </div>
 
             <button onClick={() => onComplete(brief as ContentBrief, outline!)} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-3 shadow-lg hover:bg-indigo-700 active:scale-95 transition-all">
-              Synthesize Content <Zap className="w-6 h-6 fill-current" />
+              Synthesize Authority Content <Zap className="w-6 h-6 fill-current" />
             </button>
           </div>
         )}

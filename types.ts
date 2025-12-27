@@ -19,6 +19,7 @@ export interface ContentBrief {
   audience: string;
   tone: string;
   length: 'short' | 'medium' | 'long';
+  detailLevel: 'summary' | 'standard' | 'detailed';
   status: 'draft' | 'brief_ready' | 'outline_ready' | 'content_ready';
   author: Author;
   createdAt: number;

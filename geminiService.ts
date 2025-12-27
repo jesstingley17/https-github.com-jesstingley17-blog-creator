@@ -141,7 +141,8 @@ export const geminiService = {
     Generate a high-authority article outline for: "${brief.topic}". 
     Ground the outline in your specific expertise: ${brief.author.bio}.
     Target Keywords: ${brief.targetKeywords.join(', ')}.
-    Include 5-8 major sections that demonstrate deep industry knowledge.`;
+    Constraint: The intended content length is ${brief.length} and detail level is ${brief.detailLevel}. 
+    Adjust the number and depth of sections accordingly. Include 5-8 major sections that demonstrate deep industry knowledge.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -177,6 +178,17 @@ export const geminiService = {
     try {
       await this.ensureApiKey();
       const ai = getAI();
+      const lengthConstraints = {
+        short: "500-800 words",
+        medium: "1200-1500 words",
+        long: "2500+ words"
+      };
+      const detailInstructions = {
+        summary: "Keep it concise and punchy. Focus on high-level executive insights.",
+        standard: "Provide balanced coverage with a mix of theory and practical advice.",
+        detailed: "Be exhaustive. Deep dive into every nuance, technicality, and edge case."
+      };
+
       const prompt = `Write a comprehensive, authoritative SEO article from the first-person perspective of the author.
       AUTHOR PERSONA:
       Name: ${brief.author.name}
@@ -187,7 +199,9 @@ export const geminiService = {
       Title: ${outline.title}.
       Keywords to naturally integrate: ${brief.targetKeywords.join(', ')}.
       Tone: ${brief.tone}.
-      
+      Length Target: ${lengthConstraints[brief.length]}.
+      Detail Focus: ${detailInstructions[brief.detailLevel]}.
+
       CORE INSTRUCTIONS:
       1. Adopt the author's persona completely. Speak with their unique professional vocabulary and insight.
       2. Ground every claim in the expertise described in the bio.
