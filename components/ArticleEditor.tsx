@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -38,11 +37,14 @@ import {
   Flame,
   User,
   ExternalLink,
-  FileText
+  FileText,
+  Link2,
+  Search,
+  Bookmark
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration, ArticleImage, AppRoute, Citation } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration, ArticleImage, AppRoute, Citation, BacklinkOpportunity } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -70,6 +72,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [forgeLogs, setForgeLogs] = useState<string[]>([]);
   
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
+  const [backlinkOps, setBacklinkOps] = useState<BacklinkOpportunity[]>([]);
+  const [citations, setCitations] = useState<Citation[]>([]);
+  const [isDiscoveringBacklinks, setIsDiscoveringBacklinks] = useState(false);
+
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isAiWorking, setIsAiWorking] = useState(false);
@@ -94,12 +100,44 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           if (data.outline?.sections) setLocalOutline(data.outline);
           if (data.analysis) setAnalysis(data.analysis);
           if (data.images) setArticleImages(data.images);
+          if (data.citations) setCitations(data.citations);
+          if (data.backlinkOpportunities) setBacklinkOps(data.backlinkOpportunities);
           if (data.content || data.images?.length) setHasStarted(true);
         }
       } catch (e) {}
     };
     loadDraft();
   }, [brief?.id]);
+
+  // Unified save effect
+  useEffect(() => {
+    if (!hasStarted) return;
+    
+    const saveArticle = async () => {
+      setSaveStatus('saving');
+      try {
+        await storageService.upsertArticle({
+          id: brief.id,
+          brief,
+          outline: localOutline,
+          content,
+          analysis,
+          heroImageUrl: articleImages.find(img => img.isHero)?.url || null,
+          images: articleImages,
+          citations,
+          backlinkOpportunities: backlinkOps,
+          updatedAt: Date.now()
+        });
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (e) {
+        setSaveStatus('idle');
+      }
+    };
+
+    const timer = setTimeout(saveArticle, 3000);
+    return () => clearTimeout(timer);
+  }, [content, localOutline, analysis, articleImages, backlinkOps, citations]);
 
   const addOptLog = (msg: string) => {
     const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -124,7 +162,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       }
       performAnalysis(fullText);
       
-      const heroUrl = await geminiService.generateArticleImage(`Hero image for: ${localOutline.title}. Professional digital style.`);
+      const heroUrl = await geminiService.generateArticleImage(`High-authority hero image for: ${localOutline.title}. Cinematic professional digital style.`);
       setArticleImages([{ id: Math.random().toString(36).substr(2, 9), url: heroUrl, prompt: localOutline.title, isHero: true }]);
     } catch (error) {} finally { setIsGenerating(false); }
   };
@@ -172,6 +210,18 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     } catch (e) { setIsOptimizing(false); }
   };
 
+  const handleDiscoverBacklinks = async () => {
+    setIsDiscoveringBacklinks(true);
+    try {
+      const ops = await geminiService.discoverBacklinks(localOutline.title, brief.targetKeywords);
+      setBacklinkOps(ops);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsDiscoveringBacklinks(false);
+    }
+  };
+
   const performAnalysis = async (text: string) => {
     setAnalyzing(true);
     try {
@@ -194,7 +244,15 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors"><ChevronLeft className="w-5 h-5 text-gray-400" /></button>
             <div className="flex flex-col">
               <h2 className="font-black text-gray-900 line-clamp-1 italic text-lg uppercase leading-tight tracking-tighter">{localOutline?.title}</h2>
-              <p className="text-[10px] font-black uppercase text-indigo-600 tracking-widest italic">Node: {brief.author.name}</p>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase text-indigo-600 tracking-widest italic">Node: {brief.author.name}</span>
+                {saveStatus !== 'idle' && (
+                  <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest flex items-center gap-1">
+                    {saveStatus === 'saving' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5 text-green-500" />}
+                    {saveStatus === 'saving' ? 'Syncing' : 'Vaulted'}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -249,8 +307,16 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           ) : (
             <div className="max-w-4xl mx-auto space-y-10 pb-32">
               <div className="p-10 bg-slate-50 rounded-[48px] border border-gray-100 flex items-center gap-10 shadow-sm">
-                <div className="w-24 h-24 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-4 border-white overflow-hidden">
-                  <User className="w-12 h-12 text-slate-100" />
+                <div className="w-24 h-24 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-4 border-white overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                  {brief.author.photoUrl ? (
+                    <img 
+                      src={brief.author.photoUrl} 
+                      alt={brief.author.name} 
+                      className="w-full h-full object-cover animate-in fade-in duration-300" 
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-slate-200" />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <p className="text-2xl font-black italic text-slate-900 uppercase tracking-tighter leading-none">{brief.author.name}</p>
@@ -286,12 +352,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
         {isOptimizing && (
           <div className="absolute inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-8">
-            <div className="bg-slate-900 w-full max-w-md rounded-[40px] p-10 space-y-6 shadow-2xl border border-slate-800 animate-in zoom-in-95 duration-500">
+            <div className="bg-slate-900 w-full max-md rounded-[40px] p-10 space-y-6 shadow-2xl border border-slate-800 animate-in zoom-in-95 duration-500">
                <div className="flex items-center gap-4 text-white border-b border-slate-800 pb-6">
                  <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
                  <div>
-                   <h3 className="font-black text-lg uppercase italic tracking-tighter">SEO Optimization</h3>
-                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Rephrasing & Flow pass</p>
+                   <h3 className="font-black text-lg uppercase italic tracking-tighter">SEO Optimization Pass</h3>
+                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Rephrasing & Authority Calibration</p>
                  </div>
                </div>
                <div className="space-y-2">
@@ -302,6 +368,116 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </div>
           </div>
         )}
+      </div>
+
+      <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4 pb-12">
+        {/* SEO Laboratory */}
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-100 transition-opacity">
+            <BrainCircuit className="w-12 h-12 text-indigo-600" />
+          </div>
+          <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><Target className="w-4 h-4 text-indigo-600" /> SEO Laboratory</h3>
+          <div className="text-center py-6">
+            <div className="text-8xl font-black text-indigo-600 italic tracking-tighter">
+              {analyzing ? <Loader2 className="w-16 h-16 animate-spin mx-auto text-indigo-100" /> : analysis?.score || 0}
+            </div>
+            <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest mt-4">Semantic Index Score</p>
+          </div>
+          <button onClick={handleFullOptimization} disabled={isOptimizing || !content} className="w-full py-6 bg-slate-900 hover:bg-slate-800 text-white rounded-[28px] font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-xl active:scale-95 transition-all">
+            <Zap className="w-5 h-5 text-indigo-400" /> RE-SYNTHESIZE NODES
+          </button>
+        </div>
+
+        {/* Cite Sources (Bibliography) Section */}
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2">
+              <Quote className="w-4 h-4 text-purple-600" /> Cited Sources
+            </h3>
+            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{citations.length} Nodes</span>
+          </div>
+          <div className="space-y-3">
+            {citations.length > 0 ? citations.map((cite) => (
+              <div key={cite.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">Source [{cite.id}]</span>
+                  <a href={cite.url} target="_blank" className="text-gray-400 hover:text-indigo-600"><ExternalLink className="w-3 h-3" /></a>
+                </div>
+                <p className="text-[11px] font-bold text-gray-800 line-clamp-1">{cite.title}</p>
+              </div>
+            )) : (
+              <div className="py-8 text-center border-2 border-dashed border-gray-100 rounded-[32px]">
+                <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">No citations yet.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Generate Backlinks (Outreach Nodes) Section */}
+        <div className="bg-slate-900 rounded-[40px] p-8 space-y-6 relative overflow-hidden">
+           <div className="absolute top-0 right-0 p-4 opacity-10">
+             <Link2 className="w-20 h-20 text-indigo-400 -rotate-12" />
+           </div>
+           
+           <div className="flex items-center justify-between relative z-10">
+              <h3 className="text-white font-black text-sm uppercase tracking-widest flex items-center gap-2"><Globe className="w-4 h-4 text-indigo-400" /> Backlink Forge</h3>
+              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{backlinkOps.length} Active</span>
+           </div>
+           
+           <div className="space-y-3 relative z-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+             {backlinkOps.length > 0 ? backlinkOps.map((op) => (
+               <div key={op.id} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700/50 hover:border-indigo-500/50 transition-colors animate-in slide-in-from-right-2">
+                 <div className="flex items-center justify-between mb-2">
+                    <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${
+                      op.authority === 'High' ? 'bg-indigo-600 text-white' : 
+                      op.authority === 'Medium' ? 'bg-slate-600 text-slate-300' : 
+                      'bg-emerald-600 text-white'
+                    }`}>
+                      {op.authority} Authority
+                    </span>
+                    <a href={op.url} target="_blank" className="text-indigo-400 hover:text-indigo-300"><ExternalLink className="w-3 h-3" /></a>
+                 </div>
+                 <p className="text-xs font-black text-slate-200 line-clamp-1">{op.title}</p>
+                 <p className="text-[10px] text-slate-500 font-medium italic mt-1 leading-tight">{op.reason}</p>
+               </div>
+             )) : (
+               <div className="py-10 text-center space-y-3 border-2 border-dashed border-slate-700 rounded-[32px]">
+                 <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest italic">Awaiting outreach nodes...</p>
+               </div>
+             )}
+           </div>
+
+           <button 
+             onClick={handleDiscoverBacklinks}
+             disabled={isDiscoveringBacklinks || !hasStarted}
+             className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 disabled:opacity-50 relative z-10 shadow-xl shadow-indigo-950"
+           >
+             {isDiscoveringBacklinks ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+             Generate Backlinks
+           </button>
+        </div>
+
+        {/* Visual Discourse (Image Gen) */}
+        <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
+           <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2"><ImageIcon className="w-4 h-4 text-purple-600" /> Visual Discourse</h3>
+           <ImageGenerator 
+              defaultPrompt={`Professional authority illustration for: ${localOutline?.title || brief?.topic}.`} 
+              onImageGenerated={(url, prompt) => handleAddImage({ id: Math.random().toString(36).substr(2,9), url, prompt, isHero: articleImages.length === 0 })}
+              topicContext={localOutline?.title || brief?.topic}
+            />
+            
+            <div className="grid grid-cols-2 gap-4 pt-6 border-t border-gray-50">
+              {articleImages.map(img => (
+                <div key={img.id} className="relative aspect-square rounded-3xl overflow-hidden border border-gray-100 bg-gray-50 group hover:ring-2 hover:ring-indigo-600 transition-all cursor-pointer">
+                   <img src={img.url} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-700" alt="Asset" />
+                   {img.isHero && <div className="absolute top-3 right-3 bg-indigo-600 text-white p-1.5 rounded-xl shadow-lg"><Star className="w-3 h-3" /></div>}
+                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                     <Plus className="w-6 h-6 text-white" />
+                   </div>
+                </div>
+              ))}
+            </div>
+        </div>
       </div>
 
       {showForge && (

@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ContentBrief, ContentOutline, SEOAnalysis } from "./types";
+import { ContentBrief, ContentOutline, SEOAnalysis, BacklinkOpportunity } from "./types";
 
 const getAI = () => {
   return new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -68,6 +68,48 @@ export const geminiService = {
       return extractJson(response.text || '{}');
     } catch (e) {
       return { competitorUrls: [], backlinkUrls: [], targetKeywords: [], secondaryKeywords: [] };
+    }
+  },
+
+  async discoverBacklinks(topic: string, keywords: string[]): Promise<BacklinkOpportunity[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Act as an SEO link-building specialist. 
+    Topic: "${topic}". 
+    Keywords: ${keywords.join(', ')}. 
+    Find 5-7 high-authority websites and specific pages that would be perfect for backlink outreach or content guest posting.
+    Return as JSON.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                url: { type: Type.STRING },
+                reason: { type: Type.STRING, description: 'Why this is a good backlink opportunity' },
+                authority: { type: Type.STRING, enum: ['High', 'Medium', 'Emerging'] }
+              },
+              required: ['title', 'url', 'reason', 'authority']
+            }
+          }
+        }
+      });
+      const data = extractJson(response.text || '[]');
+      return (data || []).map((item: any) => ({
+        ...item,
+        id: Math.random().toString(36).substring(2, 11)
+      }));
+    } catch (e) {
+      console.error("Backlink discovery failed:", e);
+      return [];
     }
   },
 

@@ -40,6 +40,14 @@ export interface Citation {
   snippet?: string;
 }
 
+export interface BacklinkOpportunity {
+  id: string;
+  url: string;
+  title: string;
+  reason: string;
+  authority: 'High' | 'Medium' | 'Emerging';
+}
+
 export interface ArticleImage {
   url: string;
   prompt: string;
@@ -56,6 +64,7 @@ export interface GeneratedContent {
   heroImageUrl: string | null;
   images: ArticleImage[];
   citations: Citation[];
+  backlinkOpportunities?: BacklinkOpportunity[];
   updatedAt: number;
 }
 
