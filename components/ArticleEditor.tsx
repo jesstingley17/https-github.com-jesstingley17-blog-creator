@@ -20,7 +20,9 @@ import {
   Sparkles, 
   RefreshCw,
   Eye,
-  Code
+  Code,
+  List,
+  Type
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis } from '../types';
@@ -109,7 +111,25 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     ];
   };
 
+  /**
+   * Generates a high-quality, descriptive prompt for the hero image generator.
+   * Utilizes article metadata to create a professional editorial aesthetic.
+   */
+  const generateOptimizedImagePrompt = (): string => {
+    const title = localOutline.title;
+    const topic = brief.topic;
+    const keyThemes = brief.targetKeywords.slice(0, 3).join(', ');
+    
+    return `A professional, high-end editorial blog header image for an article titled "${title}". 
+The scene should conceptually represent "${topic}" with subtle visual motifs of ${keyThemes}. 
+Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of field, 8k resolution, photorealistic textures, corporate-modern color palette, premium magazine quality.`;
+  };
+
   // Outline helper functions
+  const updateTitle = (val: string) => {
+    setLocalOutline({ ...localOutline, title: val });
+  };
+
   const updateSectionHeading = (index: number, val: string) => {
     const newSections = [...localOutline.sections];
     newSections[index].heading = val;
@@ -140,8 +160,32 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  // Generate a descriptive default prompt for the ImageGenerator
-  const heroImagePrompt = `A professional editorial hero image for an article titled "${localOutline.title}" about "${brief.topic}". Modern minimalist aesthetic, high resolution.`;
+  const removeSubheading = (sectionIdx: number, subIdx: number) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].subheadings = newSections[sectionIdx].subheadings.filter((_, i) => i !== subIdx);
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const addKeyPoint = (sectionIdx: number) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].keyPoints.push('New Key Point');
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const updateKeyPoint = (sectionIdx: number, pointIdx: number, val: string) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].keyPoints[pointIdx] = val;
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const removeKeyPoint = (sectionIdx: number, pointIdx: number) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].keyPoints = newSections[sectionIdx].keyPoints.filter((_, i) => i !== pointIdx);
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  // Dynamic optimized prompt based on current outline and brief
+  const heroImagePrompt = generateOptimizedImagePrompt();
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
@@ -152,7 +196,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <ChevronLeft className="w-5 h-5 text-gray-500" />
             </button>
-            <h2 className="font-bold text-gray-900 line-clamp-1">{localOutline.title}</h2>
+            {!hasStarted ? (
+               <div className="flex items-center gap-2">
+                 <Type className="w-4 h-4 text-indigo-400" />
+                 <input 
+                  type="text"
+                  value={localOutline.title}
+                  onChange={(e) => updateTitle(e.target.value)}
+                  className="font-bold text-gray-900 border-none bg-transparent focus:ring-0 p-0 text-xl w-[400px]"
+                  placeholder="Article Title..."
+                />
+               </div>
+            ) : (
+              <h2 className="font-bold text-gray-900 line-clamp-1">{localOutline.title}</h2>
+            )}
           </div>
           
           <div className="flex items-center gap-3">
@@ -199,7 +256,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           {!hasStarted ? (
-            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
+            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between border-b pb-4">
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -223,20 +280,20 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                  />
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {localOutline.sections.map((section, sIdx) => (
-                  <div key={sIdx} className="group bg-gray-50 border border-gray-200 rounded-2xl p-6 transition-all hover:border-indigo-200 hover:shadow-sm">
+                  <div key={sIdx} className="group bg-white border border-gray-100 rounded-2xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm">
                     <div className="flex items-start gap-4">
                       <div className="mt-2 text-gray-300">
                         <GripVertical className="w-5 h-5" />
                       </div>
-                      <div className="flex-1 space-y-4">
+                      <div className="flex-1 space-y-6">
                         <div className="flex items-center gap-3">
                           <input 
                             type="text"
                             value={section.heading}
                             onChange={(e) => updateSectionHeading(sIdx, e.target.value)}
-                            className="flex-1 bg-transparent border-none text-lg font-bold text-gray-800 focus:ring-0 p-0 placeholder:text-gray-300"
+                            className="flex-1 bg-transparent border-none text-xl font-bold text-gray-800 focus:ring-0 p-0 placeholder:text-gray-300"
                             placeholder="Section Heading..."
                           />
                           <button 
@@ -247,24 +304,69 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                           </button>
                         </div>
 
-                        <div className="space-y-2 pl-4 border-l-2 border-indigo-100">
-                          {section.subheadings.map((sub, subIdx) => (
-                            <div key={subIdx} className="flex items-center gap-2">
-                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
-                              <input 
-                                type="text"
-                                value={sub}
-                                onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
-                                className="flex-1 bg-transparent border-none text-sm text-gray-600 focus:ring-0 p-0"
-                              />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          {/* Subheadings */}
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+                              <List className="w-3 h-3" /> Subheadings
+                            </label>
+                            <div className="space-y-2 pl-4 border-l-2 border-indigo-100">
+                              {section.subheadings.map((sub, subIdx) => (
+                                <div key={subIdx} className="flex items-center gap-2 group/sub">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0" />
+                                  <input 
+                                    type="text"
+                                    value={sub}
+                                    onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
+                                    className="flex-1 bg-transparent border-none text-sm text-gray-600 focus:ring-0 p-0"
+                                  />
+                                  <button 
+                                    onClick={() => removeSubheading(sIdx, subIdx)}
+                                    className="opacity-0 group-hover/sub:opacity-100 p-1 text-gray-300 hover:text-red-400"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              <button 
+                                onClick={() => addSubheading(sIdx)}
+                                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider"
+                              >
+                                <Plus className="w-3 h-3" /> Add Subheading
+                              </button>
                             </div>
-                          ))}
-                          <button 
-                            onClick={() => addSubheading(sIdx)}
-                            className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider"
-                          >
-                            <Plus className="w-3 h-3" /> Add Subheading
-                          </button>
+                          </div>
+
+                          {/* Key Points */}
+                          <div className="space-y-3">
+                            <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
+                              <Trophy className="w-3 h-3" /> SEO Context Points
+                            </label>
+                            <div className="space-y-2">
+                              {section.keyPoints.map((point, pIdx) => (
+                                <div key={pIdx} className="flex items-center gap-2 group/point bg-gray-50 rounded-lg px-2 py-1">
+                                  <input 
+                                    type="text"
+                                    value={point}
+                                    onChange={(e) => updateKeyPoint(sIdx, pIdx, e.target.value)}
+                                    className="flex-1 bg-transparent border-none text-[11px] text-gray-500 focus:ring-0 p-0"
+                                  />
+                                  <button 
+                                    onClick={() => removeKeyPoint(sIdx, pIdx)}
+                                    className="opacity-0 group-hover/point:opacity-100 p-1 text-gray-300 hover:text-red-400"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              <button 
+                                onClick={() => addKeyPoint(sIdx)}
+                                className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1 mt-1 uppercase tracking-wider"
+                              >
+                                <Plus className="w-3 h-3" /> Add Point
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

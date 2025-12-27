@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { ContentBrief, ContentOutline, SEOAnalysis } from "./types";
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from "./types";
 
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
@@ -101,6 +101,36 @@ export const geminiService = {
     for await (const chunk of responseStream) {
       yield chunk;
     }
+  },
+
+  async suggestSchedule(articles: {id: string, title: string, topic: string}[]): Promise<Partial<ScheduledPost>[]> {
+    const ai = getAI();
+    const prompt = `Suggest a social media posting schedule for the following articles to maximize engagement.
+    Articles: ${articles.map(a => `"${a.title}" (Topic: ${a.topic})`).join(', ')}
+    
+    Provide a list of scheduled dates (ISO strings starting from tomorrow) and suggested platforms for each article.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              articleId: { type: Type.STRING },
+              date: { type: Type.STRING },
+              platform: { type: Type.STRING, enum: ['LinkedIn', 'Twitter', 'Facebook', 'Blog'] },
+              reason: { type: Type.STRING, description: 'AI reasoning for this specific slot' }
+            }
+          }
+        }
+      }
+    });
+
+    return JSON.parse(response.text);
   },
 
   async analyzeSEO(text: string, keywords: string[]): Promise<SEOAnalysis> {

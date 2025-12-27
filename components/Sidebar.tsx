@@ -6,7 +6,8 @@ import {
   History, 
   Settings, 
   BarChart3,
-  Sparkles
+  Sparkles,
+  CalendarDays
 } from 'lucide-react';
 import { AppRoute } from '../types';
 
@@ -19,6 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
   const navItems = [
     { id: AppRoute.DASHBOARD, label: 'Overview', icon: LayoutDashboard },
     { id: AppRoute.CREATE, label: 'New Content', icon: FilePlus2 },
+    { id: AppRoute.PLANNER, label: 'Content Planner', icon: CalendarDays },
     { id: AppRoute.HISTORY, label: 'History', icon: History },
   ];
 

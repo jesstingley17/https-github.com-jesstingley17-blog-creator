@@ -29,6 +29,14 @@ export interface SEOAnalysis {
   suggestions: string[];
 }
 
+export interface ScheduledPost {
+  id: string;
+  articleId: string;
+  title: string;
+  date: string; // ISO format
+  platform: 'LinkedIn' | 'Twitter' | 'Facebook' | 'Blog';
+}
+
 export interface GeneratedContent {
   id: string;
   briefId: string;
@@ -36,11 +44,13 @@ export interface GeneratedContent {
   body: string;
   analysis: SEOAnalysis;
   sources?: { uri: string; title: string }[];
+  scheduledDate?: string;
 }
 
 export enum AppRoute {
   DASHBOARD = 'dashboard',
   CREATE = 'create',
   EDITOR = 'editor',
-  HISTORY = 'history'
+  HISTORY = 'history',
+  PLANNER = 'planner'
 }

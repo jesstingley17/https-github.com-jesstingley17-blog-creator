@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import ContentWizard from './components/ContentWizard';
 import ArticleEditor from './components/ArticleEditor';
+import Planner from './components/Planner';
 import { AppRoute, ContentBrief, ContentOutline } from './types';
 import { Search, Bell, UserCircle } from 'lucide-react';
 
@@ -29,6 +30,8 @@ const App: React.FC = () => {
         return <Dashboard onNewContent={startNewContent} />;
       case AppRoute.CREATE:
         return <ContentWizard onComplete={handleWizardComplete} />;
+      case AppRoute.PLANNER:
+        return <Planner />;
       case AppRoute.EDITOR:
         return activeWorkflow ? (
           <ArticleEditor 
