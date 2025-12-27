@@ -5,12 +5,19 @@ import { ContentBrief, ContentOutline, SEOAnalysis } from "./types";
 const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const geminiService = {
-  async generateBriefDetails(topic: string): Promise<Partial<ContentBrief>> {
+  async generateBriefDetails(topic: string, companyUrl?: string): Promise<Partial<ContentBrief>> {
     const ai = getAI();
+    let systemPrompt = `Analyze the topic "${topic}" and provide SEO brief details.`;
+    
+    if (companyUrl) {
+      systemPrompt += ` Also research the company at ${companyUrl} using Google Search. Identify their brand voice, primary services, and target demographic to ensure the generated content is perfectly aligned with their brand identity. Provide a 'brandContext' summary.`;
+    }
+
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Analyze the topic "${topic}" and provide SEO brief details including target keywords, secondary keywords, audience, and suggested tone.`,
+      contents: systemPrompt,
       config: {
+        tools: companyUrl ? [{ googleSearch: {} }] : undefined,
         responseMimeType: 'application/json',
         responseSchema: {
           type: Type.OBJECT,
@@ -18,7 +25,8 @@ export const geminiService = {
             targetKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
             secondaryKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
             audience: { type: Type.STRING },
-            tone: { type: Type.STRING }
+            tone: { type: Type.STRING },
+            brandContext: { type: Type.STRING, description: "A summary of the brand's identity and voice found from their URL." }
           },
           required: ['targetKeywords', 'secondaryKeywords', 'audience', 'tone']
         }
@@ -36,8 +44,11 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     const ai = getAI();
     const prompt = `Create a detailed SEO content outline for the topic: "${brief.topic}". 
-    Audience: ${brief.audience}. Tone: ${brief.tone}. 
-    Primary Keywords: ${brief.targetKeywords.join(', ')}.`;
+    Audience: ${brief.audience}. 
+    Tone: ${brief.tone}. 
+    Primary Keywords: ${brief.targetKeywords.join(', ')}.
+    ${brief.brandContext ? `Brand Identity Context: ${brief.brandContext}` : ''}
+    ${brief.companyUrl ? `The content is for the company at: ${brief.companyUrl}` : ''}`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -74,6 +85,8 @@ export const geminiService = {
     Topic: ${brief.topic}
     Tone: ${brief.tone}
     Keywords to include: ${[...brief.targetKeywords, ...brief.secondaryKeywords].join(', ')}
+    ${brief.brandContext ? `Maintain consistency with this brand voice: ${brief.brandContext}` : ''}
+    ${brief.companyUrl ? `Mention or subtly align with company values from ${brief.companyUrl} where appropriate.` : ''}
     
     Structure the article with Markdown. Make it engaging and authoritative.`;
 
@@ -119,7 +132,6 @@ export const geminiService = {
   },
 
   async generateArticleImage(prompt: string): Promise<string> {
-    // Create new instance right before use to ensure updated API key from dialog if necessary
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',

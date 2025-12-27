@@ -2,6 +2,8 @@
 export interface ContentBrief {
   id: string;
   topic: string;
+  companyUrl?: string;
+  brandContext?: string;
   targetKeywords: string[];
   secondaryKeywords: string[];
   audience: string;

@@ -1,15 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   Save, 
   Download, 
   ChevronLeft, 
   BarChart2, 
   Loader2, 
-  Trophy,
-  CheckCircle,
-  AlertCircle,
-  Info
+  Trophy, 
+  CheckCircle, 
+  AlertCircle, 
+  Info, 
+  Plus, 
+  Trash2, 
+  GripVertical, 
+  Play, 
+  Pencil, 
+  Image as ImageIcon, 
+  Sparkles, 
+  RefreshCw,
+  Eye,
+  Code
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis } from '../types';
@@ -21,32 +32,39 @@ interface ArticleEditorProps {
   onBack: () => void;
 }
 
-const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline, onBack }) => {
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack }) => {
   const [content, setContent] = useState('');
-  const [isGenerating, setIsGenerating] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
   const [analysis, setAnalysis] = useState<SEOAnalysis | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [showScoreTooltip, setShowScoreTooltip] = useState(false);
+  const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
+  
+  // Hero Image State
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    const startGeneration = async () => {
-      setIsGenerating(true);
-      let fullText = '';
-      try {
-        const stream = geminiService.streamContent(brief, outline);
-        for await (const chunk of stream) {
-          fullText += chunk.text || '';
-          setContent(fullText);
-        }
-        await performAnalysis(fullText);
-      } catch (error) {
-        console.error("Stream failed", error);
-      } finally {
-        setIsGenerating(false);
+  // Outline Editing State
+  const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
+
+  const startGeneration = async () => {
+    setHasStarted(true);
+    setIsGenerating(true);
+    setViewMode('preview'); // Default to preview during generation
+    let fullText = '';
+    try {
+      const stream = geminiService.streamContent(brief, localOutline);
+      for await (const chunk of stream) {
+        fullText += chunk.text || '';
+        setContent(fullText);
       }
-    };
-    startGeneration();
-  }, []);
+      await performAnalysis(fullText);
+    } catch (error) {
+      console.error("Stream failed", error);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const performAnalysis = async (textToAnalyze: string) => {
     setAnalyzing(true);
@@ -66,7 +84,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline, onBack })
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    // Sanitize filename
     const fileName = brief.topic.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     link.download = `${fileName || 'article'}.md`;
     document.body.appendChild(link);
@@ -81,17 +98,50 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline, onBack })
     return 'text-red-600';
   };
 
-  // Derived breakdown metrics based on the AI analysis
   const getScoreBreakdown = () => {
     if (!analysis) return [];
     const score = analysis.score;
     return [
       { label: 'Keyword Synergy', val: Math.round(score * 0.95), weight: 30 },
-      { label: 'Semantic Depth', val: Math.round(score * 1.02) > 100 ? 100 : Math.round(score * 1.02), weight: 40 },
+      { label: 'Semantic Depth', val: Math.min(100, Math.round(score * 1.02)), weight: 40 },
       { label: 'Readability', val: analysis.readability === 'Professional' ? 95 : 85, weight: 20 },
       { label: 'Structure', val: 90, weight: 10 },
     ];
   };
+
+  // Outline helper functions
+  const updateSectionHeading = (index: number, val: string) => {
+    const newSections = [...localOutline.sections];
+    newSections[index].heading = val;
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const addSection = () => {
+    setLocalOutline({
+      ...localOutline,
+      sections: [...localOutline.sections, { heading: 'New Section', subheadings: [], keyPoints: [] }]
+    });
+  };
+
+  const removeSection = (index: number) => {
+    const newSections = localOutline.sections.filter((_, i) => i !== index);
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const addSubheading = (sectionIdx: number) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].subheadings.push('New Subheading');
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const updateSubheading = (sectionIdx: number, subIdx: number, val: string) => {
+    const newSections = [...localOutline.sections];
+    newSections[sectionIdx].subheadings[subIdx] = val;
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  // Generate a descriptive default prompt for the ImageGenerator
+  const heroImagePrompt = `A professional editorial hero image for an article titled "${localOutline.title}" about "${brief.topic}". Modern minimalist aesthetic, high resolution.`;
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
@@ -102,35 +152,166 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline, onBack })
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <ChevronLeft className="w-5 h-5 text-gray-500" />
             </button>
-            <h2 className="font-bold text-gray-900 line-clamp-1">{brief.topic}</h2>
+            <h2 className="font-bold text-gray-900 line-clamp-1">{localOutline.title}</h2>
           </div>
+          
           <div className="flex items-center gap-3">
-            <button 
-              onClick={handleDownload}
-              className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
-              title="Download as Markdown"
-            >
-              <Download className="w-5 h-5" />
-            </button>
-            <button className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all">
-              <Save className="w-4 h-4" /> Save Article
-            </button>
+            {hasStarted && (
+              <div className="flex bg-gray-50 p-1 rounded-xl border mr-4">
+                <button 
+                  onClick={() => setViewMode('preview')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'preview' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Eye className="w-3.5 h-3.5" /> Preview
+                </button>
+                <button 
+                  onClick={() => setViewMode('edit')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === 'edit' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+                >
+                  <Code className="w-3.5 h-3.5" /> Markdown
+                </button>
+              </div>
+            )}
+
+            {!hasStarted ? (
+              <button 
+                onClick={startGeneration}
+                className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              >
+                <Play className="w-4 h-4 fill-current" /> Confirm & Generate Content
+              </button>
+            ) : (
+              <>
+                <button 
+                  onClick={handleDownload}
+                  className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
+                  title="Download as Markdown"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all">
+                  <Save className="w-4 h-4" /> Save Article
+                </button>
+              </>
+            )}
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {isGenerating && (
-            <div className="flex items-center gap-2 text-indigo-600 font-medium mb-6 bg-indigo-50 px-4 py-2 rounded-lg w-fit animate-pulse">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              AI is writing your article...
+          {!hasStarted ? (
+            <div className="max-w-3xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <Pencil className="w-5 h-5 text-indigo-500" /> Finalize Article Strategy
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">Refine the structure and assets before the AI starts writing.</p>
+                </div>
+                <button 
+                  onClick={addSection}
+                  className="text-sm font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Add Section
+                </button>
+              </div>
+
+              <div className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100/50">
+                 <ImageGenerator 
+                    defaultPrompt={heroImagePrompt} 
+                    initialImageUrl={heroImageUrl} 
+                    onImageGenerated={setHeroImageUrl}
+                 />
+              </div>
+
+              <div className="space-y-4">
+                {localOutline.sections.map((section, sIdx) => (
+                  <div key={sIdx} className="group bg-gray-50 border border-gray-200 rounded-2xl p-6 transition-all hover:border-indigo-200 hover:shadow-sm">
+                    <div className="flex items-start gap-4">
+                      <div className="mt-2 text-gray-300">
+                        <GripVertical className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="text"
+                            value={section.heading}
+                            onChange={(e) => updateSectionHeading(sIdx, e.target.value)}
+                            className="flex-1 bg-transparent border-none text-lg font-bold text-gray-800 focus:ring-0 p-0 placeholder:text-gray-300"
+                            placeholder="Section Heading..."
+                          />
+                          <button 
+                            onClick={() => removeSection(sIdx)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-all opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        <div className="space-y-2 pl-4 border-l-2 border-indigo-100">
+                          {section.subheadings.map((sub, subIdx) => (
+                            <div key={subIdx} className="flex items-center gap-2">
+                              <div className="w-1.5 h-1.5 rounded-full bg-indigo-300" />
+                              <input 
+                                type="text"
+                                value={sub}
+                                onChange={(e) => updateSubheading(sIdx, subIdx, e.target.value)}
+                                className="flex-1 bg-transparent border-none text-sm text-gray-600 focus:ring-0 p-0"
+                              />
+                            </div>
+                          ))}
+                          <button 
+                            onClick={() => addSubheading(sIdx)}
+                            className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider"
+                          >
+                            <Plus className="w-3 h-3" /> Add Subheading
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="max-w-4xl mx-auto space-y-8 pb-20">
+              {/* Show the Hero Image inside the actual content area */}
+              {heroImageUrl && (
+                <div className="rounded-3xl overflow-hidden shadow-2xl border border-gray-100 aspect-[21/9] relative group animate-in fade-in duration-700">
+                  <img src={heroImageUrl} alt="Article Hero" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-8">
+                    <h1 className="text-3xl font-black text-white drop-shadow-lg">{localOutline.title}</h1>
+                  </div>
+                </div>
+              )}
+
+              {isGenerating && (
+                <div className="flex items-center gap-2 text-indigo-600 font-medium bg-indigo-50 px-4 py-2 rounded-lg w-fit animate-pulse sticky top-0 z-10 shadow-sm border border-indigo-100">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  AI is crafting your SEO content...
+                </div>
+              )}
+              
+              <div className="min-h-[500px]">
+                {viewMode === 'preview' ? (
+                  <div className="markdown-body animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <ReactMarkdown>
+                      {content || "*Waiting for generation to begin...*"}
+                    </ReactMarkdown>
+                    {isGenerating && (
+                       <span className="inline-block w-2 h-5 ml-1 bg-indigo-500 animate-pulse rounded-sm" />
+                    )}
+                  </div>
+                ) : (
+                  <textarea
+                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono"
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder="Raw Markdown content..."
+                  />
+                )}
+              </div>
             </div>
           )}
-          <textarea
-            className="w-full h-full outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-serif"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Waiting for AI to start writing..."
-          />
         </div>
       </div>
 
@@ -236,9 +417,13 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline, onBack })
           </div>
         </div>
 
-        {/* Image Generation Section */}
+        {/* Unified Image Generator in Sidebar */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
-          <ImageGenerator defaultPrompt={brief.topic} />
+          <ImageGenerator 
+            defaultPrompt={heroImagePrompt} 
+            initialImageUrl={heroImageUrl} 
+            onImageGenerated={setHeroImageUrl}
+          />
         </div>
 
         {/* Suggestions Section */}

@@ -9,7 +9,9 @@ import {
   Type as FontIcon, 
   Target,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Globe,
+  Info
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -22,9 +24,12 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [topic, setTopic] = useState('');
+  const [companyUrl, setCompanyUrl] = useState('');
   
   const [brief, setBrief] = useState<Partial<ContentBrief>>({
     topic: '',
+    companyUrl: '',
+    brandContext: '',
     targetKeywords: [],
     secondaryKeywords: [],
     audience: 'General Readers',
@@ -38,8 +43,8 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     if (!topic) return;
     setLoading(true);
     try {
-      const details = await geminiService.generateBriefDetails(topic);
-      setBrief({ ...brief, topic, ...details });
+      const details = await geminiService.generateBriefDetails(topic, companyUrl);
+      setBrief({ ...brief, topic, companyUrl, ...details });
       setStep(2);
     } catch (error) {
       console.error(error);
@@ -62,7 +67,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   };
 
   const steps = [
-    { num: 1, label: 'Topic Search', icon: Search },
+    { num: 1, label: 'Topic & Brand', icon: Search },
     { num: 2, label: 'SEO Brief', icon: Target },
     { num: 3, label: 'Outline Review', icon: Layout },
   ];
@@ -94,25 +99,50 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         {step === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-8">
             <div className="space-y-3">
-              <h2 className="text-3xl font-bold text-gray-900">What are we writing about today?</h2>
-              <p className="text-gray-500">Enter a topic or target keyword, and we'll research the best SEO strategy.</p>
+              <h2 className="text-3xl font-bold text-gray-900">Configure Your Content</h2>
+              <p className="text-gray-500">Enter your topic and optionally a company URL to align the content with your brand identity.</p>
             </div>
             
-            <div className="relative group">
-              <input
-                type="text"
-                placeholder="e.g. Benefits of Sustainable Living in Urban Areas"
-                className="w-full px-6 py-5 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all pr-36 shadow-inner"
-                value={topic}
-                onChange={(e) => setTopic(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleInitialAnalysis()}
-              />
+            <div className="space-y-4 text-left">
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block">Primary Topic</label>
+                <div className="relative group">
+                  <input
+                    type="text"
+                    placeholder="e.g. Benefits of Sustainable Living in Urban Areas"
+                    className="w-full px-6 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all shadow-inner"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 block flex items-center gap-2">
+                  Company URL (Optional) <Info className="w-3 h-3 text-gray-300" title="We'll use this to match your brand's voice and identity." />
+                </label>
+                <div className="relative group">
+                  <Globe className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="url"
+                    placeholder="e.g. https://yourcompany.com"
+                    className="w-full pl-14 pr-6 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none text-lg transition-all shadow-inner"
+                    value={companyUrl}
+                    onChange={(e) => setCompanyUrl(e.target.value)}
+                  />
+                </div>
+              </div>
+
               <button
                 disabled={!topic || loading}
                 onClick={handleInitialAnalysis}
-                className="absolute right-3 top-3 bottom-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-6 rounded-xl font-medium flex items-center gap-2 transition-all"
+                className="w-full py-5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white rounded-2xl font-bold text-xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-indigo-100 mt-4"
               >
-                {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Sparkles className="w-5 h-5" /> Analyze</>}
+                {loading ? (
+                  <><Loader2 className="w-6 h-6 animate-spin" /> {companyUrl ? 'Researching Brand & Analyzing Topic...' : 'Analyzing Topic...'}</>
+                ) : (
+                  <><Sparkles className="w-6 h-6" /> Start SEO Research</>
+                )}
               </button>
             </div>
 
@@ -135,7 +165,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">SEO Content Brief</h2>
-                <p className="text-gray-500">We've generated an SEO profile for your topic.</p>
+                <p className="text-gray-500">We've generated an SEO profile aligned with your {brief.brandContext ? 'brand' : 'topic'}.</p>
               </div>
               <button 
                 onClick={() => setStep(1)}
@@ -144,6 +174,15 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 <RefreshCw className="w-4 h-4" /> Start Over
               </button>
             </div>
+
+            {brief.brandContext && (
+              <div className="bg-indigo-50 border border-indigo-100 p-5 rounded-2xl">
+                <h3 className="text-indigo-900 font-bold flex items-center gap-2 mb-2">
+                  <Globe className="w-4 h-4" /> Detected Brand Persona
+                </h3>
+                <p className="text-indigo-700 text-sm leading-relaxed">{brief.brandContext}</p>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">

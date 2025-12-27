@@ -1,17 +1,29 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Image as ImageIcon, Download, RefreshCw, AlertTriangle, Key, RotateCcw } from 'lucide-react';
 import { geminiService } from '../geminiService';
 
 interface ImageGeneratorProps {
   defaultPrompt: string;
+  initialImageUrl?: string | null;
+  onImageGenerated?: (url: string) => void;
 }
 
-const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt }) => {
+const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialImageUrl, onImageGenerated }) => {
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [generating, setGenerating] = useState(false);
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (initialImageUrl !== undefined) {
+      setImageUrl(initialImageUrl);
+    }
+  }, [initialImageUrl]);
+
+  useEffect(() => {
+    setPrompt(defaultPrompt);
+  }, [defaultPrompt]);
 
   const handleGenerate = async () => {
     // Check for API key and open dialog if necessary as per instructions
@@ -28,6 +40,9 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt }) => {
     try {
       const url = await geminiService.generateArticleImage(prompt);
       setImageUrl(url);
+      if (onImageGenerated) {
+        onImageGenerated(url);
+      }
     } catch (e: any) {
       if (e.message?.includes("Requested entity was not found")) {
         setError("API Key configuration error. Please re-select your key.");
@@ -69,7 +84,7 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt }) => {
           <button 
             onClick={resetPrompt}
             className="text-[10px] text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-bold transition-colors"
-            title="Reset to topic name"
+            title="Reset to suggested prompt"
           >
             <RotateCcw className="w-3 h-3" /> Reset
           </button>
