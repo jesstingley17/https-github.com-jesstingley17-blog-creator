@@ -11,249 +11,56 @@ interface ImageGeneratorProps {
 }
 
 const STYLES = [
-  { label: 'Cinematic', icon: Camera, keywords: 'cinematic lighting, dramatic shadows, shallow depth of field, anamorphic lens' },
-  { label: 'Minimalist', icon: Monitor, keywords: 'minimalist design, clean lines, white space, modern corporate aesthetic, flat colors' },
-  { label: '3D Render', icon: Boxes, keywords: '3D isometric render, blender cycles, clay model style, octane render, high detail' },
-  { label: 'Ethereal', icon: Palmtree, keywords: 'volumetric lighting, soft pastel colors, dreamy atmosphere, glowing elements' },
+  { label: 'Cinematic', icon: Camera, keywords: 'cinematic lighting, dramatic shadows' },
+  { label: 'Minimal', icon: Monitor, keywords: 'minimalist, clean lines' },
+  { label: '3D Render', icon: Boxes, keywords: '3D isometric render' },
+  { label: 'Ethereal', icon: Palmtree, keywords: 'soft pastel colors, dreamy' },
 ];
 
 const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialImageUrl, onImageGenerated, topicContext }) => {
-  const [prompt, setPrompt] = useState(defaultPrompt);
+  const [prompt, setPrompt] = useState(defaultPrompt || '');
   const [generating, setGenerating] = useState(false);
   const [refining, setRefining] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (initialImageUrl !== undefined) {
-      setImageUrl(initialImageUrl);
-    }
-  }, [initialImageUrl]);
-
-  useEffect(() => {
-    // Only reset if the prompt hasn't been manually edited by the user yet
-    // or if the default prompt has changed significantly (e.g. new title)
-    if (!imageUrl) {
-      setPrompt(defaultPrompt);
-    }
-  }, [defaultPrompt, imageUrl]);
+  useEffect(() => { setImageUrl(initialImageUrl || null); }, [initialImageUrl]);
 
   const handleGenerate = async () => {
-    // @ts-ignore
-    const hasKey = await window.aistudio.hasSelectedApiKey();
-    if (!hasKey) {
-      // @ts-ignore
-      await window.aistudio.openSelectKey();
-    }
-
     setGenerating(true);
     setError(null);
     try {
       const url = await geminiService.generateArticleImage(prompt);
       setImageUrl(url);
-      if (onImageGenerated) {
-        onImageGenerated(url);
-      }
+      if (onImageGenerated) onImageGenerated(url);
     } catch (e: any) {
-      if (e.message?.includes("Requested entity was not found")) {
-        setError("API Key configuration error. Please re-select your key.");
-        // @ts-ignore
-        await window.aistudio.openSelectKey();
-      } else {
-        setError("Failed to generate image. Try a more descriptive prompt.");
-      }
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleRefine = async () => {
-    setRefining(true);
-    try {
-      const refined = await geminiService.refineImagePrompt(prompt, topicContext || '');
-      setPrompt(refined);
-    } catch (e) {
-      console.error("Failed to refine prompt", e);
-    } finally {
-      setRefining(false);
-    }
-  };
-
-  const applyStyle = (keywords: string) => {
-    if (prompt.includes(keywords)) return;
-    setPrompt(prev => `${prev.trim()}, ${keywords}`);
-  };
-
-  const resetPrompt = () => {
-    setPrompt(defaultPrompt);
+      setError("Failed to generate. Check your API key.");
+    } finally { setGenerating(false); }
   };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm uppercase tracking-tight">
-          <ImageIcon className="w-4 h-4 text-purple-600" /> Visual Assets
-        </h3>
-        <a 
-          href="https://ai.google.dev/gemini-api/docs/billing" 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="text-[10px] text-gray-400 hover:text-indigo-600 flex items-center gap-1 uppercase tracking-widest font-bold transition-colors"
-        >
-          <Key className="w-3 h-3" /> Billing Info
-        </a>
+        <h3 className="font-bold text-gray-900 flex items-center gap-2 text-sm uppercase"><ImageIcon className="w-4 h-4 text-purple-600" /> Visuals</h3>
       </div>
-
-      {/* Prompt Customization Area */}
       <div className="space-y-3 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Generation Prompt</label>
-          <div className="flex gap-2">
-            <button 
-              onClick={handleRefine}
-              disabled={refining || generating}
-              className="text-[10px] text-purple-600 hover:text-purple-800 flex items-center gap-1 font-bold transition-colors disabled:opacity-50"
-              title="Use AI to make this prompt more descriptive"
-            >
-              {refining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />} Refine with AI
+        <textarea
+          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 min-h-[100px]"
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+        />
+        <div className="flex flex-wrap gap-2">
+          {STYLES.map((style) => (
+            <button key={style.label} onClick={() => setPrompt(prev => prev + ', ' + style.keywords)} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500">
+              <style.icon className="w-3 h-3" /> {style.label}
             </button>
-            <button 
-              onClick={resetPrompt}
-              className="text-[10px] text-gray-400 hover:text-indigo-600 flex items-center gap-1 font-bold transition-colors"
-              title="Reset to suggested prompt"
-            >
-              <RotateCcw className="w-3 h-3" /> Reset
-            </button>
-          </div>
+          ))}
         </div>
-        
-        <div className="space-y-3">
-          <textarea
-            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500 min-h-[100px] transition-all resize-none shadow-sm placeholder:text-gray-300"
-            placeholder="Describe the aesthetic, style, and subject in detail..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-
-          {/* Style Presets */}
-          <div className="flex flex-wrap gap-2">
-            {STYLES.map((style) => (
-              <button
-                key={style.label}
-                onClick={() => applyStyle(style.keywords)}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500 hover:border-purple-200 hover:text-purple-600 transition-all shadow-sm"
-              >
-                <style.icon className="w-3 h-3" /> {style.label}
-              </button>
-            ))}
-          </div>
-          
-          <button
-            onClick={handleGenerate}
-            disabled={generating || !prompt || refining}
-            className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100 active:scale-[0.98]"
-          >
-            {generating ? (
-              <><Loader2 className="w-4 h-4 animate-spin" /> Crafting Image...</>
-            ) : (
-              <><Sparkles className="w-4 h-4" /> {imageUrl ? 'Regenerate Artwork' : 'Generate Hero Image'}</>
-            )}
-          </button>
-        </div>
+        <button onClick={handleGenerate} disabled={generating} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+          {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} {imageUrl ? 'Regenerate' : 'Generate'}
+        </button>
       </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="p-3 bg-red-50 rounded-xl border border-red-100 flex items-center gap-2 animate-in slide-in-from-top-1">
-          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-          <p className="text-xs text-red-600 leading-tight font-medium">{error}</p>
-        </div>
-      )}
-
-      {/* Result Display Area */}
-      {imageUrl ? (
-        <div className="space-y-3 animate-in fade-in zoom-in-95 duration-500">
-          <div className="group relative rounded-2xl overflow-hidden border border-gray-100 shadow-xl aspect-video bg-gray-50">
-            <img src={imageUrl} alt="Generated SEO Asset" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-            
-            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
-              <button 
-                onClick={() => {
-                  const link = document.createElement('a');
-                  link.href = imageUrl;
-                  link.download = 'article-hero-asset.png';
-                  link.click();
-                }}
-                className="p-3 bg-white rounded-full text-gray-900 hover:scale-110 active:scale-95 transition-all shadow-xl"
-                title="Download PNG"
-              >
-                <Download className="w-5 h-5" />
-              </button>
-              <button 
-                onClick={handleGenerate}
-                className="p-3 bg-white rounded-full text-gray-900 hover:scale-110 active:scale-95 transition-all shadow-xl"
-                title="Regenerate using current prompt"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-          
-          <div className="flex items-center justify-between px-2">
-            <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-tighter">Gemini 3 Pro Image</span>
-              <span className="text-[9px] text-gray-400">1024 × 576 • PNG</span>
-            </div>
-            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full border border-green-100 uppercase tracking-widest">High Quality</span>
-          </div>
-        </div>
-      ) : !generating && (
-        <div className="border-2 border-dashed border-gray-100 rounded-2xl h-44 flex flex-col items-center justify-center text-gray-300 gap-4 bg-gray-50/30">
-          <div className="w-14 h-14 bg-white rounded-2xl shadow-sm flex items-center justify-center">
-            <ImageIcon className="w-7 h-7 opacity-20" />
-          </div>
-          <div className="text-center px-8">
-            <h4 className="text-xs font-bold text-gray-400 mb-1">Visual Storytelling</h4>
-            <p className="text-[10px] text-gray-400/80 leading-relaxed max-w-[200px]">Customize your prompt and generate professional hero images for your SEO content.</p>
-          </div>
-        </div>
-      )}
-
-      {/* Generation Status (Skeleton) */}
-      {generating && (
-        <div className="space-y-4">
-          <div className="bg-gray-100 rounded-2xl aspect-video w-full flex items-center justify-center relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-gray-100 via-gray-50 to-gray-100 animate-shimmer" style={{ backgroundSize: '200% 100%' }} />
-            <div className="relative z-10 flex flex-col items-center gap-3">
-              <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-              <div className="h-1 w-24 bg-indigo-100 rounded-full overflow-hidden">
-                <div className="h-full bg-indigo-500 animate-progress" />
-              </div>
-            </div>
-          </div>
-          <div className="space-y-1 text-center">
-            <p className="text-[11px] text-indigo-600 font-black tracking-widest uppercase animate-pulse">
-              {["Visualizing scene...", "Applying lighting...", "Refining textures...", "Polishing assets..."][Math.floor(Date.now() / 1500) % 4]}
-            </p>
-            <p className="text-[10px] text-gray-400">Using Gemini 3 Pro Vision for pixel-perfect results</p>
-          </div>
-        </div>
-      )}
-
-      <style>{`
-        @keyframes shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-        @keyframes progress {
-          0% { width: 0%; }
-          50% { width: 70%; }
-          100% { width: 100%; }
-        }
-        .animate-shimmer { animation: shimmer 2s infinite linear; }
-        .animate-progress { animation: progress 3s infinite ease-in-out; }
-      `}</style>
+      {imageUrl && <img src={imageUrl} className="w-full rounded-2xl shadow-xl" alt="AI Asset" />}
     </div>
   );
 };

@@ -57,7 +57,7 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
       const suggestions = await geminiService.suggestSchedule(availableArticles);
       const newPosts: ScheduledPost[] = suggestions.map((s, i) => ({
         id: Math.random().toString(36).substring(2, 9),
-        articleId: s.articleId || availableArticles[i].id,
+        articleId: s.articleId || availableArticles[i]?.id || 'unknown',
         title: availableArticles.find(a => a.id === s.articleId)?.title || availableArticles[i]?.title || 'Untitled Article',
         date: s.date || new Date().toISOString(),
         platform: (s.platform as any) || 'LinkedIn'
@@ -71,7 +71,7 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
   };
 
   const deletePost = (id: string) => {
-    setScheduledPosts(scheduledPosts.filter(p => p.id !== id));
+    setScheduledPosts(prev => prev.filter(p => p.id !== id));
   };
 
   const daysInMonth = getDaysInMonth(currentDate);
@@ -79,7 +79,7 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
   const monthName = currentDate.toLocaleString('default', { month: 'long' });
   const year = currentDate.getFullYear();
 
-  const calendarDays = [];
+  const calendarDays: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) {
     calendarDays.push(null);
   }
@@ -118,7 +118,6 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Sidebar: Available Content */}
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-xl">
             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -149,7 +148,6 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
           </div>
         </div>
 
-        {/* Calendar View */}
         <div className="lg:col-span-3 bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden">
           <div className="p-6 border-b flex items-center justify-between bg-gray-50/50">
             <div className="flex items-center gap-4">
@@ -167,15 +165,16 @@ const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) 
           </div>
 
           <div className="grid grid-cols-7 border-b">
-            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <div key={day} className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-400 border-r last:border-0">{day}</div>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(dayName => (
+              <div key={dayName} className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-400 border-r last:border-0">{dayName}</div>
             ))}
           </div>
 
           <div className="grid grid-cols-7 auto-rows-[140px]">
             {calendarDays.map((day, idx) => {
               const posts = day ? getPostsForDay(day) : [];
-              const isToday = day === new Date().getDate() && currentDate.getMonth() === new Date().getMonth();
+              const today = new Date();
+              const isToday = !!day && day === today.getDate() && currentDate.getMonth() === today.getMonth() && currentDate.getFullYear() === today.getFullYear();
               
               return (
                 <div key={idx} className={`border-r border-b p-2 last:border-r-0 relative group transition-colors ${day ? 'hover:bg-indigo-50/20' : 'bg-gray-50/30'}`}>

@@ -1,9 +1,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || '';
+const supabaseUrl = (typeof process !== 'undefined' && process.env?.SUPABASE_URL) || '';
+const supabaseAnonKey = (typeof process !== 'undefined' && process.env?.SUPABASE_ANON_KEY) || '';
 
 export const isSupabaseConfigured = !!supabaseUrl && !!supabaseAnonKey;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Only create client if configured to avoid "supabaseUrl is required" crash
+export const supabase = isSupabaseConfigured 
+  ? createClient(supabaseUrl, supabaseAnonKey) 
+  : (null as any);
