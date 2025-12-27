@@ -22,7 +22,11 @@ import {
   Eye,
   Code,
   List,
-  Type
+  Type,
+  Link as LinkIcon,
+  ExternalLink,
+  X,
+  BookOpen
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis } from '../types';
@@ -42,6 +46,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [analyzing, setAnalyzing] = useState(false);
   const [showScoreTooltip, setShowScoreTooltip] = useState(false);
   const [viewMode, setViewMode] = useState<'preview' | 'edit'>('preview');
+  const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
+  const [showSourcesModal, setShowSourcesModal] = useState(false);
   
   // Hero Image State
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
@@ -53,13 +59,29 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setHasStarted(true);
     setIsGenerating(true);
     setViewMode('preview'); // Default to preview during generation
+    setSources([]); // Reset sources
     let fullText = '';
+    const collectedSources = new Map<string, string>();
+
     try {
       const stream = geminiService.streamContent(brief, localOutline);
       for await (const chunk of stream) {
         fullText += chunk.text || '';
         setContent(fullText);
+
+        // Extract grounding sources if available
+        const groundingChunks = (chunk as any).candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (groundingChunks) {
+          groundingChunks.forEach((c: any) => {
+            if (c.web?.uri) {
+              collectedSources.set(c.web.uri, c.web.title || c.web.uri);
+            }
+          });
+        }
       }
+      
+      // Update state with final unique sources
+      setSources(Array.from(collectedSources.entries()).map(([uri, title]) => ({ uri, title })));
       await performAnalysis(fullText);
     } catch (error) {
       console.error("Stream failed", error);
@@ -239,6 +261,15 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               </button>
             ) : (
               <>
+                {sources.length > 0 && (
+                  <button 
+                    onClick={() => setShowSourcesModal(true)}
+                    className="p-2 text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-2 text-sm font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"
+                    title="View citations used for this article"
+                  >
+                    <BookOpen className="w-4 h-4" /> Cite Sources
+                  </button>
+                )}
                 <button 
                   onClick={handleDownload}
                   className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
@@ -254,7 +285,51 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar relative">
+          {/* Sources Modal */}
+          {showSourcesModal && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-8 bg-black/5 bg-blur-sm animate-in fade-in duration-300">
+               <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50/50">
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-indigo-600" /> Research Citations
+                    </h3>
+                    <button onClick={() => setShowSourcesModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
+                    <p className="text-xs text-gray-500 italic">The following sources were consulted by the AI during the generation of this content to ensure factual grounding.</p>
+                    {sources.map((source, idx) => (
+                      <a 
+                        key={idx} 
+                        href={source.uri} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="block p-4 bg-gray-50 rounded-2xl border border-gray-100 hover:border-indigo-200 hover:bg-white transition-all group"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="space-y-1">
+                            <h4 className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors line-clamp-1">{source.title}</h4>
+                            <p className="text-[10px] text-gray-400 font-mono truncate max-w-[300px]">{source.uri}</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-gray-300 group-hover:text-indigo-400" />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+                  <div className="px-6 py-4 border-t bg-gray-50/30 flex justify-end">
+                    <button 
+                      onClick={() => setShowSourcesModal(false)}
+                      className="px-6 py-2 bg-white border rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
+                    >
+                      Close
+                    </button>
+                  </div>
+               </div>
+            </div>
+          )}
+
           {!hasStarted ? (
             <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center justify-between border-b pb-4">
