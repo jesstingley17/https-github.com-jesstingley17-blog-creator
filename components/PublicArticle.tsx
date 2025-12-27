@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   Sparkles, 
   Loader2, 
@@ -120,7 +121,7 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
         )}
 
         <div className="markdown-body">
-          <ReactMarkdown>{data.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{data.content}</ReactMarkdown>
         </div>
 
         {/* Professional Author Block */}

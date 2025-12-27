@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   ChevronLeft, 
   Loader2, 
@@ -23,7 +24,8 @@ import {
   Search,
   Database,
   Code,
-  Copy
+  Copy,
+  Camera
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { serpstatService } from '../serpstatService';
@@ -39,7 +41,7 @@ interface ArticleEditorProps {
   onSchedule?: (post: ScheduledPost) => void;
 }
 
-const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack, onNavigate, onSchedule }) => {
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outline: initialOutline, onBack, onNavigate, onSchedule }) => {
   const [content, setContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -67,22 +69,26 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [copiedSchema, setCopiedSchema] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [localBrief, setLocalBrief] = useState<ContentBrief>(initialBrief);
   const [localOutline, setLocalOutline] = useState<ContentOutline>(() => {
     return initialOutline && Array.isArray(initialOutline?.sections) 
       ? initialOutline 
-      : { title: brief?.topic || 'Untitled', sections: [] };
+      : { title: initialBrief?.topic || 'Untitled', sections: [] };
   });
 
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
     const loadDraft = async () => {
-      if (!brief?.id) return;
+      if (!initialBrief?.id) return;
       try {
-        const data = await storageService.getArticle(brief.id);
+        const data = await storageService.getArticle(initialBrief.id);
         if (data) {
           if (data.content) setContent(data.content);
           if (data.outline?.sections) setLocalOutline(data.outline);
+          if (data.brief) setLocalBrief(data.brief);
           if (data.analysis) setAnalysis(data.analysis);
           if (data.images) setArticleImages(data.images);
           if (data.citations) setCitations(data.citations);
@@ -92,7 +98,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       } catch (e) {}
     };
     loadDraft();
-  }, [brief?.id]);
+  }, [initialBrief?.id]);
 
   useEffect(() => {
     if (!hasStarted) return;
@@ -100,8 +106,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       setSaveStatus('saving');
       try {
         await storageService.upsertArticle({
-          id: brief.id,
-          brief,
+          id: localBrief.id,
+          brief: localBrief,
           outline: localOutline,
           content,
           analysis,
@@ -119,7 +125,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     };
     const timer = setTimeout(saveArticle, 3000);
     return () => clearTimeout(timer);
-  }, [content, localOutline, analysis, articleImages, backlinkOps, citations]);
+  }, [content, localOutline, localBrief, analysis, articleImages, backlinkOps, citations]);
 
   const addOptLog = (msg: string) => {
     const ts = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -132,7 +138,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setViewMode('preview');
     let fullText = '';
     try {
-      const stream = geminiService.streamContent(brief, localOutline);
+      const stream = geminiService.streamContent(localBrief, localOutline);
       for await (const chunk of stream) {
         const c = chunk as any;
         fullText += c.text || '';
@@ -151,7 +157,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setOptimizationLogs([]);
     addOptLog('Analyzing technical depth...');
     try {
-      const optimized = await geminiService.optimizeContent(content, brief);
+      const optimized = await geminiService.optimizeContent(content, localBrief);
       setContent(optimized);
       addOptLog('Calculating SEO scores...');
       await performAnalysis(optimized);
@@ -166,7 +172,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setIsGeneratingSchema(true);
     setShowSchemaModal(true);
     try {
-      const schema = await geminiService.generateStructuredData(localOutline.title, content, brief.author);
+      const schema = await geminiService.generateStructuredData(localOutline.title, content, localBrief.author);
       setStructuredData(schema);
     } catch (e) {
       console.error(e);
@@ -191,10 +197,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       const serpstatInt = integrations.find((i: any) => i.platform === IntegrationPlatform.SERPSTAT);
 
       if (serpstatInt) {
-        const ops = await serpstatService.getBacklinks(brief.companyUrl || brief.topic, serpstatInt);
+        const ops = await serpstatService.getBacklinks(localBrief.companyUrl || localBrief.topic, serpstatInt);
         setBacklinkOps(ops);
       } else {
-        const ops = await geminiService.discoverBacklinks(localOutline.title, brief.targetKeywords);
+        const ops = await geminiService.discoverBacklinks(localOutline.title, localBrief.targetKeywords);
         setBacklinkOps(ops);
       }
     } catch (e) { console.error(e); } finally {
@@ -205,7 +211,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const performAnalysis = async (text: string) => {
     setAnalyzing(true);
     try {
-      const result = await geminiService.analyzeSEO(text, brief.targetKeywords || []);
+      const result = await geminiService.analyzeSEO(text, localBrief.targetKeywords || []);
       setAnalysis(result);
     } catch (e) {} finally { setAnalyzing(false); }
   };
@@ -214,10 +220,41 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setArticleImages(prev => [...prev, img]);
   };
 
+  const handleAuthorPhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64String = reader.result as string;
+        setLocalBrief(prev => ({
+          ...prev,
+          author: {
+            ...prev.author,
+            photoUrl: base64String
+          }
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const heroImage = articleImages.find(img => img.isHero);
 
   return (
     <div className="flex h-[calc(100vh-100px)] gap-6 overflow-hidden">
+      {/* Hidden File Input for Author Photo */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept="image/*"
+        onChange={handleFileChange}
+      />
+
       {/* Main Content Area - Scrollable */}
       <div className="flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden relative">
         <header className="px-6 py-4 border-b flex items-center justify-between bg-white/95 backdrop-blur-md sticky top-0 z-40">
@@ -226,7 +263,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <div className="flex flex-col">
               <h2 className="font-bold text-slate-900 line-clamp-1 text-sm md:text-base leading-tight">{localOutline?.title}</h2>
               <div className="flex items-center gap-2">
-                <span className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Project Node: {brief.id}</span>
+                <span className="text-[9px] font-black uppercase text-indigo-600 tracking-wider">Project Node: {localBrief.id}</span>
                 {saveStatus !== 'idle' && (
                   <span className="text-[9px] text-slate-300 font-bold uppercase flex items-center gap-1">
                     {saveStatus === 'saving' ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Check className="w-2.5 h-2.5 text-emerald-500" />}
@@ -274,12 +311,22 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           ) : (
             <div className="max-w-4xl mx-auto space-y-12 pb-32">
               <div className="p-8 bg-indigo-50/50 rounded-3xl border border-indigo-100 flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center border border-indigo-200 shrink-0">
-                  <User className="w-8 h-8 text-indigo-300" />
-                </div>
+                <button 
+                  onClick={handleAuthorPhotoClick}
+                  className="group relative w-16 h-16 rounded-2xl bg-white flex items-center justify-center border border-indigo-200 shrink-0 overflow-hidden"
+                >
+                  {localBrief.author.photoUrl ? (
+                    <img src={localBrief.author.photoUrl} alt="Author" className="w-full h-full object-cover group-hover:opacity-40 transition-opacity" />
+                  ) : (
+                    <User className="w-8 h-8 text-indigo-300 group-hover:opacity-40 transition-opacity" />
+                  )}
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="w-5 h-5 text-indigo-600" />
+                  </div>
+                </button>
                 <div>
                   <h3 className="font-black text-indigo-900 uppercase italic">Research Metadata</h3>
-                  <p className="text-xs text-indigo-600 font-bold uppercase tracking-widest">{brief.author.name} • {brief.author.title}</p>
+                  <p className="text-xs text-indigo-600 font-bold uppercase tracking-widest">{localBrief.author.name} • {localBrief.author.title}</p>
                 </div>
               </div>
 
@@ -288,7 +335,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               <div className="px-2">
                 {viewMode === 'preview' ? (
                   <div className="markdown-body">
-                    <ReactMarkdown>{content || "Neural engine ready..."}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{content || "Neural engine ready..."}</ReactMarkdown>
                     {isGenerating && (
                       <div className="flex flex-col items-center gap-5 my-20">
                         <Loader2 className="w-12 h-12 animate-spin text-indigo-300" />

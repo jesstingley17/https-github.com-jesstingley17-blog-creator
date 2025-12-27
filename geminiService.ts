@@ -201,8 +201,14 @@ export const geminiService = {
       INSTRUCTIONS:
       1. Write in a neutral, professional third-person voice. 
       2. Ground every claim in data verified via search.
-      3. Use detailed Markdown formatting.
-      4. Include at least one complex data comparison table.
+      3. Use detailed Markdown formatting for all elements.
+      4. CRITICAL: Include at least one complex data comparison table. 
+         YOU MUST use proper GitHub Flavored Markdown (GFM) pipe syntax. 
+         Example: 
+         | Feature | Details | Performance |
+         | :--- | :--- | :--- |
+         | Metric A | Value 1 | High |
+         | Metric B | Value 2 | Medium |
       5. Do not adopt a specific persona; focus on high-quality technical synthesis.`;
       
       const responseStream = await ai.models.generateContentStream({
@@ -282,7 +288,9 @@ export const geminiService = {
     const prompt = `Rewrite and optimize the following article for SEO and technical accuracy.
     Keywords to amplify: ${brief.targetKeywords.join(', ')}.
     Content: "${text}".
-    Task: Improve flow, fix technical inconsistencies, and ensure proper Markdown structure. Output only the refined Markdown.`;
+    Task: Improve flow, fix technical inconsistencies, and ensure proper Markdown structure. 
+    IMPORTANT: If there are data comparisons, ensure they are formatted as GFM tables with pipe syntax (| Header |). 
+    Output only the refined Markdown.`;
 
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
