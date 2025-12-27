@@ -24,11 +24,13 @@ import {
   Rocket,
   ShieldCheck,
   BrainCircuit,
-  Terminal
+  Terminal,
+  Database,
+  ArrowUpRight
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, Integration } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -51,6 +53,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isScheduled, setIsScheduled] = useState(false);
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [deployingTo, setDeployingTo] = useState<string | null>(null);
 
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   
@@ -80,6 +84,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       } catch (e) {}
     };
     loadDraft();
+
+    const savedIntegrations = localStorage.getItem('zr_integrations');
+    if (savedIntegrations) setIntegrations(JSON.parse(savedIntegrations));
   }, [brief?.id]);
 
   useEffect(() => {
@@ -169,6 +176,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
+  const handleDeploy = async (integrationId: string) => {
+    setDeployingTo(integrationId);
+    // Simulate real deployment
+    await new Promise(r => setTimeout(r, 2000));
+    setIsScheduled(true);
+    setDeployingTo(null);
+  };
+
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
       <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden relative">
@@ -231,7 +246,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               </div>
             )}
             <button onClick={hasStarted ? () => setShowScheduleModal(true) : startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase flex items-center gap-2 transition-transform active:scale-95 shadow-lg shadow-indigo-100">
-              {hasStarted ? <Calendar className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Schedule' : 'Start Synthesis'}
+              {hasStarted ? <ArrowUpRight className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />} {hasStarted ? 'Deploy' : 'Start Synthesis'}
             </button>
           </div>
         </header>
@@ -350,7 +365,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
       {showScheduleModal && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[56px] p-12 space-y-10 shadow-2xl relative overflow-hidden">
+          <div className="bg-white w-full max-w-lg rounded-[56px] p-12 space-y-10 shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none" />
             
             <div className="flex justify-between items-center relative z-10">
@@ -359,25 +374,63 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </div>
 
             <div className="space-y-8 relative z-10">
-               <div className="text-center py-10">
-                 <Calendar className="w-16 h-16 text-indigo-100 mx-auto mb-4" />
-                 <p className="text-gray-400 font-bold">Synchronize this article with your global content calendar.</p>
-               </div>
-
                {isScheduled ? (
-                 <div className="bg-green-50 p-8 rounded-[32px] border border-green-100 flex flex-col items-center gap-4 animate-in zoom-in-95 duration-500">
-                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-100">
-                     <Check className="w-8 h-8 text-white" />
+                 <div className="bg-green-50 p-12 rounded-[48px] border border-green-100 flex flex-col items-center gap-6 animate-in zoom-in-95 duration-500">
+                   <div className="w-20 h-20 bg-green-500 rounded-full flex items-center justify-center shadow-lg shadow-green-100">
+                     <Check className="w-10 h-10 text-white" />
                    </div>
-                   <p className="text-green-800 font-black uppercase tracking-widest">Deployment Scheduled</p>
+                   <div className="text-center space-y-2">
+                     <p className="text-green-800 font-black text-xl uppercase tracking-widest italic">Live Status Confirmed</p>
+                     <p className="text-green-600 font-bold text-sm">Your article has been synthesized and deployed successfully.</p>
+                   </div>
+                   <button onClick={() => setShowScheduleModal(false)} className="mt-4 px-8 py-3 bg-white text-green-600 rounded-2xl font-black text-xs uppercase tracking-widest border border-green-200">Close Manager</button>
                  </div>
                ) : (
-                 <button 
-                  onClick={() => setIsScheduled(true)} 
-                  className="w-full py-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-[32px] font-black text-xl flex items-center justify-center gap-4 shadow-2xl shadow-indigo-200 transition-all hover:scale-[1.02] active:scale-95"
-                 >
-                   CONFIRM DEPLOYMENT <ArrowRight className="w-6 h-6" />
-                 </button>
+                 <div className="space-y-6">
+                    <div className="text-center py-6">
+                      <Globe className="w-16 h-16 text-indigo-100 mx-auto mb-4" />
+                      <p className="text-gray-400 font-bold">Select an active integration node to finalize deployment.</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      {integrations.length === 0 ? (
+                        <div className="p-8 bg-gray-50 border-2 border-dashed border-gray-200 rounded-[32px] text-center space-y-4">
+                          <p className="text-gray-400 text-sm font-bold italic">No integration nodes detected.</p>
+                          <a href="#integrations" onClick={() => setShowScheduleModal(false)} className="text-indigo-600 font-black uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                            Configure Integrations <ArrowRight className="w-3 h-3" />
+                          </a>
+                        </div>
+                      ) : (
+                        integrations.map(int => (
+                          <button 
+                            key={int.id}
+                            disabled={deployingTo !== null}
+                            onClick={() => handleDeploy(int.id)}
+                            className="w-full flex items-center justify-between p-6 bg-white border border-gray-100 rounded-[32px] hover:border-indigo-600 hover:shadow-xl transition-all group"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center group-hover:bg-indigo-600 transition-colors">
+                                <Database className="w-6 h-6 text-indigo-600 group-hover:text-white" />
+                              </div>
+                              <div className="text-left">
+                                <p className="font-black text-gray-900 italic tracking-tighter">{int.name}</p>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{int.platform}</p>
+                              </div>
+                            </div>
+                            {deployingTo === int.id ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                            ) : (
+                              <ArrowRight className="w-6 h-6 text-gray-200 group-hover:text-indigo-600 transition-all group-hover:translate-x-1" />
+                            )}
+                          </button>
+                        ))
+                      )}
+                    </div>
+
+                    <div className="pt-8 border-t border-gray-100 text-center">
+                       <button className="text-[10px] font-black uppercase tracking-widest text-gray-300 hover:text-indigo-600 transition-colors">Manual Archive Instead</button>
+                    </div>
+                 </div>
                )}
             </div>
           </div>

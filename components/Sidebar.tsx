@@ -9,7 +9,8 @@ import {
   Sparkles,
   CalendarDays,
   Cloud,
-  CloudOff
+  CloudOff,
+  Link2
 } from 'lucide-react';
 import { AppRoute } from '../types';
 import { isSupabaseConfigured } from '../supabase';
@@ -25,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
     { id: AppRoute.CREATE, label: 'New Content', icon: FilePlus2 },
     { id: AppRoute.PLANNER, label: 'Content Planner', icon: CalendarDays },
     { id: AppRoute.HISTORY, label: 'History', icon: History },
+    { id: AppRoute.INTEGRATIONS, label: 'Integrations', icon: Link2 },
   ];
 
   return (

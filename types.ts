@@ -64,10 +64,29 @@ export interface GeneratedContent {
   updatedAt: number;
 }
 
+export enum IntegrationPlatform {
+  WORDPRESS = 'WordPress',
+  GHOST = 'Ghost',
+  WEBFLOW = 'Webflow',
+  SHOPIFY = 'Shopify',
+  CUSTOM = 'Custom Webhook'
+}
+
+export interface Integration {
+  id: string;
+  name: string;
+  platform: IntegrationPlatform;
+  baseUrl: string;
+  apiKey: string;
+  status: 'connected' | 'error' | 'inactive';
+  lastSync?: number;
+}
+
 export enum AppRoute {
   DASHBOARD = 'dashboard',
   CREATE = 'create',
   EDITOR = 'editor',
   HISTORY = 'history',
-  PLANNER = 'planner'
+  PLANNER = 'planner',
+  INTEGRATIONS = 'integrations'
 }

@@ -5,6 +5,7 @@ import Dashboard from './components/Dashboard';
 import ContentWizard from './components/ContentWizard';
 import ArticleEditor from './components/ArticleEditor';
 import Planner from './components/Planner';
+import Integrations from './components/Integrations';
 import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
 import { Key, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
@@ -122,6 +123,8 @@ const App: React.FC = () => {
         ) : <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} />;
       case AppRoute.PLANNER:
         return <Planner scheduledPosts={scheduledPosts} setScheduledPosts={setScheduledPosts} />;
+      case AppRoute.INTEGRATIONS:
+        return <Integrations />;
       case AppRoute.HISTORY:
         return <Dashboard onNewContent={() => setRoute(AppRoute.CREATE)} onSelectArticle={handleSelectArticle} />;
       default:
