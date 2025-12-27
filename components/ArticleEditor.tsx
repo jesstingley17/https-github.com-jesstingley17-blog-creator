@@ -28,19 +28,35 @@ import {
   X,
   BookOpen,
   Key,
-  Tag as TagIcon
+  Tag as TagIcon,
+  Calendar,
+  Clock,
+  Send,
+  Globe,
+  History as HistoryIcon,
+  RotateCcw,
+  ChevronUp,
+  ChevronDown
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
-import { ContentBrief, ContentOutline, SEOAnalysis } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
 import ImageGenerator from './ImageGenerator';
+
+interface ArticleVersion {
+  id: string;
+  timestamp: number;
+  content: string;
+  outline: ContentOutline;
+}
 
 interface ArticleEditorProps {
   brief: ContentBrief;
   outline: ContentOutline;
   onBack: () => void;
+  onSchedule?: (post: ScheduledPost) => void;
 }
 
-const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack }) => {
+const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOutline, onBack, onSchedule }) => {
   const [content, setContent] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
@@ -61,11 +77,39 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   // Outline Editing State
   const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
 
+  // Scheduling State
+  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [schedulePlatform, setSchedulePlatform] = useState<'LinkedIn' | 'Twitter' | 'Facebook' | 'Blog'>('Blog');
+  const [isScheduling, setIsScheduling] = useState(false);
+
+  // Version History State
+  const [versions, setVersions] = useState<ArticleVersion[]>([]);
+  const [showVersions, setShowVersions] = useState(false);
+
+  const saveVersion = () => {
+    const newVersion: ArticleVersion = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: Date.now(),
+      content: content,
+      outline: JSON.parse(JSON.stringify(localOutline)) // Deep clone
+    };
+    setVersions(prev => [newVersion, ...prev]);
+  };
+
+  const restoreVersion = (version: ArticleVersion) => {
+    if (confirm("Are you sure you want to restore this version? Current changes will be lost unless saved as a version first.")) {
+      setContent(version.content);
+      setLocalOutline(JSON.parse(JSON.stringify(version.outline)));
+      performAnalysis(version.content);
+    }
+  };
+
   const startGeneration = async () => {
     setHasStarted(true);
     setIsGenerating(true);
-    setViewMode('preview'); // Default to preview during generation
-    setSources([]); // Reset sources
+    setViewMode('preview');
+    setSources([]);
     let fullText = '';
     const collectedSources = new Map<string, string>();
 
@@ -75,7 +119,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         fullText += chunk.text || '';
         setContent(fullText);
 
-        // Extract grounding sources if available
         const groundingChunks = (chunk as any).candidates?.[0]?.groundingMetadata?.groundingChunks;
         if (groundingChunks) {
           groundingChunks.forEach((c: any) => {
@@ -86,9 +129,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
         }
       }
       
-      // Update state with final unique sources
       setSources(Array.from(collectedSources.entries()).map(([uri, title]) => ({ uri, title })));
       await performAnalysis(fullText);
+      saveVersion();
     } catch (error) {
       console.error("Stream failed", error);
     } finally {
@@ -97,6 +140,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   };
 
   const performAnalysis = async (textToAnalyze: string) => {
+    if (!textToAnalyze) return;
     setAnalyzing(true);
     try {
       const result = await geminiService.analyzeSEO(textToAnalyze, brief.targetKeywords);
@@ -122,6 +166,26 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     URL.revokeObjectURL(url);
   };
 
+  const handleSchedule = () => {
+    if (!onSchedule) return;
+    setIsScheduling(true);
+    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
+    
+    const newPost: ScheduledPost = {
+      id: Math.random().toString(36).substr(2, 9),
+      articleId: brief.id || 'new-article',
+      title: localOutline.title,
+      date: scheduledDateTime,
+      platform: schedulePlatform
+    };
+
+    setTimeout(() => {
+      onSchedule(newPost);
+      setIsScheduling(false);
+      alert(`Article scheduled for ${schedulePlatform} on ${scheduleDate} at ${scheduleTime}`);
+    }, 800);
+  };
+
   const scoreColor = (score: number) => {
     if (score > 80) return 'text-green-600';
     if (score > 50) return 'text-yellow-600';
@@ -139,10 +203,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     ];
   };
 
-  /**
-   * Generates a high-quality, descriptive prompt for the hero image generator.
-   * Utilizes article metadata to create a professional editorial aesthetic.
-   */
   const generateOptimizedImagePrompt = (): string => {
     const title = localOutline.title;
     const topic = brief.topic;
@@ -153,7 +213,6 @@ The scene should conceptually represent "${topic}" with subtle visual motifs of 
 Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of field, 8k resolution, photorealistic textures, corporate-modern color palette, premium magazine quality.`;
   };
 
-  // Tag helper functions
   const addTag = (e?: React.FormEvent) => {
     e?.preventDefault();
     const cleanTag = tagInput.trim().toLowerCase();
@@ -167,7 +226,8 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
     setTags(tags.filter(t => t !== tagToRemove));
   };
 
-  // Outline helper functions
+  // --- Outline Mutation Helpers ---
+
   const updateTitle = (val: string) => {
     setLocalOutline({ ...localOutline, title: val });
   };
@@ -190,6 +250,16 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
+  const moveSection = (index: number, direction: -1 | 1) => {
+    const newIndex = index + direction;
+    if (newIndex < 0 || newIndex >= localOutline.sections.length) return;
+    const newSections = [...localOutline.sections];
+    const temp = newSections[index];
+    newSections[index] = newSections[newIndex];
+    newSections[newIndex] = temp;
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
   const addSubheading = (sectionIdx: number) => {
     const newSections = [...localOutline.sections];
     newSections[sectionIdx].subheadings.push('New Subheading');
@@ -205,6 +275,16 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
   const removeSubheading = (sectionIdx: number, subIdx: number) => {
     const newSections = [...localOutline.sections];
     newSections[sectionIdx].subheadings = newSections[sectionIdx].subheadings.filter((_, i) => i !== subIdx);
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
+  const moveSubheading = (sectionIdx: number, subIdx: number, direction: -1 | 1) => {
+    const newIndex = subIdx + direction;
+    if (newIndex < 0 || newIndex >= localOutline.sections[sectionIdx].subheadings.length) return;
+    const newSections = [...localOutline.sections];
+    const temp = newSections[sectionIdx].subheadings[subIdx];
+    newSections[sectionIdx].subheadings[subIdx] = newSections[sectionIdx].subheadings[newIndex];
+    newSections[sectionIdx].subheadings[newIndex] = temp;
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
@@ -226,7 +306,16 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
     setLocalOutline({ ...localOutline, sections: newSections });
   };
 
-  // Dynamic optimized prompt based on current outline and brief
+  const moveKeyPoint = (sectionIdx: number, pointIdx: number, direction: -1 | 1) => {
+    const newIndex = pointIdx + direction;
+    if (newIndex < 0 || newIndex >= localOutline.sections[sectionIdx].keyPoints.length) return;
+    const newSections = [...localOutline.sections];
+    const temp = newSections[sectionIdx].keyPoints[pointIdx];
+    newSections[sectionIdx].keyPoints[pointIdx] = newSections[sectionIdx].keyPoints[newIndex];
+    newSections[sectionIdx].keyPoints[newIndex] = temp;
+    setLocalOutline({ ...localOutline, sections: newSections });
+  };
+
   const heroImagePrompt = generateOptimizedImagePrompt();
 
   return (
@@ -297,7 +386,10 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                 >
                   <Download className="w-5 h-5" />
                 </button>
-                <button className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all">
+                <button 
+                  onClick={saveVersion}
+                  className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+                >
                   <Save className="w-4 h-4" /> Save Article
                 </button>
               </>
@@ -319,7 +411,6 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                     </button>
                   </div>
                   <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
-                    <p className="text-xs text-gray-500 italic">The following sources were consulted by the AI during the generation of this content to ensure factual grounding.</p>
                     {sources.map((source, idx) => (
                       <a 
                         key={idx} 
@@ -338,14 +429,6 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                       </a>
                     ))}
                   </div>
-                  <div className="px-6 py-4 border-t bg-gray-50/30 flex justify-end">
-                    <button 
-                      onClick={() => setShowSourcesModal(false)}
-                      className="px-6 py-2 bg-white border rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-all"
-                    >
-                      Close
-                    </button>
-                  </div>
                </div>
             </div>
           )}
@@ -357,7 +440,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                   <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <Pencil className="w-5 h-5 text-indigo-500" /> Finalize Article Strategy
                   </h3>
-                  <p className="text-sm text-gray-500 mt-1">Refine the structure and assets before the AI starts writing.</p>
+                  <p className="text-sm text-gray-500 mt-1">Refine and reorder the structure before synthesis.</p>
                 </div>
                 <button 
                   onClick={addSection}
@@ -367,59 +450,28 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                 </button>
               </div>
 
-              {/* Tag Input Field */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 block flex items-center gap-2">
-                  <TagIcon className="w-3.5 h-3.5 text-indigo-400" /> Content Taxonomy & Tags
-                </label>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {tags.map((tag, i) => (
-                    <span 
-                      key={i} 
-                      className="px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-2 animate-in zoom-in-95 duration-200"
-                    >
-                      {tag}
-                      <button 
-                        onClick={() => removeTag(tag)}
-                        className="hover:text-red-500 transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-                <form onSubmit={addTag} className="relative">
-                  <input
-                    type="text"
-                    placeholder="Add a custom tag and press Enter..."
-                    className="w-full px-5 py-3 bg-gray-50 border border-transparent focus:border-indigo-100 focus:bg-white rounded-xl outline-none text-sm transition-all"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                  />
-                  <button 
-                    type="submit"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-indigo-400 hover:text-indigo-600 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-2xl p-6 border border-indigo-100/50">
-                 <ImageGenerator 
-                    defaultPrompt={heroImagePrompt} 
-                    initialImageUrl={heroImageUrl} 
-                    onImageGenerated={setHeroImageUrl}
-                 />
-              </div>
-
               <div className="space-y-6">
                 {localOutline.sections.map((section, sIdx) => (
                   <div key={sIdx} className="group bg-white border border-gray-100 rounded-2xl p-6 transition-all hover:border-indigo-100 hover:shadow-xl shadow-sm">
                     <div className="flex items-start gap-4">
-                      <div className="mt-2 text-gray-300">
-                        <GripVertical className="w-5 h-5" />
+                      <div className="flex flex-col gap-1 items-center opacity-40 group-hover:opacity-100 transition-opacity">
+                        <button 
+                          onClick={() => moveSection(sIdx, -1)}
+                          disabled={sIdx === 0}
+                          className="p-1 hover:bg-indigo-50 rounded-md disabled:opacity-20"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <GripVertical className="w-4 h-4 text-gray-300" />
+                        <button 
+                          onClick={() => moveSection(sIdx, 1)}
+                          disabled={sIdx === localOutline.sections.length - 1}
+                          className="p-1 hover:bg-indigo-50 rounded-md disabled:opacity-20"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
                       </div>
+
                       <div className="flex-1 space-y-6">
                         <div className="flex items-center gap-3">
                           <input 
@@ -438,15 +490,17 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                          {/* Subheadings */}
                           <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
                               <List className="w-3 h-3" /> Subheadings
                             </label>
                             <div className="space-y-2 pl-4 border-l-2 border-indigo-100">
                               {section.subheadings.map((sub, subIdx) => (
-                                <div key={subIdx} className="flex items-center gap-2 group/sub">
-                                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 shrink-0" />
+                                <div key={subIdx} className="flex items-center gap-2 group/sub bg-gray-50/30 rounded-lg p-1">
+                                  <div className="flex flex-col opacity-0 group-hover/sub:opacity-100 transition-opacity">
+                                    <button onClick={() => moveSubheading(sIdx, subIdx, -1)} disabled={subIdx === 0} className="hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
+                                    <button onClick={() => moveSubheading(sIdx, subIdx, 1)} disabled={subIdx === section.subheadings.length - 1} className="hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
+                                  </div>
                                   <input 
                                     type="text"
                                     value={sub}
@@ -461,23 +515,23 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                                   </button>
                                 </div>
                               ))}
-                              <button 
-                                onClick={() => addSubheading(sIdx)}
-                                className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider"
-                              >
+                              <button onClick={() => addSubheading(sIdx)} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mt-2 uppercase tracking-wider">
                                 <Plus className="w-3 h-3" /> Add Subheading
                               </button>
                             </div>
                           </div>
 
-                          {/* Key Points */}
                           <div className="space-y-3">
                             <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 flex items-center gap-1.5">
-                              <Trophy className="w-3 h-3" /> SEO Context Points
+                              <Trophy className="w-3 h-3" /> Key Points
                             </label>
                             <div className="space-y-2">
                               {section.keyPoints.map((point, pIdx) => (
                                 <div key={pIdx} className="flex items-center gap-2 group/point bg-gray-50 rounded-lg px-2 py-1">
+                                  <div className="flex flex-col opacity-0 group-hover/point:opacity-100 transition-opacity">
+                                    <button onClick={() => moveKeyPoint(sIdx, pIdx, -1)} disabled={pIdx === 0} className="hover:text-indigo-500 disabled:opacity-10"><ChevronUp className="w-3 h-3" /></button>
+                                    <button onClick={() => moveKeyPoint(sIdx, pIdx, 1)} disabled={pIdx === section.keyPoints.length - 1} className="hover:text-indigo-500 disabled:opacity-10"><ChevronDown className="w-3 h-3" /></button>
+                                  </div>
                                   <input 
                                     type="text"
                                     value={point}
@@ -492,10 +546,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                                   </button>
                                 </div>
                               ))}
-                              <button 
-                                onClick={() => addKeyPoint(sIdx)}
-                                className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1 mt-1 uppercase tracking-wider"
-                              >
+                              <button onClick={() => addKeyPoint(sIdx)} className="text-[10px] font-bold text-gray-400 hover:text-indigo-600 flex items-center gap-1 mt-1 uppercase tracking-wider">
                                 <Plus className="w-3 h-3" /> Add Point
                               </button>
                             </div>
@@ -509,20 +560,10 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-8 pb-20">
-              {/* Show Tags in generated view */}
-              <div className="flex flex-wrap gap-2">
-                {tags.map((tag, i) => (
-                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-500 rounded-md text-[10px] font-bold uppercase tracking-widest">
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-
-              {/* Show the Hero Image inside the actual content area */}
               {heroImageUrl && (
-                <div className="rounded-3xl overflow-hidden shadow-2xl border border-gray-100 aspect-[21/9] relative group animate-in fade-in duration-700">
+                <div className="rounded-3xl overflow-hidden shadow-2xl border border-gray-100 aspect-[21/9] relative animate-in fade-in duration-700">
                   <img src={heroImageUrl} alt="Article Hero" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-8">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent flex items-end p-8">
                     <h1 className="text-3xl font-black text-white drop-shadow-lg">{localOutline.title}</h1>
                   </div>
                 </div>
@@ -538,19 +579,14 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               <div className="min-h-[500px]">
                 {viewMode === 'preview' ? (
                   <div className="markdown-body animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <ReactMarkdown>
-                      {content || "*Waiting for generation to begin...*"}
-                    </ReactMarkdown>
-                    {isGenerating && (
-                       <span className="inline-block w-2 h-5 ml-1 bg-indigo-500 animate-pulse rounded-sm" />
-                    )}
+                    <ReactMarkdown>{content || "*Waiting for generation to begin...*"}</ReactMarkdown>
+                    {isGenerating && <span className="inline-block w-2 h-5 ml-1 bg-indigo-500 animate-pulse rounded-sm" />}
                   </div>
                 ) : (
                   <textarea
                     className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
-                    placeholder="Raw Markdown content..."
                   />
                 )}
               </div>
@@ -561,16 +597,12 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
       {/* Sidebar Analysis & Assets */}
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
-        {/* SEO Score Section */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
               <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Score
             </h3>
-            <div className="flex items-center gap-2">
-               {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
-               <Info className="w-4 h-4 text-gray-300 cursor-help" />
-            </div>
+            {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
           </div>
 
           <div 
@@ -579,67 +611,19 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
             onMouseLeave={() => setShowScoreTooltip(false)}
           >
             <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="64"
-                cy="64"
-                r="58"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="transparent"
-                className="text-gray-100"
-              />
-              <circle
-                cx="64"
-                cy="64"
-                r="58"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="transparent"
-                strokeDasharray={364}
-                strokeDashoffset={364 - (364 * (analysis?.score || 0)) / 100}
-                className={`${scoreColor(analysis?.score || 0)} transition-all duration-1000 ease-out`}
-              />
+              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" className="text-gray-100" />
+              <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="12" fill="transparent" strokeDasharray={364} strokeDashoffset={364 - (364 * (analysis?.score || 0)) / 100} className={`${scoreColor(analysis?.score || 0)} transition-all duration-1000 ease-out`} />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
               <span className={`text-3xl font-black ${scoreColor(analysis?.score || 0)}`}>{analysis?.score || 0}</span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</span>
             </div>
-
-            {/* Tooltip Breakdown */}
-            {showScoreTooltip && analysis && (
-              <div className="absolute top-0 left-full ml-4 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-left-2 duration-200">
-                <div className="mb-3 border-b pb-2">
-                  <p className="text-xs font-bold text-gray-900">Score Breakdown</p>
-                  <p className="text-[10px] text-gray-400">Weighted Performance Metrics</p>
-                </div>
-                <div className="space-y-3">
-                  {getScoreBreakdown().map((item, idx) => (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex justify-between text-[10px] font-medium">
-                        <span className="text-gray-600">{item.label}</span>
-                        <span className={scoreColor(item.val)}>{item.val}%</span>
-                      </div>
-                      <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
-                        <div 
-                          className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-500`}
-                          style={{ width: `${item.val}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-3 pt-2 border-t text-[9px] text-gray-400 italic">
-                  Hover for real-time SEO intelligence.
-                </div>
-                <div className="absolute top-1/2 -left-2 -translate-y-1/2 w-4 h-4 bg-white border-l border-b border-gray-100 rotate-45" />
-              </div>
-            )}
           </div>
 
           <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-500">Readability</span>
-              <span className="font-bold text-gray-900">{analysis?.readability || 'Analyzing...'}</span>
+              <span className="font-bold text-gray-900">{analysis?.readability || '...'}</span>
             </div>
             <div className="space-y-2 border-t pt-4">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Keyword Density</span>
@@ -650,10 +634,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                     <span className="text-gray-400">{(analysis?.keywordDensity?.[k] || 0).toFixed(1)}%</span>
                   </div>
                   <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-indigo-500 h-full transition-all duration-1000"
-                      style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }}
-                    />
+                    <div className="bg-indigo-500 h-full transition-all duration-1000" style={{ width: `${Math.min((analysis?.keywordDensity?.[k] || 0) * 10, 100)}%` }} />
                   </div>
                 </div>
               ))}
@@ -661,55 +642,27 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
           </div>
         </div>
 
-        {/* New Keyword Optimization Section */}
-        {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 && (
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 animate-in slide-in-from-right-4 duration-500">
-            <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Key className="w-5 h-5 text-purple-600" /> Keyword Optimization
-            </h3>
-            <div className="space-y-4">
-              {analysis.keywordSuggestions.map((suggestion, idx) => (
-                <div key={idx} className="bg-purple-50/50 border border-purple-100 rounded-xl p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-purple-700 bg-purple-100 px-2 py-0.5 rounded uppercase tracking-wider">{suggestion.keyword}</span>
-                    <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">{suggestion.action}</span>
-                  </div>
-                  <p className="text-xs text-purple-900/80 leading-snug">{suggestion.explanation}</p>
-                </div>
-              ))}
-            </div>
+        {hasStarted && (
+          <div className="bg-white rounded-3xl border border-gray-100 shadow-xl overflow-hidden flex-shrink-0 transition-all duration-300">
+             <button onClick={() => setShowVersions(!showVersions)} className="w-full p-6 flex items-center justify-between hover:bg-gray-50 transition-colors">
+               <h3 className="font-bold text-gray-900 flex items-center gap-2"><HistoryIcon className="w-5 h-5 text-indigo-500" /> History</h3>
+               <span className="bg-indigo-100 text-indigo-600 text-[10px] font-black px-2 py-0.5 rounded-full">{versions.length} Saved</span>
+             </button>
+             {showVersions && (
+               <div className="px-6 pb-6 space-y-3">
+                 {versions.map((v) => (
+                   <div key={v.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                     <span className="text-[11px] font-bold">{new Date(v.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                     <button onClick={() => restoreVersion(v)} className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg"><RotateCcw className="w-3.5 h-3.5" /></button>
+                   </div>
+                 ))}
+               </div>
+             )}
           </div>
         )}
 
-        {/* Unified Image Generator in Sidebar */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
-          <ImageGenerator 
-            defaultPrompt={heroImagePrompt} 
-            initialImageUrl={heroImageUrl} 
-            onImageGenerated={setHeroImageUrl}
-          />
-        </div>
-
-        {/* Suggestions Section */}
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6">
-          <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Trophy className="w-5 h-5 text-yellow-500" /> Improvement Tips
-          </h3>
-          <div className="space-y-3">
-            {analysis?.suggestions.map((s, i) => (
-              <div key={i} className="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                <div className="mt-0.5">
-                  {i % 2 === 0 ? <CheckCircle className="w-4 h-4 text-green-500" /> : <AlertCircle className="w-4 h-4 text-orange-500" />}
-                </div>
-                <p className="text-sm text-gray-700 leading-snug">{s}</p>
-              </div>
-            )) || (
-              <div className="text-center py-8">
-                <Loader2 className="w-8 h-8 text-gray-200 animate-spin mx-auto mb-2" />
-                <p className="text-sm text-gray-400">Analyzing content suggestions...</p>
-              </div>
-            )}
-          </div>
+          <ImageGenerator defaultPrompt={heroImagePrompt} initialImageUrl={heroImageUrl} onImageGenerated={setHeroImageUrl} />
         </div>
       </div>
     </div>

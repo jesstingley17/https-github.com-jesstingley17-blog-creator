@@ -24,12 +24,14 @@ const PLATFORM_ICONS = {
   Blog: Layout
 };
 
-const Planner: React.FC = () => {
+interface PlannerProps {
+  scheduledPosts: ScheduledPost[];
+  setScheduledPosts: React.Dispatch<React.SetStateAction<ScheduledPost[]>>;
+}
+
+const Planner: React.FC<PlannerProps> = ({ scheduledPosts, setScheduledPosts }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [scheduling, setScheduling] = useState(false);
-  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([
-    { id: '1', articleId: 'a1', title: 'The Future of AI', date: new Date().toISOString(), platform: 'LinkedIn' },
-  ]);
 
   // Mock list of generated articles that are available for scheduling
   const availableArticles = [

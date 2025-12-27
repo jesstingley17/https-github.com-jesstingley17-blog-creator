@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard';
 import ContentWizard from './components/ContentWizard';
 import ArticleEditor from './components/ArticleEditor';
 import Planner from './components/Planner';
-import { AppRoute, ContentBrief, ContentOutline } from './types';
+import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
 import { Search, Bell, UserCircle } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -14,6 +14,9 @@ const App: React.FC = () => {
     brief: ContentBrief;
     outline: ContentOutline;
   } | null>(null);
+  const [scheduledPosts, setScheduledPosts] = useState<ScheduledPost[]>([
+    { id: '1', articleId: 'a1', title: 'The Future of AI in Education', date: new Date().toISOString(), platform: 'LinkedIn' },
+  ]);
 
   const startNewContent = () => {
     setRoute(AppRoute.CREATE);
@@ -24,6 +27,12 @@ const App: React.FC = () => {
     setRoute(AppRoute.EDITOR);
   };
 
+  const handleSchedulePost = (post: ScheduledPost) => {
+    setScheduledPosts(prev => [...prev, post]);
+    // Optionally redirect to planner after scheduling
+    // setRoute(AppRoute.PLANNER);
+  };
+
   const renderContent = () => {
     switch (currentRoute) {
       case AppRoute.DASHBOARD:
@@ -31,13 +40,14 @@ const App: React.FC = () => {
       case AppRoute.CREATE:
         return <ContentWizard onComplete={handleWizardComplete} />;
       case AppRoute.PLANNER:
-        return <Planner />;
+        return <Planner scheduledPosts={scheduledPosts} setScheduledPosts={setScheduledPosts} />;
       case AppRoute.EDITOR:
         return activeWorkflow ? (
           <ArticleEditor 
             brief={activeWorkflow.brief} 
             outline={activeWorkflow.outline} 
             onBack={() => setRoute(AppRoute.DASHBOARD)}
+            onSchedule={handleSchedulePost}
           />
         ) : <Dashboard onNewContent={startNewContent} />;
       case AppRoute.HISTORY:
