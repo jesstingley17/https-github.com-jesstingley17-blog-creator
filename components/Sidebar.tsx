@@ -59,11 +59,11 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
               onClick={() => setRoute(item.id)}
               className={`w-full flex items-center gap-3 px-5 py-4 rounded-[20px] transition-all group ${
                 isActive 
-                  ? 'bg-pink-50 text-pink-700 shadow-sm border border-pink-100' 
-                  : 'text-pink-300 hover:bg-pink-50/50 hover:text-pink-500'
+                  ? 'bg-pink-100 text-[#be185d] shadow-sm border border-pink-200' 
+                  : 'text-pink-400 hover:bg-pink-50/50 hover:text-[#be185d]'
               }`}
             >
-              <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-pink-600 fill-pink-100' : ''}`} />
+              <Icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${isActive ? 'text-[#be185d] fill-pink-200' : ''}`} />
               <span className="font-bold text-xs uppercase tracking-widest">{item.label}</span>
             </button>
           );
@@ -84,16 +84,16 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
         <div className="space-y-1">
           <button 
             onClick={() => setRoute(AppRoute.STATS)}
-            className={`w-full flex items-center gap-4 px-5 py-3 transition-all ${currentRoute === AppRoute.STATS ? 'text-pink-700 bg-pink-50 rounded-2xl' : 'text-pink-400 hover:text-pink-600'}`}
+            className={`w-full flex items-center gap-4 px-5 py-4 transition-all rounded-2xl ${currentRoute === AppRoute.STATS ? 'text-[#be185d] bg-pink-100 border border-pink-200' : 'text-pink-400 hover:text-[#be185d] hover:bg-pink-50'}`}
           >
-            <BarChart3 className="w-4 h-4" />
+            <BarChart3 className="w-5 h-5" />
             <span className="font-bold text-[10px] uppercase tracking-[0.2em]">Voyage Stats</span>
           </button>
           <button 
             onClick={() => setRoute(AppRoute.SETTINGS)}
-            className={`w-full flex items-center gap-4 px-5 py-3 transition-all ${currentRoute === AppRoute.SETTINGS ? 'text-pink-700 bg-pink-50 rounded-2xl' : 'text-pink-400 hover:text-pink-600'}`}
+            className={`w-full flex items-center gap-4 px-5 py-4 transition-all rounded-2xl ${currentRoute === AppRoute.SETTINGS ? 'text-[#be185d] bg-pink-100 border border-pink-200' : 'text-pink-400 hover:text-[#be185d] hover:bg-pink-50'}`}
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-5 h-5" />
             <span className="font-bold text-[10px] uppercase tracking-[0.2em]">Ship Settings</span>
           </button>
         </div>
