@@ -10,10 +10,10 @@ import {
   Sparkles,
   RefreshCw,
   Globe,
-  Info,
   Binary,
   Link2,
-  Users
+  Users,
+  UserPlus
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -41,31 +41,38 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     brandContext: '',
     targetKeywords: [],
     secondaryKeywords: [],
-    audience: 'Professional Stakeholders',
-    tone: 'Authoritative & Strategic',
+    audience: 'Executive Stakeholders',
+    tone: 'Professional & Visionary',
     length: 'medium',
     status: 'draft',
+    author: {
+      name: 'Dr. Jane Synthesis',
+      title: 'Principal Content Architect',
+      bio: 'Expert in semantic search and AI-driven discourse analysis with 15 years in digital strategy.'
+    },
     createdAt: Date.now()
   });
 
   const [outline, setOutline] = useState<ContentOutline | null>(null);
 
   const addLog = (msg: string) => {
-    setStatusLogs(prev => [...prev.slice(-4), msg]);
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    setStatusLogs(prev => [...prev.slice(-4), `[${timestamp}] ${msg}`]);
   };
 
   const handleInitialAnalysis = async () => {
     if (!topic.trim()) return;
     setLoading(true);
     setProgress(5);
-    setStatusLogs(['Initializing intelligence core...', 'Connecting to semantic web...']);
+    setStatusLogs([]);
+    addLog('Initializing Intelligence Core...');
     
     const logs = [
-      'Analyzing topic clusters...',
-      'Mapping competitor footprints...',
-      'Synthesizing backlink relevance...',
-      'Mapping semantic networks...',
-      'Finalizing strategic brief...'
+      'Accessing Semantic Discovery Nodes...',
+      'Benchmarking Competitor Discourse...',
+      'Synthesizing SEO Link Vectors...',
+      'Structuring Metadata Layers...',
+      'Finalizing Content Architecture...'
     ];
     
     let logIdx = 0;
@@ -75,7 +82,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         setProgress(prev => Math.min(prev + 18, 95));
         logIdx++;
       }
-    }, 1200);
+    }, 1000);
 
     try {
       const details = await geminiService.generateBriefDetails(topic, companyUrl);
@@ -100,7 +107,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     } catch (error) {
       console.error(error);
       clearInterval(interval);
-      addLog('CRITICAL ERROR: Analysis sequence interrupted.');
+      addLog('CRITICAL ERROR: Synthesis Interrupted.');
       setLoading(false);
     }
   };
@@ -120,7 +127,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
 
   const steps = [
     { num: 1, label: 'Research', icon: Search },
-    { num: 2, label: 'Strategy', icon: Target },
+    { num: 2, label: 'Persona & Strategy', icon: Target },
     { num: 3, label: 'Structure', icon: Layout },
   ];
 
@@ -149,21 +156,19 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       </div>
 
       <div className="bg-white rounded-[60px] border border-gray-100 shadow-[0_50px_100px_rgba(0,0,0,0.05)] p-16 min-h-[650px] flex flex-col relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-[120px] -mr-64 -mt-64 pointer-events-none" />
-        
         {step === 1 && (
           <div className="flex-1 flex flex-col justify-center max-w-2xl mx-auto w-full text-center space-y-12 relative z-10 animate-in fade-in duration-500">
             <div className="space-y-6">
               <h2 className="text-6xl font-black text-gray-900 tracking-tighter italic uppercase">Source Discovery</h2>
-              <p className="text-gray-400 text-xl leading-relaxed">Map your discourse vector with competitive benchmarking.</p>
+              <p className="text-gray-400 text-xl leading-relaxed">Map your discourse vector with professional benchmarking.</p>
             </div>
             
             <div className="space-y-6 text-left">
               <div className="space-y-2">
-                <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1">Topic node</label>
+                <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1">Core Topic node</label>
                 <input
                   type="text"
-                  placeholder="e.g. Cognitive Load Theory in Interface Design"
+                  placeholder="e.g. The Future of Regenerative Finance (ReFi)"
                   className="w-full px-10 py-6 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[32px] outline-none text-xl transition-all font-bold shadow-inner"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
@@ -173,24 +178,24 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
               <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1 flex items-center gap-2">
-                      Competitors <Users className="w-3 h-3" />
+                      Competitors <Users className="w-3 h-3 text-indigo-400" />
                     </label>
                     <input
                       type="text"
                       placeholder="comma separated URLs"
-                      className="w-full px-8 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[24px] outline-none text-sm transition-all font-bold"
+                      className="w-full px-8 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[24px] outline-none text-sm font-bold"
                       value={competitorInput}
                       onChange={(e) => setCompetitorInput(e.target.value)}
                     />
                  </div>
                  <div className="space-y-2">
                     <label className="text-[11px] font-black text-gray-400 uppercase tracking-[0.4em] ml-1 flex items-center gap-2">
-                      Backlinks <Link2 className="w-3 h-3" />
+                      Backlinks <Link2 className="w-3 h-3 text-indigo-400" />
                     </label>
                     <input
                       type="text"
-                      placeholder="URLs to link back to"
-                      className="w-full px-8 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[24px] outline-none text-sm transition-all font-bold"
+                      placeholder="URLs to injection sites"
+                      className="w-full px-8 py-4 bg-gray-50 border-2 border-transparent focus:border-indigo-600 focus:bg-white rounded-[24px] outline-none text-sm font-bold"
                       value={backlinkInput}
                       onChange={(e) => setBacklinkInput(e.target.value)}
                     />
@@ -204,14 +209,14 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                        <div className="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center border border-indigo-500/20">
                           <Binary className="w-5 h-5 text-indigo-400 animate-pulse" />
                        </div>
-                       <span className="text-white font-black text-xs uppercase tracking-widest italic">Intelligence synthesis</span>
+                       <span className="text-white font-black text-xs uppercase tracking-widest italic">Synthesis in progress</span>
                     </div>
                     <span className="text-indigo-400 font-mono text-lg">{progress}%</span>
                   </div>
                   <div className="space-y-2 font-mono text-[11px] text-left">
                     {statusLogs.map((log, i) => (
                       <p key={i} className={`${i === statusLogs.length - 1 ? 'text-indigo-300' : 'text-gray-600'}`}>
-                        > {log}
+                        {log}
                       </p>
                     ))}
                   </div>
@@ -222,7 +227,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                   onClick={handleInitialAnalysis}
                   className="w-full py-7 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-100 text-white rounded-[40px] font-black text-xl flex items-center justify-center gap-6 transition-all shadow-xl mt-4 active:scale-95"
                 >
-                  <Sparkles className="w-8 h-8" /> START INTELLIGENCE GATHERING
+                  <Sparkles className="w-8 h-8 text-white/50" /> INITIALIZE SYNTHESIS
                 </button>
               )}
             </div>
@@ -230,52 +235,57 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         )}
 
         {step === 2 && (
-          <div className="space-y-10 animate-in fade-in zoom-in-95 duration-700">
+          <div className="space-y-12 animate-in fade-in duration-700">
             <div className="flex items-center justify-between border-b pb-6">
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight italic uppercase">Semantic Brief</h2>
-              <button onClick={() => setStep(1)} className="p-3 bg-gray-50 rounded-2xl text-gray-400 hover:text-indigo-600 transition-all border">
-                <RefreshCw className="w-5 h-5" />
-              </button>
+              <h2 className="text-3xl font-black text-gray-900 tracking-tight italic uppercase">Persona & Strategy</h2>
+              <button onClick={() => setStep(1)} className="p-3 bg-gray-50 rounded-2xl text-gray-400 border"><RefreshCw className="w-5 h-5" /></button>
             </div>
 
-            <div className="grid grid-cols-2 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
               <div className="space-y-8">
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Primary keywords</label>
-                  <div className="flex flex-wrap gap-2">
-                    {brief.targetKeywords?.map((k, i) => (
-                      <span key={i} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">{k}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Strategy summary</label>
-                  <div className="p-6 bg-slate-900 rounded-3xl border border-slate-800">
-                    <p className="text-slate-400 text-sm italic font-medium">Competitors: {brief.competitorUrls?.length || 0} nodes mapped</p>
-                    <p className="text-slate-400 text-sm italic font-medium mt-1">Backlinks: {brief.backlinkUrls?.length || 0} injection points</p>
+                <div className="p-8 bg-gray-50 rounded-[40px] border space-y-6">
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-indigo-600" /> Author Profile
+                  </h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <input className="px-5 py-3 rounded-xl border-none outline-none font-bold text-sm shadow-sm" placeholder="Author Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
+                      <input className="px-5 py-3 rounded-xl border-none outline-none font-bold text-sm shadow-sm" placeholder="Professional Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
+                    </div>
+                    <textarea className="w-full p-5 rounded-2xl border-none outline-none font-medium text-sm shadow-sm h-32 resize-none" placeholder="Author Bio (E-E-A-T Signal)" value={brief.author?.bio} onChange={e => setBrief({...brief, author: {...brief.author!, bio: e.target.value}})} />
                   </div>
                 </div>
               </div>
 
               <div className="space-y-8">
                 <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Audience vector</label>
-                  <input className="w-full px-6 py-4 bg-gray-50 border rounded-2xl font-black text-gray-800" value={brief.audience || ''} onChange={e => setBrief({...brief, audience: e.target.value})} />
+                   <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Primary keywords</label>
+                   <div className="flex flex-wrap gap-2">
+                     {brief.targetKeywords?.map((k, i) => (
+                       <span key={i} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-indigo-100">{k}</span>
+                     ))}
+                   </div>
                 </div>
-                <div className="space-y-4">
-                  <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Synthesis tone</label>
-                  <select className="w-full px-6 py-4 bg-gray-50 border rounded-2xl font-black text-gray-800 appearance-none" value={brief.tone || ''} onChange={e => setBrief({...brief, tone: e.target.value})}>
-                    <option>Professional & Authoritative</option>
-                    <option>Futuristic & Bold</option>
-                    <option>Technical & Academic</option>
-                  </select>
+                <div className="grid grid-cols-2 gap-6">
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Audience</label>
+                     <input className="w-full px-6 py-4 bg-gray-50 border rounded-2xl font-black text-gray-800 text-sm" value={brief.audience} onChange={e => setBrief({...brief, audience: e.target.value})} />
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.4em]">Tone</label>
+                     <select className="w-full px-6 py-4 bg-gray-50 border rounded-2xl font-black text-gray-800 text-sm" value={brief.tone} onChange={e => setBrief({...brief, tone: e.target.value})}>
+                       <option>Professional & Authoritative</option>
+                       <option>Futuristic & Bold</option>
+                       <option>Technical & Scientific</option>
+                     </select>
+                   </div>
                 </div>
               </div>
             </div>
 
             <div className="pt-8 flex justify-end">
-              <button onClick={generateOutline} disabled={loading} className="bg-indigo-600 text-white px-10 py-5 rounded-[32px] font-black text-lg flex items-center gap-4 shadow-xl hover:scale-105 transition-all">
-                {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <>MAP STRUCTURAL HIERARCHY <ArrowRight className="w-6 h-6" /></>}
+              <button onClick={generateOutline} disabled={loading} className="bg-indigo-600 text-white px-12 py-6 rounded-[32px] font-black text-xl flex items-center gap-6 shadow-xl hover:scale-105 transition-all active:scale-95">
+                {loading ? <Loader2 className="w-7 h-7 animate-spin" /> : <>MAP HIERARCHY <ArrowRight className="w-7 h-7" /></>}
               </button>
             </div>
           </div>
@@ -285,7 +295,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           <div className="space-y-10 animate-in slide-in-from-right-16 duration-700">
             <h2 className="text-3xl font-black text-gray-900 tracking-tight italic uppercase border-b pb-6">Structural Architecture</h2>
             <div className="bg-gray-50 rounded-[40px] p-10 border space-y-8 max-h-[500px] overflow-y-auto custom-scrollbar">
-              <h3 className="text-3xl font-black text-indigo-700 italic tracking-tighter">{outline.title}</h3>
+              <h3 className="text-4xl font-black text-indigo-700 italic tracking-tighter">{outline.title}</h3>
               {outline.sections?.map((section, idx) => (
                 <div key={idx} className="bg-white p-8 rounded-3xl border shadow-sm">
                   <h4 className="font-black text-gray-900 text-xl tracking-tighter italic mb-4">{idx + 1}. {section.heading}</h4>
@@ -300,9 +310,9 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
               ))}
             </div>
             <div className="pt-8 flex justify-between items-center">
-              <button onClick={() => setStep(2)} className="text-gray-300 font-black uppercase text-[10px] tracking-widest">Back</button>
-              <button onClick={() => onComplete(brief as ContentBrief, outline)} className="bg-indigo-600 text-white px-12 py-6 rounded-[32px] font-black text-xl flex items-center gap-6 shadow-xl hover:scale-105 active:scale-95 transition-all">
-                INITIALIZE SYNTHESIS <Sparkles className="w-7 h-7" />
+              <button onClick={() => setStep(2)} className="text-gray-300 font-black uppercase text-[10px] tracking-widest">Return to Strategy</button>
+              <button onClick={() => onComplete(brief as ContentBrief, outline)} className="bg-indigo-600 text-white px-16 py-7 rounded-[40px] font-black text-2xl flex items-center gap-6 shadow-2xl shadow-indigo-200 hover:scale-105 active:scale-95 transition-all">
+                SYNTHESIZE CONTENT <Sparkles className="w-8 h-8" />
               </button>
             </div>
           </div>

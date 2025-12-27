@@ -22,20 +22,61 @@
     
     .markdown-body {
       color: #374151;
-      line-height: 1.625;
+      line-height: 1.75;
+      font-size: 1.1rem;
     }
-    .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; margin-top: 2rem; color: #111827; }
-    .markdown-body h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; margin-top: 2.5rem; color: #1f2937; border-bottom: 2px solid #f3f4f6; padding-bottom: 0.5rem; }
-    .markdown-body p { margin-bottom: 1.25rem; }
+    .markdown-body h1 { font-size: 3rem; font-weight: 800; margin-bottom: 2rem; margin-top: 2rem; color: #111827; letter-spacing: -0.025em; font-style: italic; }
+    .markdown-body h2 { font-size: 1.875rem; font-weight: 800; margin-bottom: 1.25rem; margin-top: 3rem; color: #111827; border-bottom: 4px solid #f1f5f9; padding-bottom: 0.75rem; letter-spacing: -0.015em; }
+    .markdown-body h3 { font-size: 1.5rem; font-weight: 700; margin-bottom: 1rem; margin-top: 2.5rem; color: #1f2937; }
+    .markdown-body p { margin-bottom: 1.5rem; }
     
-    .markdown-body table { width: 100%; margin-bottom: 2rem; border-collapse: collapse; border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; }
-    .markdown-body th { background-color: #f9fafb; padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: #4b5563; }
-    .markdown-body td { padding: 0.75rem 1rem; border-bottom: 1px solid #f3f4f6; }
+    /* Premium Table Styling */
+    .markdown-body table { 
+      width: 100%; 
+      margin: 2.5rem 0; 
+      border-collapse: separate; 
+      border-spacing: 0;
+      border: 1px solid #e2e8f0; 
+      border-radius: 1.5rem; 
+      overflow: hidden; 
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    }
+    .markdown-body th { 
+      background-color: #f8fafc; 
+      padding: 1.25rem 1.5rem; 
+      text-align: left; 
+      font-size: 0.875rem; 
+      font-weight: 800; 
+      text-transform: uppercase; 
+      color: #64748b; 
+      letter-spacing: 0.1em;
+      border-bottom: 2px solid #e2e8f0;
+    }
+    .markdown-body td { 
+      padding: 1.25rem 1.5rem; 
+      border-bottom: 1px solid #f1f5f9; 
+      font-size: 1rem;
+      background-color: white;
+    }
+    .markdown-body tr:last-child td { border-bottom: none; }
+    .markdown-body tr:nth-child(even) td { background-color: #fafafa; }
 
     .custom-scrollbar::-webkit-scrollbar { width: 6px; }
     .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #cbd5e1; }
+    
+    .citation-tag {
+      background-color: #eef2ff;
+      color: #4f46e5;
+      font-weight: 800;
+      font-size: 0.7rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 0.3rem;
+      vertical-align: super;
+      margin-left: 0.1rem;
+      cursor: help;
+    }
   </style>
 <script type="importmap">
 {

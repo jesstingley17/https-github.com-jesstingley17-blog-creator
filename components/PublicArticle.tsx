@@ -8,7 +8,9 @@ import {
   ShieldCheck,
   BrainCircuit,
   Quote,
-  ExternalLink
+  ExternalLink,
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { storageService } from '../storageService';
 import { GeneratedContent } from '../types';
@@ -54,10 +56,8 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
   if (!data) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-12 text-center">
-        <div className="bg-white p-12 rounded-[56px] shadow-2xl border border-gray-100 max-w-md space-y-6">
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight italic">Link Expired</h2>
-          <button onClick={onExit} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-sm shadow-xl shadow-indigo-100">Return to Hub</button>
-        </div>
+        <h2 className="text-3xl font-black text-gray-900 italic mb-4">Link Expired</h2>
+        <button onClick={onExit} className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs">Return to Hub</button>
       </div>
     );
   }
@@ -74,13 +74,7 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
             </div>
             <span className="font-black text-lg italic tracking-tighter text-gray-900 uppercase">ZR SYNTHESIS</span>
           </div>
-          <div className="flex items-center gap-6">
-            <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-full border border-green-100">
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Verified Content Node</span>
-            </div>
-            <button onClick={onExit} className="text-gray-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-widest">Dashboard Access</button>
-          </div>
+          <button onClick={onExit} className="text-gray-400 hover:text-indigo-600 transition-colors font-black text-[10px] uppercase tracking-widest">Dashboard Access</button>
         </div>
       </nav>
 
@@ -92,47 +86,52 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
                  <span key={i} className="text-[10px] font-black uppercase tracking-widest px-4 py-2 bg-indigo-50 text-indigo-600 rounded-full">{k}</span>
                ))}
              </div>
-             <h1 className="text-5xl md:text-7xl font-black text-gray-900 italic tracking-tighter leading-[1.1]">{data.outline.title}</h1>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-8 border-y border-gray-50 py-10">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center shadow-lg">
-                <BrainCircuit className="w-6 h-6 text-indigo-400" />
-              </div>
-              <div>
-                <p className="text-xs font-black uppercase tracking-widest text-gray-900">ZR Intelligence Agent</p>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Autonomous Synthesis</p>
-              </div>
-            </div>
-            <div className="hidden md:block w-px h-8 bg-gray-100" />
-            <div className="flex items-center gap-3">
-              <Calendar className="w-5 h-5 text-gray-300" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{new Date(data.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-            </div>
-            <div className="flex-1" />
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-6 py-3 bg-gray-50 hover:bg-gray-100 text-gray-500 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest">
-              Archive content
-            </button>
+             <h1 className="text-6xl md:text-7xl font-black text-gray-900 italic tracking-tighter leading-[1]">{data.outline.title}</h1>
+             
+             <div className="flex items-center justify-center md:justify-start gap-4 pt-4">
+                <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center shadow-inner overflow-hidden">
+                   <User className="w-7 h-7 text-gray-400" />
+                </div>
+                <div className="text-left">
+                   <p className="text-sm font-black text-gray-900 italic">{data.brief.author.name}</p>
+                   <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{data.brief.author.title}</p>
+                </div>
+                <div className="hidden md:block w-px h-10 bg-gray-100 mx-4" />
+                <div className="hidden md:flex items-center gap-2">
+                   <Calendar className="w-4 h-4 text-gray-300" />
+                   <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{new Date(data.updatedAt).toLocaleDateString()}</span>
+                </div>
+             </div>
           </div>
         </header>
 
         {heroImage?.url && (
-          <div className="mb-20 group relative">
+          <div className="mb-20">
             <img 
               src={heroImage.url} 
-              className="w-full h-[600px] object-cover rounded-[56px] shadow-2xl transition-transform duration-1000 group-hover:scale-[1.01]" 
+              className="w-full h-[600px] object-cover rounded-[56px] shadow-2xl" 
               alt="Article Hero" 
             />
-            <div className="absolute inset-0 rounded-[56px] ring-1 ring-inset ring-black/10" />
           </div>
         )}
 
-        <div className="markdown-body text-xl">
+        <div className="markdown-body">
           <ReactMarkdown>{data.content}</ReactMarkdown>
         </div>
 
-        {/* Citations Footer */}
+        {/* Professional Author Block */}
+        <div className="mt-24 p-10 bg-slate-50 rounded-[48px] border flex flex-col md:flex-row items-center gap-10">
+           <div className="w-32 h-32 rounded-3xl bg-white shadow-xl flex items-center justify-center shrink-0 border-8 border-white overflow-hidden">
+              <User className="w-16 h-16 text-slate-200" />
+           </div>
+           <div className="text-center md:text-left space-y-3">
+              <h3 className="text-2xl font-black italic text-slate-900 uppercase tracking-tight">About the Author</h3>
+              <p className="font-bold text-indigo-600 text-sm uppercase tracking-widest">{data.brief.author.name} • {data.brief.author.title}</p>
+              <p className="text-slate-500 font-medium leading-relaxed">{data.brief.author.bio}</p>
+           </div>
+        </div>
+
+        {/* References */}
         {data.citations && data.citations.length > 0 && (
           <div className="mt-32 pt-20 border-t-4 border-slate-900 space-y-12">
             <div className="flex items-center gap-4">
@@ -141,14 +140,11 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
             </div>
             <div className="grid grid-cols-1 gap-6">
               {data.citations.map((c) => (
-                <div key={c.id} className="group p-8 bg-gray-50 rounded-[32px] border border-transparent hover:border-indigo-100 transition-all flex items-start gap-6">
-                  <span className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center font-black text-indigo-600 text-lg shadow-sm">
-                    {c.id}
-                  </span>
+                <div key={c.id} className="p-8 bg-gray-50 rounded-[32px] border flex items-start gap-6">
+                  <span className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center font-black text-indigo-600 text-lg shadow-sm">{c.id}</span>
                   <div className="flex-1 space-y-2">
                     <h4 className="font-black text-gray-900 text-xl italic tracking-tight">{c.title}</h4>
-                    <p className="text-gray-500 text-sm font-medium line-clamp-2">{c.snippet}</p>
-                    <a href={c.url} target="_blank" className="flex items-center gap-2 text-indigo-600 font-bold text-xs hover:underline pt-2">
+                    <a href={c.url} target="_blank" className="flex items-center gap-2 text-indigo-600 font-bold text-xs hover:underline">
                       Access Source Node <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
@@ -158,15 +154,15 @@ const PublicArticle: React.FC<PublicArticleProps> = ({ shareId, onExit }) => {
           </div>
         )}
 
-        <footer className="mt-40 pt-20 border-t border-gray-100 text-center space-y-8">
-           <div className="w-20 h-20 bg-indigo-600 rounded-[32px] flex items-center justify-center mx-auto shadow-2xl shadow-indigo-100">
-             <Sparkles className="w-10 h-10 text-white" />
+        <footer className="mt-40 pt-20 border-t text-center space-y-8">
+           <div className="w-16 h-16 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto shadow-2xl">
+             <Sparkles className="w-8 h-8 text-white" />
            </div>
            <div className="space-y-4">
-             <h3 className="text-3xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Build Your Semantic Authority</h3>
-             <p className="text-gray-400 max-w-lg mx-auto font-medium">Synthesized via ZR Discourse Engine. Optimized for semantic search and authority.</p>
+             <h3 className="text-2xl font-black text-gray-900 italic tracking-tighter uppercase leading-none">Synthesized via ZR Discourse</h3>
+             <p className="text-gray-400 max-w-lg mx-auto font-medium">This content was generated using semantic authority models and autonomous discourse synthesis.</p>
            </div>
-           <button onClick={onExit} className="px-12 py-5 bg-slate-900 text-white rounded-[24px] font-black uppercase tracking-[0.2em] text-xs hover:bg-slate-800 transition-all active:scale-95">Explore Hub</button>
+           <button onClick={onExit} className="px-10 py-5 bg-slate-900 text-white rounded-3xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all">Explore Platform</button>
         </footer>
       </main>
     </div>

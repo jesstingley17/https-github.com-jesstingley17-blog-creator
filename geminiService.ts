@@ -2,8 +2,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ContentBrief, ContentOutline, SEOAnalysis } from "./types";
 
+// Always use new GoogleGenAI({ apiKey: process.env.API_KEY }) per coding guidelines
 const getAI = () => {
-  return new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 const extractJson = (text: string) => {
@@ -104,7 +105,8 @@ export const geminiService = {
     Audience: ${brief.audience}.
     Tone: ${brief.tone}.
     Benchmarking against competitors: ${brief.competitorUrls.join(', ') || 'N/A'}.
-    Ensure 5-8 major sections with detailed subheadings.`;
+    Author: ${brief.author.name}, ${brief.author.title}.
+    Ensure 5-8 major sections with detailed subheadings. Include a plan for at least 2 comparison or data tables.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -147,19 +149,22 @@ export const geminiService = {
     try {
       await this.ensureApiKey();
       const ai = getAI();
-      const prompt = `Write a professional, long-form SEO-optimized article based on this outline: ${JSON.stringify(outline)}. 
+      const prompt = `Write a long-form, authoritative SEO article as ${brief.author.name} (${brief.author.title}).
+      Outline: ${JSON.stringify(outline)}. 
       Keywords: ${brief.targetKeywords.join(', ')}. 
       Tone: ${brief.tone}.
       
-      CRITICAL SEO INSTRUCTIONS:
-      1. NATURAL LINK INJECTION: You must naturally weave in the following backlink URLs as anchor text where relevant: ${brief.backlinkUrls.join(', ') || 'None provided'}.
-      2. IN-TEXT CITATIONS: Use [number] notation to cite facts or data based on real-world sources you find.
-      3. CITATION MAPPING: At the very end of the article, provide a section titled "Sources & References" listing the full title and URL of each numbered citation used.
+      MANDATORY FORMATTING INSTRUCTIONS:
+      1. TABLES: You MUST include at least two Markdown tables (e.g. comparison tables, feature sets, or key metrics). Ensure proper Markdown syntax (| Header | Header |).
+      2. AUTHOR VOICE: Write from the perspective of ${brief.author.name}. Incorporate professional insights.
+      3. BACKLINKS: Naturally inject these links: ${brief.backlinkUrls.join(', ') || 'None'}.
+      4. CITATIONS: Cite 3-5 external authoritative facts using [number] notation.
+      5. CITATION LIST: End the article with a "Sources & References" list mapping the [number] to the source URL and Title.
       
-      Use Markdown formatting (H1, H2, lists, bold text). Include tables where relevant.`;
+      Ensure H1, H2, H3 hierarchy is perfect for SEO.`;
       
       const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-3-pro-preview', // Pro for better reasoning on links/citations
+        model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
@@ -181,7 +186,7 @@ export const geminiService = {
       const ai = getAI();
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Task: ${task}. Target Text: "${text}". Content context: "${context}". Return improved text only.`,
+        contents: `Task: ${task}. Target Text: "${text}". Context: "${context}". Improved text only.`,
       });
       return response.text?.trim() || text;
     } catch (e) { return text; }
@@ -191,9 +196,9 @@ export const geminiService = {
     try {
       await this.ensureApiKey();
       const ai = getAI();
-      const prompt = `Optimize for SEO. Keywords: ${brief.targetKeywords.join(', ')}. Backlinks to ensure are present: ${brief.backlinkUrls.join(', ')}. 
-      Ensure citations [number] are consistent.
-      Content: ${text}`;
+      const prompt = `SEO Optimization Pass. Content: ${text}. 
+      Ensure keywords [${brief.targetKeywords.join(', ')}] and backlinks are optimally placed. 
+      Ensure table formatting is valid Markdown. Maintain citations.`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: prompt
@@ -260,16 +265,38 @@ export const geminiService = {
     } catch (e) { throw e; }
   },
 
-  async suggestSchedule(articles: any[]) {
+  // Added missing suggestSchedule method
+  async suggestSchedule(articles: any[]): Promise<any[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Given these articles: ${JSON.stringify(articles.map(a => ({ id: a.id, title: a.title, topic: a.topic })))}, 
+    suggest an optimal posting schedule for the next 7 days across LinkedIn, Twitter, and Facebook.
+    Return a JSON array of objects, each with 'articleId', 'date' (ISO string), and 'platform'.`;
+
     try {
-      await this.ensureApiKey();
-      const ai = getAI();
-      const res = await ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Suggest schedule for: ${JSON.stringify(articles)}`,
-        config: { responseMimeType: 'application/json' }
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                articleId: { type: Type.STRING },
+                date: { type: Type.STRING },
+                platform: { type: Type.STRING }
+              },
+              required: ['articleId', 'date', 'platform']
+            }
+          }
+        }
       });
-      return extractJson(res.text || '[]') || [];
-    } catch (e) { return []; }
-  }
+      return extractJson(response.text || '[]');
+    } catch (e) {
+      console.error("Schedule suggestion failed:", e);
+      return [];
+    }
+  },
 };

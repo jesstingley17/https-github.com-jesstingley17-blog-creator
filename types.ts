@@ -1,4 +1,11 @@
 
+export interface Author {
+  name: string;
+  title: string;
+  bio: string;
+  photoUrl?: string;
+}
+
 export interface ContentBrief {
   id: string;
   topic: string;
@@ -13,6 +20,7 @@ export interface ContentBrief {
   tone: string;
   length: 'short' | 'medium' | 'long';
   status: 'draft' | 'brief_ready' | 'outline_ready' | 'content_ready';
+  author: Author;
   createdAt: number;
 }
 
