@@ -1,62 +1,29 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
-  Save, 
-  Download, 
   ChevronLeft, 
-  BarChart2, 
   Loader2, 
-  Trophy, 
-  Plus, 
-  Trash2, 
   Play, 
-  Eye,
-  Code,
-  List,
-  Type,
-  BookOpen,
-  RotateCcw,
-  ChevronUp,
-  ChevronDown,
-  Zap,
-  Target,
-  Layers,
-  Search,
-  ExternalLink,
   X,
   Calendar,
-  Clock,
   Check,
   Globe,
-  History as HistoryIcon,
-  Linkedin,
-  Twitter,
-  Facebook,
-  Instagram,
-  Layout,
-  Info,
-  ShieldCheck,
-  Tag as TagIcon,
-  Quote,
-  Terminal,
-  Copy,
-  GripVertical,
   Wand2,
   Sparkles,
   ArrowRight,
   Replace,
   Table as TableIcon,
-  Share2,
-  Image as ImageIcon,
-  AlignLeft,
-  Minimize2,
+  Trash2,
+  Tag as TagIcon,
+  Zap,
+  Target,
   TrendingUp,
-  AlertCircle,
-  FileText
+  Clock,
+  CloudCheck
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost, GeneratedContent, ArticleMetadata } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -86,53 +53,82 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
 
   const [aiAssistantLoading, setAiAssistantLoading] = useState(false);
   const [aiAssistantOutput, setAiAssistantOutput] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+  
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [lastSaved, setLastSaved] = useState<number | null>(null);
   const autosaveTimerRef = useRef<number | null>(null);
 
+  // Load existing draft on mount
   useEffect(() => {
-    const draftKey = `zr_draft_${brief.id || brief.topic}`;
+    const draftKey = `zr_article_${brief.id}`;
     const savedDraft = localStorage.getItem(draftKey);
     if (savedDraft) {
       try {
-        const { 
-          content: dContent, 
-          outline: dOutline, 
-          hasStarted: dHasStarted, 
-          heroImageUrl: dHeroImageUrl 
-        } = JSON.parse(savedDraft);
-        if (dContent) setContent(dContent);
-        if (dOutline) setLocalOutline(dOutline);
-        if (dHasStarted) setHasStarted(dHasStarted);
-        if (dHeroImageUrl) setHeroImageUrl(dHeroImageUrl);
-        if (dContent) performAnalysis(dContent);
+        const data: GeneratedContent = JSON.parse(savedDraft);
+        if (data.content) setContent(data.content);
+        if (data.outline) setLocalOutline(data.outline);
+        if (data.heroImageUrl) setHeroImageUrl(data.heroImageUrl);
+        if (data.analysis) setAnalysis(data.analysis);
+        if (data.content) setHasStarted(true);
+        setLastSaved(data.updatedAt);
       } catch (e) {
         console.error("Failed to load draft", e);
       }
     }
-  }, [brief.id, brief.topic]);
+  }, [brief.id]);
 
+  // Autosave Logic
   useEffect(() => {
+    // Prevent saving empty initial states
     if (!content && !localOutline.title) return;
+
     if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
+    
     setSaveStatus('saving');
+    
     autosaveTimerRef.current = window.setTimeout(() => {
-      const draftKey = `zr_draft_${brief.id || brief.topic}`;
-      const draftData = { content, outline: localOutline, hasStarted, heroImageUrl, timestamp: Date.now() };
+      const now = Date.now();
+      const articleData: GeneratedContent = {
+        id: brief.id,
+        brief,
+        outline: localOutline,
+        content,
+        analysis,
+        heroImageUrl,
+        updatedAt: now
+      };
+
       try {
-        localStorage.setItem(draftKey, JSON.stringify(draftData));
+        // Save full content
+        localStorage.setItem(`zr_article_${brief.id}`, JSON.stringify(articleData));
+        
+        // Update registry for Dashboard/History
+        const registryRaw = localStorage.getItem('zr_registry') || '[]';
+        const registry: ArticleMetadata[] = JSON.parse(registryRaw);
+        const filtered = registry.filter(a => a.id !== brief.id);
+        const metadata: ArticleMetadata = {
+          id: brief.id,
+          title: localOutline.title || brief.topic,
+          topic: brief.topic,
+          score: analysis?.score || 0,
+          status: 'Draft',
+          updatedAt: now
+        };
+        localStorage.setItem('zr_registry', JSON.stringify([metadata, ...filtered].slice(0, 50)));
+
         setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 3000);
+        setLastSaved(now);
+        setTimeout(() => setSaveStatus('idle'), 2000);
       } catch (e) {
         console.error("Autosave failed", e);
         setSaveStatus('idle');
       }
-    }, 5000);
+    }, 2000); // 2 second debounce
+
     return () => {
       if (autosaveTimerRef.current) window.clearTimeout(autosaveTimerRef.current);
     };
-  }, [content, localOutline, hasStarted, heroImageUrl, brief.id, brief.topic]);
+  }, [content, localOutline, analysis, heroImageUrl, brief]);
 
   const startGeneration = async () => {
     setHasStarted(true);
@@ -176,25 +172,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
-  const handleScheduleConfirm = () => {
-    if (onSchedule) {
-      const post: ScheduledPost = {
-        id: Math.random().toString(36).substring(2, 9),
-        articleId: brief.id,
-        title: localOutline.title,
-        date: `${scheduleDate}T${scheduleTime}:00Z`,
-        platform: schedulePlatform
-      };
-      onSchedule(post);
-      setIsScheduled(true);
-      setTimeout(() => {
-        setShowScheduleModal(false);
-        setIsScheduled(false);
-      }, 1500);
-    }
-  };
-
-  // Fix: Added handleAIAssistantTask to process rephrase and expand requests
   const handleAIAssistantTask = async (task: 'rephrase' | 'expand') => {
     const selection = window.getSelection()?.toString();
     const textToProcess = selection || content.slice(-1000) || 'Please help me write this section.';
@@ -211,7 +188,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
-  // Fix: Added handleVisualBlock to generate specific Markdown elements like tables
   const handleVisualBlock = async (type: 'table' | 'callout' | 'checklist') => {
     setAiAssistantLoading(true);
     setAiAssistantOutput('');
@@ -225,7 +201,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     }
   };
 
-  // Fix: Added applyAIAssistantResult to append AI generated content to the current draft
   const applyAIAssistantResult = () => {
     if (!aiAssistantOutput) return;
     setContent(prev => prev + '\n\n' + aiAssistantOutput);
@@ -233,26 +208,53 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     setViewMode('edit');
   };
 
-  const scoreColor = (score: number) => {
-    if (score > 80) return 'text-green-600';
-    if (score > 50) return 'text-yellow-600';
-    return 'text-red-600';
+  // Fix: Added missing handleScheduleConfirm function to finalize scheduling
+  const handleScheduleConfirm = () => {
+    const post: ScheduledPost = {
+      id: Math.random().toString(36).substring(2, 9),
+      articleId: brief.id,
+      title: localOutline.title || brief.topic,
+      date: `${scheduleDate}T${scheduleTime}:00Z`,
+      platform: schedulePlatform,
+    };
+    onSchedule?.(post);
+    setIsScheduled(true);
   };
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-8 animate-in fade-in duration-500">
       <div className="flex-1 flex flex-col bg-white rounded-[40px] border border-gray-100 shadow-2xl overflow-hidden">
         <header className="px-8 py-5 border-b flex items-center justify-between bg-white sticky top-0 z-10">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
               <ChevronLeft className="w-5 h-5 text-gray-400" />
             </button>
-            <h2 className="font-black text-gray-900 line-clamp-1 tracking-tight italic">{localOutline.title || 'Draft Article'}</h2>
-            {saveStatus !== 'idle' && (
-              <div className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 rounded-full border border-indigo-100">
-                <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest">{saveStatus === 'saving' ? 'Syncing...' : 'Synced'}</span>
+            <div className="flex flex-col">
+              <h2 className="font-black text-gray-900 line-clamp-1 tracking-tight italic text-lg leading-tight">
+                {localOutline.title || 'Untitled Draft'}
+              </h2>
+              <div className="flex items-center gap-3">
+                {saveStatus !== 'idle' ? (
+                  <div className="flex items-center gap-1.5 animate-pulse">
+                    {saveStatus === 'saving' ? (
+                      <Loader2 className="w-3 h-3 text-indigo-400 animate-spin" />
+                    ) : (
+                      <Check className="w-3 h-3 text-green-500" />
+                    )}
+                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
+                      {saveStatus === 'saving' ? 'Syncing...' : 'Saved'}
+                    </span>
+                  </div>
+                ) : lastSaved ? (
+                  <div className="flex items-center gap-1.5 text-gray-400">
+                    <CloudCheck className="w-3 h-3" />
+                    <span className="text-[9px] font-bold uppercase tracking-widest">
+                      Cloud synced {new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                ) : null}
               </div>
-            )}
+            </div>
           </div>
           <div className="flex items-center gap-4">
             {hasStarted && (
@@ -262,7 +264,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               </div>
             )}
             {!hasStarted ? (
-              <button onClick={startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-indigo-100">
+              <button onClick={startGeneration} className="bg-indigo-600 text-white px-8 py-3 rounded-2xl text-sm font-black uppercase tracking-widest flex items-center gap-2 shadow-xl shadow-indigo-100 active:scale-95 transition-all">
                 <Play className="w-4 h-4 fill-white" /> Start Synthesis
               </button>
             ) : (
@@ -278,7 +280,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             <div className="max-w-3xl mx-auto space-y-12 py-10">
                <div className="text-center space-y-4">
                  <h3 className="text-5xl font-black text-gray-900 tracking-tighter">SYNTHESIS ENGINE</h3>
-                 <p className="text-gray-400 text-lg max-w-lg mx-auto">Confirm your outline structure. We will cross-reference real-time data to build an authoritative draft.</p>
+                 <p className="text-gray-400 text-lg max-w-lg mx-auto font-medium leading-relaxed">Confirm your hierarchical structure. We will cross-reference real-time nodes to build an authoritative draft.</p>
                </div>
                <div className="space-y-6">
                  {localOutline.sections.map((s, i) => (
@@ -334,7 +336,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 </div>
               ) : (
                 <textarea 
-                  ref={textareaRef}
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   className="w-full min-h-[1000px] bg-transparent border-none outline-none font-mono text-lg leading-relaxed custom-scrollbar placeholder:text-gray-200"
@@ -347,7 +348,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
       </div>
 
       <div className="w-96 flex flex-col gap-8 overflow-y-auto custom-scrollbar pr-4">
-        {/* Live SEO Score & Analysis */}
+        {/* SEO Score & Actionable Keywords */}
         <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-8">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2">
@@ -357,13 +358,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
           
           <div className="relative flex items-center justify-center py-4">
-            <div className={`text-7xl font-black ${scoreColor(analysis?.score || 0)} tracking-tighter tabular-nums`}>
+            <div className={`text-7xl font-black ${analysis?.score && analysis.score > 80 ? 'text-green-600' : 'text-amber-600'} tracking-tighter tabular-nums`}>
               {analysis?.score || 0}
             </div>
             <div className="absolute -bottom-2 text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Optimization Index</div>
           </div>
 
-          {/* Actionable Keyword Suggestions Section */}
           <div className="space-y-6 pt-4 border-t border-gray-50">
              <div className="flex items-center justify-between">
                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Strategic Keywords</label>
@@ -393,23 +393,11 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                  ))
                ) : (
                  <div className="text-center py-6 border-2 border-dashed border-gray-50 rounded-3xl">
-                   <p className="text-[10px] font-bold text-gray-300 uppercase italic">Awaiting semantic deep-dive...</p>
+                   <p className="text-[10px] font-bold text-gray-300 uppercase italic tracking-widest">Awaiting Analysis...</p>
                  </div>
                )}
             </div>
           </div>
-
-          {analysis?.suggestions && analysis.suggestions.length > 0 && (
-            <div className="space-y-3">
-               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block">Structural Quick Wins</label>
-               {analysis.suggestions.slice(0, 3).map((s, i) => (
-                 <div key={i} className="flex gap-3 text-[11px] text-gray-600 bg-gray-50 p-4 rounded-2xl border border-transparent hover:border-indigo-100 hover:bg-white transition-all">
-                   <Zap className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                   <span className="font-medium">{s}</span>
-                 </div>
-               ))}
-            </div>
-          )}
         </div>
 
         {/* Intelligence Toolkit */}

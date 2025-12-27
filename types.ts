@@ -45,15 +45,23 @@ export interface ScheduledPost {
   platform: 'LinkedIn' | 'Twitter' | 'Facebook' | 'Blog';
 }
 
+export interface ArticleMetadata {
+  id: string;
+  title: string;
+  topic: string;
+  score: number;
+  status: 'Draft' | 'Published' | 'Review';
+  updatedAt: number;
+}
+
 export interface GeneratedContent {
   id: string;
-  briefId: string;
-  title: string;
-  body: string;
-  analysis: SEOAnalysis;
-  tags?: string[];
-  sources?: { uri: string; title: string }[];
-  scheduledDate?: string;
+  brief: ContentBrief;
+  outline: ContentOutline;
+  content: string;
+  analysis: SEOAnalysis | null;
+  heroImageUrl: string | null;
+  updatedAt: number;
 }
 
 export enum AppRoute {

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { 
   Search, 
   ArrowRight, 
@@ -10,12 +11,7 @@ import {
   RefreshCw,
   Globe,
   Info,
-  Terminal,
-  Database,
-  ShieldCheck,
-  Cpu,
-  Binary,
-  Layers
+  Binary
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline } from '../types';
@@ -33,6 +29,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const [progress, setProgress] = useState(0);
   
   const [brief, setBrief] = useState<Partial<ContentBrief>>({
+    id: Math.random().toString(36).substring(2, 15),
     topic: '',
     companyUrl: '',
     brandContext: '',
@@ -40,7 +37,9 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     secondaryKeywords: [],
     audience: 'Professional Stakeholders',
     tone: 'Authoritative & Strategic',
-    length: 'medium'
+    length: 'medium',
+    status: 'draft',
+    createdAt: Date.now()
   });
 
   const [outline, setOutline] = useState<ContentOutline | null>(null);
@@ -134,7 +133,6 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       </div>
 
       <div className="bg-white rounded-[60px] border border-gray-100 shadow-[0_50px_100px_rgba(0,0,0,0.05)] p-16 min-h-[650px] flex flex-col relative overflow-hidden group">
-        {/* Decorative elements - strictly pointer-events-none to prevent click blockage */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50/30 rounded-full blur-[120px] -mr-64 -mt-64 group-hover:bg-indigo-100/40 transition-colors duration-1000 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-50/20 rounded-full blur-[80px] -ml-32 -mb-32 pointer-events-none" />
         
@@ -221,12 +219,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
 
             {!loading && (
               <div className="grid grid-cols-2 gap-4 pt-4">
-                {[
-                  'Cognitive Architectures',
-                  'SEO Semantic Clusters',
-                  'Hyper-Personalization',
-                  'Market Fluidity'
-                ].map((t) => (
+                {['Metacognition in K-12', 'Semantic SEO Architecture', 'Hyper-Personalized UX', 'Market Fluidity'].map((t) => (
                   <button 
                     key={t}
                     onClick={() => setTopic(t)}
@@ -245,7 +238,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="flex items-center justify-between border-b pb-8">
               <div>
                 <h2 className="text-4xl font-black text-gray-900 tracking-tight italic">SEMANTIC BRIEF</h2>
-                <p className="text-gray-400 text-lg mt-1">Strategic alignment based on discovered discourse patterns.</p>
+                <p className="text-gray-400 text-lg mt-1 font-medium">Strategic alignment based on discovered discourse patterns.</p>
               </div>
               <button onClick={() => setStep(1)} className="p-4 bg-gray-50 rounded-3xl text-gray-400 hover:text-indigo-600 transition-all hover:bg-white border hover:border-indigo-100">
                 <RefreshCw className="w-7 h-7" />
@@ -316,7 +309,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="flex items-center justify-between border-b pb-8">
               <div>
                 <h2 className="text-4xl font-black text-gray-900 tracking-tight italic">STRUCTURAL ARCHITECTURE</h2>
-                <p className="text-gray-400 text-lg mt-1">Hierarchical mapping complete. Finalize information flow.</p>
+                <p className="text-gray-400 text-lg mt-1 font-medium">Hierarchical mapping complete. Finalize information flow.</p>
               </div>
             </div>
 
