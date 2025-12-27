@@ -249,7 +249,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
             <div className="space-y-4">
               <div className="flex items-center gap-3 ml-2">
                 <Link2 className="w-5 h-5 text-pink-700" />
-                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Article URL Synthesis</label>
+                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. URL Destination</label>
               </div>
               <div className="group relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-10 pointer-events-none">
@@ -260,7 +260,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
                   className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[150px] pr-16 py-8 font-medium text-lg text-pink-900 outline-none transition-all shadow-sm focus:shadow-xl focus:shadow-pink-100"
-                  placeholder="how-to-engineer-content"
+                  placeholder="optimized-path"
                 />
                 <button 
                   onClick={async () => setSlug(await geminiService.generateSlug(title))}

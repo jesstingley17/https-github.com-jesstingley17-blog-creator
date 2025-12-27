@@ -39,12 +39,12 @@ export const geminiService = {
     await this.ensureApiKey();
     const ai = getAI();
     const prompt = `Act as a Meta-Prompt Engineer. 
-    Task: Take the following raw user input for a content generation topic and re-synthesize it into a highly effective, structured, and summarized AI prompt.
+    Task: Take the following raw user input for a content topic and re-synthesize it into a highly effective, structured, and summarized AI prompt.
     Input: "${rawInput}"
     Requirements:
     1. Remove conversational noise.
     2. Identify core technical keywords.
-    3. Format as a clean, actionable instruction for a high-quality article.
+    3. Format as a clean, actionable instruction for high-quality content.
     Return a JSON object with 'title', 'optimizedPrompt', 'sourceUrl', and 'tags'.`;
 
     try {
@@ -76,7 +76,7 @@ export const geminiService = {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Generate a clean, SEO-friendly URL slug for this article title: "${title}". Return only the slug string. No spaces, lowercase only, hyphens for spaces. Example: "how-to-engineer-content".`
+      contents: `Generate a clean, SEO-friendly URL slug for this title: "${title}". Return only the slug string. No spaces, lowercase only, hyphens for spaces. Example: "how-to-engineer-content".`
     });
     return response.text?.trim().replace(/[^a-z0-9-]/gi, '').toLowerCase() || title.toLowerCase().replace(/\s+/g, '-');
   },
@@ -84,8 +84,8 @@ export const geminiService = {
   async deepResearch(urlOrTopic: string): Promise<Partial<ContentBrief>> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Perform deep SEO research for: "${urlOrTopic}".
-    Identify 3-5 top organic competitors.
+    const prompt = `Perform deep web research for: "${urlOrTopic}".
+    Identify 3-5 top organic competitors or related high-authority sources.
     Extract 5 target keywords and 5 secondary keywords.
     Return as JSON.`;
 
@@ -118,7 +118,7 @@ export const geminiService = {
   async discoverBacklinks(topic: string, keywords: string[]): Promise<BacklinkOpportunity[]> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Act as an SEO link discovery engine. Topic: "${topic}". Keywords: ${keywords.join(', ')}. Find 5-7 HIGH-AUTHORITY websites. Return as JSON.`;
+    const prompt = `Act as a link discovery engine. Topic: "${topic}". Keywords: ${keywords.join(', ')}. Find 5-7 HIGH-AUTHORITY websites across the web. Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -155,13 +155,14 @@ export const geminiService = {
   async generateOutline(brief: ContentBrief): Promise<ContentOutline> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Generate a high-authority article outline for: "${brief.topic}". Focus on technical depth. Return as JSON.`;
+    const prompt = `Generate a high-authority content outline for: "${brief.topic}". Use Google Search to find current industry sub-topics. Return as JSON.`;
 
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
+          tools: [{ googleSearch: {} }],
           responseMimeType: 'application/json',
           responseSchema: {
             type: Type.OBJECT,
@@ -193,26 +194,26 @@ export const geminiService = {
       const ai = getAI();
       const lengthMap = { short: "600 words", medium: "1200 words", long: "2500 words" };
 
-      const prompt = `Write a comprehensive, authoritative SEO article based on the following strategy.
+      const prompt = `Task: Synthesize a high-authority content piece.
       Title: ${outline.title}.
       Keywords: ${brief.targetKeywords.join(', ')}.
       Tone: ${brief.tone}.
-      Length: ${lengthMap[brief.length]}.
-      Focus: ${brief.detailLevel}.
+      Target Length: ${lengthMap[brief.length]}.
+      Detail Level: ${brief.detailLevel}.
 
-      INSTRUCTIONS:
-      1. Write in a neutral, professional voice. 
-      2. Ground every claim in search-verified data.
-      3. Use detailed Markdown.
-      4. Include at least one complex GFM table (| Header |).
-      5. Output ONLY Markdown content.`;
+      CRITICAL INSTRUCTIONS:
+      1. USE GOOGLE SEARCH to pull specific, real-time data, statistics, and authoritative facts from the entire internet.
+      2. Write with professional authority and neutral objectivity.
+      3. Use detailed Markdown including lists, bolding, and headers.
+      4. MANDATORY: Include at least one complex GFM table (| Column 1 | Column 2 |) for data comparison or feature breakdown.
+      5. Output ONLY the Markdown content. Do not include introductory conversational filler.`;
       
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-pro-preview',
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }],
-          temperature: 0.7,
+          temperature: 0.6,
         }
       });
 
@@ -244,7 +245,7 @@ export const geminiService = {
     const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Analyze SEO for: "${text.substring(0, 4000)}". Primary keywords: ${keywords.join(', ')}. Return a JSON score and suggestions.`,
+      contents: `Analyze content performance for: "${text.substring(0, 4000)}". Primary keywords: ${keywords.join(', ')}. Return a JSON score and suggestions.`,
       config: { 
         responseMimeType: 'application/json',
         responseSchema: {
@@ -278,27 +279,50 @@ export const geminiService = {
     };
   },
 
+  // Added suggestSchedule method to handle social media content planning
+  async suggestSchedule(articles: { id: string; title: string; topic: string }[]): Promise<{ articleId: string; date: string; platform: string }[]> {
+    await this.ensureApiKey();
+    const ai = getAI();
+    const prompt = `Act as a social media strategist. Given this list of articles, suggest an optimal posting schedule for next week.
+    Articles: ${JSON.stringify(articles)}
+    Return a JSON array of objects with 'articleId', 'date' (ISO string), and 'platform' (LinkedIn, Twitter, Facebook, or Blog).`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                articleId: { type: Type.STRING },
+                date: { type: Type.STRING },
+                platform: { type: Type.STRING, enum: ['LinkedIn', 'Twitter', 'Facebook', 'Blog'] }
+              },
+              required: ['articleId', 'date', 'platform']
+            }
+          }
+        }
+      });
+      return extractJson(response.text || '[]');
+    } catch (e) {
+      console.error("Schedule suggestion failed", e);
+      return [];
+    }
+  },
+
   async optimizeContent(text: string, brief: ContentBrief): Promise<string> {
     await this.ensureApiKey();
     const ai = getAI();
-    const prompt = `Rewrite and optimize the following article for SEO. Keywords: ${brief.targetKeywords.join(', ')}. Ensure GFM tables are used for comparisons. Output only Markdown. Content: "${text}".`;
-    const res = await ai.models.generateContent({ model: 'gemini-3-pro-preview', contents: prompt });
+    const prompt = `Rewrite and optimize the following content for technical authority. Keywords: ${brief.targetKeywords.join(', ')}. Use Google Search for fact-checking. Output only Markdown. Content: "${text}".`;
+    const res = await ai.models.generateContent({ 
+      model: 'gemini-3-pro-preview', 
+      contents: prompt,
+      config: { tools: [{ googleSearch: {} }] }
+    });
     return res.text || text;
-  },
-
-  async generateStructuredData(title: string, content: string, author: { name: string; title: string }): Promise<string> {
-    await this.ensureApiKey();
-    const ai = getAI();
-    const prompt = `Generate JSON-LD script for Article schema. Title: "${title}". Author: "${author.name}". Summary: "${content.substring(0, 500)}".`;
-    const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt });
-    return res.text || "{}";
-  },
-
-  async suggestSchedule(articles: any[]): Promise<any[]> {
-    await this.ensureApiKey();
-    const ai = getAI();
-    const prompt = `Suggest social media schedule for: ${JSON.stringify(articles)}. JSON array only.`;
-    const res = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json' } });
-    return extractJson(res.text || '[]') || [];
   }
 };
