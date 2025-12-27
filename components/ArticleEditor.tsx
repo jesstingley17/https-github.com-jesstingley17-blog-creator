@@ -47,8 +47,9 @@ import {
   Replace,
   Table as TableIcon,
   Share2,
-  // Add missing ImageIcon import
-  Image as ImageIcon
+  Image as ImageIcon,
+  AlignLeft,
+  Minimize2
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -224,9 +225,21 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   };
 
   const handleVisualBlock = async (type: 'table' | 'callout' | 'checklist') => {
+    const textarea = textareaRef.current;
+    let selectedText = '';
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      selectedText = content.substring(start, end);
+    }
+
+    // Use selected text if available, otherwise use a relevant portion of the context
+    const contextForAI = selectedText || content.substring(0, 2000);
+
     setAiAssistantLoading(true);
+    setAiAssistantOutput('');
     try {
-      const result = await geminiService.generateVisualBlock(type, content.substring(0, 1000));
+      const result = await geminiService.generateVisualBlock(type, contextForAI);
       setAiAssistantOutput(result);
     } catch (e) {
       console.error(e);
@@ -358,22 +371,46 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </div>
           
           <div className="space-y-4">
+            {/* Primary Action Grid */}
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => handleAIAssistantTask('rephrase')} className="p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100 transition-all">REPHRASE</button>
-              <button onClick={() => handleAIAssistantTask('expand')} className="p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100 transition-all">EXPAND</button>
+              <button 
+                onClick={() => handleAIAssistantTask('rephrase')} 
+                className="group flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100 transition-all"
+              >
+                <Replace className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                REPHRASE
+              </button>
+              <button 
+                onClick={() => handleAIAssistantTask('expand')} 
+                className="group flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100 transition-all"
+              >
+                <ArrowRight className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                EXPAND
+              </button>
+              <button 
+                onClick={() => handleAIAssistantTask('summarize')} 
+                className="group flex flex-col items-center gap-2 p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 border border-transparent hover:border-indigo-100 transition-all"
+              >
+                <Minimize2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                SUMMARIZE
+              </button>
+              <button 
+                onClick={() => handleVisualBlock('table')} 
+                className="group flex flex-col items-center gap-2 p-3 bg-indigo-600 rounded-xl text-[10px] font-bold text-white hover:bg-indigo-700 shadow-lg shadow-indigo-100 transition-all"
+              >
+                <TableIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                COMPARE
+              </button>
             </div>
 
             <div className="pt-2">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Visual Elements</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button onClick={() => handleVisualBlock('table')} className="flex flex-col items-center gap-1 p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-all">
-                  <TableIcon className="w-4 h-4" /> <span className="text-[8px] font-bold">TABLE</span>
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Visual Blocks</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => handleVisualBlock('callout')} className="flex items-center justify-center gap-2 p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                  <Quote className="w-3.5 h-3.5" /> CALLOUT
                 </button>
-                <button onClick={() => handleVisualBlock('callout')} className="flex flex-col items-center gap-1 p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-all">
-                  <Quote className="w-4 h-4" /> <span className="text-[8px] font-bold">CALLOUT</span>
-                </button>
-                <button onClick={() => handleVisualBlock('checklist')} className="flex flex-col items-center gap-1 p-2 bg-indigo-50 rounded-xl text-indigo-600 hover:bg-indigo-100 transition-all">
-                  <Check className="w-4 h-4" /> <span className="text-[8px] font-bold">LIST</span>
+                <button onClick={() => handleVisualBlock('checklist')} className="flex items-center justify-center gap-2 p-3 bg-gray-50 rounded-xl text-[10px] font-bold text-gray-600 hover:bg-indigo-50 hover:text-indigo-600 transition-all">
+                  <Check className="w-3.5 h-3.5" /> CHECKLIST
                 </button>
               </div>
             </div>
@@ -384,8 +421,8 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   {aiAssistantOutput}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={applyAIAssistantResult} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest">Apply</button>
-                  <button onClick={() => setAiAssistantOutput('')} className="px-3 bg-white border rounded-lg text-gray-400"><Trash2 className="w-3.5 h-3.5" /></button>
+                  <button onClick={applyAIAssistantResult} className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest">Apply Changes</button>
+                  <button onClick={() => setAiAssistantOutput('')} className="px-3 bg-white border rounded-lg text-gray-400 hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
             )}
