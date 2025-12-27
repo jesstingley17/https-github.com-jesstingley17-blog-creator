@@ -29,8 +29,6 @@ const App: React.FC = () => {
 
   const handleSchedulePost = (post: ScheduledPost) => {
     setScheduledPosts(prev => [...prev, post]);
-    // Optionally redirect to planner after scheduling
-    // setRoute(AppRoute.PLANNER);
   };
 
   const renderContent = () => {

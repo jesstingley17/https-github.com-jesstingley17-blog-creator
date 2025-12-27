@@ -25,7 +25,15 @@ import {
   Search,
   ExternalLink,
   X,
-  History as HistoryIcon
+  Calendar,
+  Clock,
+  Check,
+  Globe,
+  History as HistoryIcon,
+  Linkedin,
+  Twitter,
+  Facebook,
+  Layout
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -56,6 +64,13 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [sources, setSources] = useState<{ uri: string; title: string }[]>([]);
   const [showSourcesModal, setShowSourcesModal] = useState(false);
   
+  // Scheduling States
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [schedulePlatform, setSchedulePlatform] = useState<ScheduledPost['platform']>('LinkedIn');
+  const [isScheduled, setIsScheduled] = useState(false);
+
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [localOutline, setLocalOutline] = useState<ContentOutline>(initialOutline);
   const [versions, setVersions] = useState<ArticleVersion[]>([]);
@@ -135,10 +150,27 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     const fileName = brief.topic.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
     link.download = `${fileName || 'article'}.md`;
     document.body.appendChild(link);
-    link.href = url;
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleScheduleConfirm = () => {
+    if (onSchedule) {
+      const post: ScheduledPost = {
+        id: Math.random().toString(36).substring(2, 9),
+        articleId: brief.id,
+        title: localOutline.title,
+        date: `${scheduleDate}T${scheduleTime}:00Z`,
+        platform: schedulePlatform
+      };
+      onSchedule(post);
+      setIsScheduled(true);
+      setTimeout(() => {
+        setShowScheduleModal(false);
+        setIsScheduled(false);
+      }, 1500);
+    }
   };
 
   // --- Outline Mutation Logic ---
@@ -227,7 +259,6 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     return 'text-red-600';
   };
 
-  // Fix: Explicitly cast Object.values to number[] and ensure analysis.score is treated as number to avoid arithmetic operation errors
   const getScoreBreakdown = () => {
     if (!analysis) return [];
     
@@ -305,15 +336,12 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               </button>
             ) : (
               <>
-                {sources.length > 0 && (
-                  <button 
-                    onClick={() => setShowSourcesModal(true)}
-                    className="p-2 text-indigo-500 hover:text-indigo-700 transition-colors flex items-center gap-2 text-sm font-bold bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100"
-                    title="View citations"
-                  >
-                    <BookOpen className="w-4 h-4" /> Cite Sources
-                  </button>
-                )}
+                <button 
+                  onClick={() => setShowScheduleModal(true)}
+                  className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-100 transition-all border border-indigo-100"
+                >
+                  <Calendar className="w-4 h-4" /> Schedule
+                </button>
                 <button 
                   onClick={handleDownload}
                   className="p-2 text-gray-400 hover:text-indigo-600 transition-colors"
@@ -323,9 +351,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 </button>
                 <button 
                   onClick={saveVersion}
-                  className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all"
+                  className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                 >
-                  <Save className="w-4 h-4" /> Save Article
+                  <Save className="w-4 h-4" /> Save
                 </button>
               </>
             )}
@@ -462,7 +490,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   </div>
                 ) : (
                   <textarea
-                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border rounded-2xl"
+                    className="w-full min-h-[500px] outline-none text-lg text-gray-700 leading-relaxed resize-none bg-transparent font-mono p-4 border border-gray-100 rounded-3xl shadow-inner focus:ring-2 focus:ring-indigo-500/20 transition-all"
                     value={content}
                     onChange={(e) => setContent(e.target.value)}
                   />
@@ -595,6 +623,98 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           />
         </div>
       </div>
+
+      {/* Schedule Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-in zoom-in-95">
+            <div className="px-8 py-6 border-b flex items-center justify-between bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-xl">
+                  <Calendar className="w-5 h-5 text-indigo-600" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-xl tracking-tight">Schedule Publication</h3>
+              </div>
+              <button onClick={() => setShowScheduleModal(false)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            
+            <div className="p-8 space-y-8">
+              {isScheduled ? (
+                <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in-95">
+                  <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                    <Check className="w-10 h-10 text-green-600" />
+                  </div>
+                  <h4 className="text-xl font-bold text-gray-900">Successfully Scheduled!</h4>
+                  <p className="text-gray-500 mt-2">Article has been added to your content planner.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Calendar className="w-3 h-3" /> Publish Date
+                      </label>
+                      <input 
+                        type="date" 
+                        value={scheduleDate}
+                        onChange={(e) => setScheduleDate(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                        <Clock className="w-3 h-3" /> Time (UTC)
+                      </label>
+                      <input 
+                        type="time" 
+                        value={scheduleTime}
+                        onChange={(e) => setScheduleTime(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Target Channel</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { id: 'LinkedIn', icon: Linkedin, color: 'text-blue-600', bg: 'bg-blue-50' },
+                        { id: 'Twitter', icon: Twitter, color: 'text-sky-500', bg: 'bg-sky-50' },
+                        { id: 'Facebook', icon: Facebook, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                        { id: 'Blog', icon: Layout, color: 'text-gray-700', bg: 'bg-gray-100' }
+                      ].map((plat) => (
+                        <button
+                          key={plat.id}
+                          onClick={() => setSchedulePlatform(plat.id as ScheduledPost['platform'])}
+                          className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
+                            schedulePlatform === plat.id 
+                              ? 'border-indigo-600 bg-white shadow-md' 
+                              : 'border-transparent bg-gray-50 hover:bg-gray-100'
+                          }`}
+                        >
+                          <div className={`${plat.bg} p-2 rounded-lg`}>
+                            <plat.icon className={`w-5 h-5 ${plat.color}`} />
+                          </div>
+                          <span className="text-sm font-bold text-gray-700">{plat.id}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleScheduleConfirm}
+                    className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100"
+                  >
+                    Confirm Schedule
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Citations Modal */}
       {showSourcesModal && (
