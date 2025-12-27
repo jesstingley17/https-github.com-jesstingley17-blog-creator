@@ -1,17 +1,26 @@
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, Image as ImageIcon, Download, RefreshCw, AlertTriangle, Key, RotateCcw } from 'lucide-react';
+import { Sparkles, Loader2, Image as ImageIcon, Download, RefreshCw, AlertTriangle, Key, RotateCcw, Wand2, Palmtree, Monitor, Camera, Boxes } from 'lucide-react';
 import { geminiService } from '../geminiService';
 
 interface ImageGeneratorProps {
   defaultPrompt: string;
   initialImageUrl?: string | null;
   onImageGenerated?: (url: string) => void;
+  topicContext?: string;
 }
 
-const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialImageUrl, onImageGenerated }) => {
+const STYLES = [
+  { label: 'Cinematic', icon: Camera, keywords: 'cinematic lighting, dramatic shadows, shallow depth of field, anamorphic lens' },
+  { label: 'Minimalist', icon: Monitor, keywords: 'minimalist design, clean lines, white space, modern corporate aesthetic, flat colors' },
+  { label: '3D Render', icon: Boxes, keywords: '3D isometric render, blender cycles, clay model style, octane render, high detail' },
+  { label: 'Ethereal', icon: Palmtree, keywords: 'volumetric lighting, soft pastel colors, dreamy atmosphere, glowing elements' },
+];
+
+const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialImageUrl, onImageGenerated, topicContext }) => {
   const [prompt, setPrompt] = useState(defaultPrompt);
   const [generating, setGenerating] = useState(false);
+  const [refining, setRefining] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl || null);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,17 +31,19 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialI
   }, [initialImageUrl]);
 
   useEffect(() => {
-    setPrompt(defaultPrompt);
-  }, [defaultPrompt]);
+    // Only reset if the prompt hasn't been manually edited by the user yet
+    // or if the default prompt has changed significantly (e.g. new title)
+    if (!imageUrl) {
+      setPrompt(defaultPrompt);
+    }
+  }, [defaultPrompt, imageUrl]);
 
   const handleGenerate = async () => {
-    // Check for API key and open dialog if necessary as per instructions
     // @ts-ignore
     const hasKey = await window.aistudio.hasSelectedApiKey();
     if (!hasKey) {
       // @ts-ignore
       await window.aistudio.openSelectKey();
-      // Proceed directly after triggering key selection
     }
 
     setGenerating(true);
@@ -54,6 +65,23 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialI
     } finally {
       setGenerating(false);
     }
+  };
+
+  const handleRefine = async () => {
+    setRefining(true);
+    try {
+      const refined = await geminiService.refineImagePrompt(prompt, topicContext || '');
+      setPrompt(refined);
+    } catch (e) {
+      console.error("Failed to refine prompt", e);
+    } finally {
+      setRefining(false);
+    }
+  };
+
+  const applyStyle = (keywords: string) => {
+    if (prompt.includes(keywords)) return;
+    setPrompt(prev => `${prev.trim()}, ${keywords}`);
   };
 
   const resetPrompt = () => {
@@ -78,16 +106,26 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialI
       </div>
 
       {/* Prompt Customization Area */}
-      <div className="space-y-2 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
-        <div className="flex items-center justify-between mb-1">
+      <div className="space-y-3 bg-gray-50/50 p-4 rounded-2xl border border-gray-100">
+        <div className="flex items-center justify-between">
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Generation Prompt</label>
-          <button 
-            onClick={resetPrompt}
-            className="text-[10px] text-indigo-600 hover:text-indigo-800 flex items-center gap-1 font-bold transition-colors"
-            title="Reset to suggested prompt"
-          >
-            <RotateCcw className="w-3 h-3" /> Reset
-          </button>
+          <div className="flex gap-2">
+            <button 
+              onClick={handleRefine}
+              disabled={refining || generating}
+              className="text-[10px] text-purple-600 hover:text-purple-800 flex items-center gap-1 font-bold transition-colors disabled:opacity-50"
+              title="Use AI to make this prompt more descriptive"
+            >
+              {refining ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wand2 className="w-3 h-3" />} Refine with AI
+            </button>
+            <button 
+              onClick={resetPrompt}
+              className="text-[10px] text-gray-400 hover:text-indigo-600 flex items-center gap-1 font-bold transition-colors"
+              title="Reset to suggested prompt"
+            >
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+          </div>
         </div>
         
         <div className="space-y-3">
@@ -97,10 +135,23 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialI
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
           />
+
+          {/* Style Presets */}
+          <div className="flex flex-wrap gap-2">
+            {STYLES.map((style) => (
+              <button
+                key={style.label}
+                onClick={() => applyStyle(style.keywords)}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-gray-100 rounded-lg text-[10px] font-bold text-gray-500 hover:border-purple-200 hover:text-purple-600 transition-all shadow-sm"
+              >
+                <style.icon className="w-3 h-3" /> {style.label}
+              </button>
+            ))}
+          </div>
           
           <button
             onClick={handleGenerate}
-            disabled={generating || !prompt}
+            disabled={generating || !prompt || refining}
             className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100 active:scale-[0.98]"
           >
             {generating ? (
@@ -126,7 +177,6 @@ const ImageGenerator: React.FC<ImageGeneratorProps> = ({ defaultPrompt, initialI
           <div className="group relative rounded-2xl overflow-hidden border border-gray-100 shadow-xl aspect-video bg-gray-50">
             <img src={imageUrl} alt="Generated SEO Asset" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
             
-            {/* Overlay Actions */}
             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
               <button 
                 onClick={() => {

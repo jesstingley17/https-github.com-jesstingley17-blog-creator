@@ -36,7 +36,9 @@ import {
   History as HistoryIcon,
   RotateCcw,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  Zap,
+  Target
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { ContentBrief, ContentOutline, SEOAnalysis, ScheduledPost } from '../types';
@@ -597,10 +599,11 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
 
       {/* Sidebar Analysis & Assets */}
       <div className="w-96 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-1">
+        {/* Unified SEO Analysis Card */}
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0 relative">
           <div className="flex items-center justify-between mb-6">
             <h3 className="font-bold text-gray-900 flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Score
+              <BarChart2 className="w-5 h-5 text-indigo-600" /> SEO Analysis
             </h3>
             {analyzing && <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />}
           </div>
@@ -618,6 +621,28 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               <span className={`text-3xl font-black ${scoreColor(analysis?.score || 0)}`}>{analysis?.score || 0}</span>
               <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Score</span>
             </div>
+
+            {/* Tooltip Breakdown */}
+            {showScoreTooltip && analysis && (
+              <div className="absolute top-0 left-full ml-4 w-56 bg-white border border-gray-100 shadow-2xl rounded-2xl p-4 z-50 animate-in fade-in slide-in-from-left-2 duration-200">
+                <div className="mb-3 border-b pb-2">
+                  <p className="text-xs font-bold text-gray-900">Breakdown</p>
+                </div>
+                <div className="space-y-3">
+                  {getScoreBreakdown().map((item, idx) => (
+                    <div key={idx} className="space-y-1">
+                      <div className="flex justify-between text-[10px] font-medium">
+                        <span className="text-gray-600">{item.label}</span>
+                        <span className={scoreColor(item.val)}>{item.val}%</span>
+                      </div>
+                      <div className="h-1 bg-gray-50 rounded-full overflow-hidden">
+                        <div className={`h-full ${scoreColor(item.val).replace('text-', 'bg-')} transition-all duration-500`} style={{ width: `${item.val}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">
@@ -625,6 +650,7 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
               <span className="text-gray-500">Readability</span>
               <span className="font-bold text-gray-900">{analysis?.readability || '...'}</span>
             </div>
+            
             <div className="space-y-2 border-t pt-4">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Keyword Density</span>
               {brief.targetKeywords.map((k, i) => (
@@ -639,6 +665,33 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
                 </div>
               ))}
             </div>
+
+            {/* Keyword Suggestions Section */}
+            {analysis?.keywordSuggestions && analysis.keywordSuggestions.length > 0 && (
+              <div className="border-t pt-4 space-y-4">
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-2">
+                  <Zap className="w-3 h-3 text-amber-500" /> Actionable Suggestions
+                </h4>
+                <div className="space-y-3">
+                  {analysis.keywordSuggestions.map((suggestion, idx) => (
+                    <div key={idx} className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-2 hover:border-indigo-100 transition-all">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Target className="w-3 h-3 text-indigo-400" />
+                          <span className="text-[11px] font-bold text-gray-800">{suggestion.keyword}</span>
+                        </div>
+                        <span className="text-[9px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded uppercase tracking-tighter border border-indigo-100">
+                          {suggestion.action}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-relaxed font-medium">
+                        {suggestion.explanation}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -662,7 +715,12 @@ Style: Clean minimalist aesthetic, cinematic soft lighting, shallow depth of fie
         )}
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-xl p-6 flex-shrink-0">
-          <ImageGenerator defaultPrompt={heroImagePrompt} initialImageUrl={heroImageUrl} onImageGenerated={setHeroImageUrl} />
+          <ImageGenerator 
+            defaultPrompt={heroImagePrompt} 
+            initialImageUrl={heroImageUrl} 
+            onImageGenerated={setHeroImageUrl}
+            topicContext={localOutline.title}
+          />
         </div>
       </div>
     </div>

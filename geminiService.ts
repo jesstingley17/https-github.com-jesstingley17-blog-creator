@@ -107,7 +107,7 @@ export const geminiService = {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        temperature: 0.7, // Lower temperature to ensure factual consistency and adherence to grounding.
+        temperature: 0.7,
       }
     });
 
@@ -190,12 +190,31 @@ export const geminiService = {
     return JSON.parse(response.text);
   },
 
+  async refineImagePrompt(currentPrompt: string, contextTitle: string): Promise<string> {
+    const ai = getAI();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      contents: `You are a world-class prompt engineer for AI image generators. 
+      Take this basic user input: "${currentPrompt}" 
+      And this article title for context: "${contextTitle}"
+      
+      Rewrite it into a detailed, high-quality editorial prompt that includes:
+      - Specific artistic style (minimalist, cinematic, 3D render, or professional photography)
+      - Lighting descriptions (soft volumetric lighting, golden hour, studio light)
+      - Composition (wide shot, shallow depth of field)
+      - High-end textures and 8k resolution keywords.
+      
+      Return ONLY the refined prompt text. No quotes, no explanation.`,
+    });
+    return response.text?.trim() || currentPrompt;
+  },
+
   async generateArticleImage(prompt: string): Promise<string> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-image-preview',
       contents: {
-        parts: [{ text: `A professional, high-quality editorial blog header image for: ${prompt}. Cinematic lighting, minimalist aesthetic, 4k resolution.` }]
+        parts: [{ text: prompt }]
       },
       config: {
         imageConfig: {
