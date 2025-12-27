@@ -22,11 +22,14 @@ import {
   Anchor,
   Globe,
   Settings,
-  Wand2
+  Wand2,
+  BookmarkPlus,
+  ArrowRight,
+  Save
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SEOAnalysis, ArticleImage, AppRoute } from '../types';
+import { ContentBrief, ContentOutline, SEOAnalysis, ArticleImage, AppRoute, SavedPrompt } from '../types';
 import ImageGenerator from './ImageGenerator';
 
 interface ArticleEditorProps {
@@ -50,7 +53,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
-  const [showSchemaModal, setShowSchemaModal] = useState(false);
+  // Prompt Optimization States
+  const [isOptimizingPrompt, setIsOptimizingPrompt] = useState(false);
+  const [optimizedPrompt, setOptimizedPrompt] = useState<Partial<SavedPrompt> | null>(null);
+  const [promptSaved, setPromptSaved] = useState(false);
 
   useEffect(() => {
     const loadDraft = async () => {
@@ -123,6 +129,35 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
     } catch (e) {} finally { setAnalyzing(false); }
   };
 
+  const handleOptimizePrompt = async () => {
+    setIsOptimizingPrompt(true);
+    setPromptSaved(false);
+    try {
+      const result = await geminiService.optimizeStrategicPrompt(title || initialBrief.topic);
+      setOptimizedPrompt(result);
+    } catch (e) {
+      console.error("Prompt optimization failed", e);
+    } finally {
+      setIsOptimizingPrompt(false);
+    }
+  };
+
+  const handleSaveOptimizedPrompt = async () => {
+    if (!optimizedPrompt) return;
+    const stencil: SavedPrompt = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: optimizedPrompt.title || title,
+      rawInput: title,
+      optimizedPrompt: optimizedPrompt.optimizedPrompt || '',
+      sourceUrl: slug ? `https://anchorchartpro/${slug}` : undefined,
+      tags: optimizedPrompt.tags || ['Optimized'],
+      usageCount: 1,
+      createdAt: Date.now()
+    };
+    await storageService.savePrompt(stencil);
+    setPromptSaved(true);
+  };
+
   return (
     <div className="flex h-[calc(100vh-100px)] gap-10 overflow-hidden max-w-[1600px] mx-auto">
       {/* 1. Main Content Generator Interface */}
@@ -135,7 +170,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
                 <Anchor className="w-4 h-4 text-pink-700" />
-                <span className="text-[11px] font-black text-pink-500 uppercase tracking-widest font-heading">Anchor Chart Synthesis</span>
+                <span className="text-[11px] font-black text-pink-500 uppercase tracking-widest font-heading">Content Synthesis</span>
               </div>
               <h2 className="font-bold text-slate-900 text-xl tracking-tight mt-1 font-heading">
                 {title || 'Untitled Creation'}
@@ -166,7 +201,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="w-full bg-transparent border-none focus:ring-0 text-6xl font-black text-slate-900 tracking-tighter outline-none leading-tight font-heading placeholder:text-pink-100"
-                placeholder="The Magic of Anchor Charts..."
+                placeholder="The Magic of Content..."
               />
             </div>
 
@@ -175,7 +210,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
               <div className="flex items-center justify-between ml-2">
                 <div className="flex items-center gap-3">
                   <PenTool className="w-5 h-5 text-pink-700" />
-                  <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">2. Content Forge (Markdown)</label>
+                  <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">2. Content Forge</label>
                 </div>
                 {viewMode === 'edit' && <span className="text-[10px] bg-slate-100 px-3 py-1 rounded-full font-bold text-slate-400">Manual Override Active</span>}
               </div>
@@ -214,17 +249,17 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
             <div className="space-y-4">
               <div className="flex items-center gap-3 ml-2">
                 <Link2 className="w-5 h-5 text-pink-700" />
-                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Anchor URL Slug</label>
+                <label className="text-xs font-black text-pink-800 uppercase tracking-[0.2em] font-heading">3. Content URL Slug</label>
               </div>
               <div className="group relative">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-10 pointer-events-none">
-                  <span className="text-pink-400 font-bold text-base font-heading">anchor.pro /</span>
+                  <span className="text-pink-400 font-bold text-base font-heading">anchorchartpro /</span>
                 </div>
                 <input 
                   type="text" 
                   value={slug}
                   onChange={(e) => setSlug(e.target.value)}
-                  className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[138px] pr-16 py-8 font-medium text-lg text-pink-900 outline-none transition-all shadow-sm focus:shadow-xl focus:shadow-pink-100"
+                  className="w-full bg-pink-50/30 border-2 border-pink-100 focus:border-pink-300 focus:bg-white rounded-[32px] pl-[150px] pr-16 py-8 font-medium text-lg text-pink-900 outline-none transition-all shadow-sm focus:shadow-xl focus:shadow-pink-100"
                   placeholder="how-to-engineer-content"
                 />
                 <button 
@@ -246,7 +281,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
                 }`}
               >
                 {isGenerating ? <Loader2 className="w-8 h-8 animate-spin" /> : <Wand2 className="w-8 h-8 group-hover:rotate-45 transition-transform" />}
-                <span>{isGenerating ? 'Synthesizing...' : '4. Forge All Content'}</span>
+                <span>{isGenerating ? 'Synthesizing...' : '4. AI Generates All'}</span>
               </button>
             </div>
 
@@ -254,8 +289,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
         </div>
       </div>
 
-      {/* 2. Sidebars (Analysis & Assets) */}
+      {/* 2. Sidebars (Analysis & Assets & Prompt Optimizer) */}
       <div className="w-96 flex-shrink-0 flex flex-col gap-10 overflow-y-auto custom-scrollbar pb-12 pr-1 h-full">
+        {/* Matrix Score */}
         <div className="bg-white rounded-[48px] border-2 border-pink-100 shadow-xl p-10 space-y-10">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-pink-800 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
@@ -286,6 +322,48 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief: initialBrief, outl
           </div>
         </div>
 
+        {/* Prompt Saver / Optimizer */}
+        <div className="bg-slate-900 rounded-[48px] shadow-xl p-10 space-y-8 relative overflow-hidden">
+           <div className="absolute top-0 right-0 w-32 h-32 bg-pink-600/10 rounded-full blur-3xl -mr-16 -mt-16" />
+           <h3 className="font-black text-pink-100 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading relative z-10">
+             <BookmarkPlus className="w-5 h-5 text-pink-500" /> Stencil Optimizer
+           </h3>
+           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-relaxed">
+             Summarize and refine this topic into a persistent Magic Stencil for future high-authority generation.
+           </p>
+
+           {!optimizedPrompt ? (
+             <button 
+               onClick={handleOptimizePrompt}
+               disabled={isOptimizingPrompt}
+               className="w-full py-5 bg-slate-800 hover:bg-slate-700 text-white rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all border border-slate-700"
+             >
+               {isOptimizingPrompt ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4 text-pink-500" />}
+               {isOptimizingPrompt ? 'Optimizing...' : 'Refine Topic Prompt'}
+             </button>
+           ) : (
+             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+               <div className="p-6 bg-slate-800 rounded-3xl border border-pink-900/30 space-y-3">
+                 <p className="text-[9px] font-black text-pink-400 uppercase tracking-[0.4em]">Optimized Stencil</p>
+                 <p className="text-[11px] text-slate-300 font-medium italic leading-relaxed line-clamp-4">
+                   "{optimizedPrompt.optimizedPrompt}"
+                 </p>
+               </div>
+               <button 
+                 onClick={handleSaveOptimizedPrompt}
+                 disabled={promptSaved}
+                 className={`w-full py-5 rounded-3xl font-black text-[10px] uppercase tracking-[0.3em] flex items-center justify-center gap-3 transition-all ${
+                   promptSaved ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'girly-gradient text-white shadow-lg'
+                 }`}
+               >
+                 {promptSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                 {promptSaved ? 'Stencil Saved' : 'Save as Magic Stencil'}
+               </button>
+             </div>
+           )}
+        </div>
+
+        {/* Digital Assets */}
         <div className="bg-white rounded-[48px] border-2 border-pink-100 shadow-xl p-10 space-y-10">
            <h3 className="font-black text-pink-800 text-xs uppercase tracking-[0.2em] flex items-center gap-3 font-heading">
              <ImageIcon className="w-5 h-5 text-pink-700" /> Digital Assets

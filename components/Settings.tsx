@@ -36,14 +36,14 @@ const Settings: React.FC = () => {
             </div>
           </div>
           <div>
-            <h3 className="text-2xl font-bold text-slate-900 font-heading">Captain's Log Details</h3>
-            <p className="text-slate-500 text-sm font-medium">These details appear on every synthesized Anchor Chart.</p>
+            <h3 className="text-2xl font-bold text-slate-900 font-heading">Author Details</h3>
+            <p className="text-slate-500 text-sm font-medium">These details appear on every piece of content you generate.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-pink-800 uppercase tracking-widest ml-2">Captain Name</label>
+            <label className="text-[10px] font-black text-pink-800 uppercase tracking-widest ml-2">Display Name</label>
             <input 
               type="text" 
               value={author.name}
@@ -53,13 +53,13 @@ const Settings: React.FC = () => {
             />
           </div>
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-pink-800 uppercase tracking-widest ml-2">Vessel Title</label>
+            <label className="text-[10px] font-black text-pink-800 uppercase tracking-widest ml-2">Professional Title</label>
             <input 
               type="text" 
               value={author.title}
               onChange={e => setAuthor({...author, title: e.target.value})}
               className="w-full px-6 py-4 bg-pink-50/30 border-2 border-pink-100 rounded-3xl outline-none focus:border-pink-300 focus:bg-white transition-all font-bold text-slate-800"
-              placeholder="e.g. Head of Chart Synthesis"
+              placeholder="e.g. Head of Content Synthesis"
             />
           </div>
           <div className="md:col-span-2 space-y-2">
@@ -84,7 +84,7 @@ const Settings: React.FC = () => {
             className="px-12 py-5 girly-gradient text-white rounded-[24px] font-black text-xs uppercase tracking-[0.3em] flex items-center gap-4 transition-all shadow-xl shadow-pink-200 active:scale-95"
            >
              {saved ? <Star className="w-5 h-5 fill-white animate-spin" /> : <Save className="w-5 h-5" />}
-             {saved ? 'Logs Updated' : 'Lock Settings'}
+             {saved ? 'Settings Saved' : 'Save Changes'}
            </button>
         </div>
       </div>
@@ -96,8 +96,8 @@ const Settings: React.FC = () => {
               <Wand2 className="w-10 h-10 text-teal-400" />
            </div>
            <div className="space-y-2">
-              <h4 className="text-xl font-bold font-heading">Magical Defaults</h4>
-              <p className="text-slate-400 text-sm leading-relaxed">Your author profile is automatically injected into the generation pipeline to ensure consistent brand authority across all nautical charts.</p>
+              <h4 className="text-xl font-bold font-heading">Personalized Synthesis</h4>
+              <p className="text-slate-400 text-sm leading-relaxed">Your author profile is automatically injected into the generation pipeline to ensure consistent brand authority across all anchorchartpro content.</p>
            </div>
         </div>
       </div>

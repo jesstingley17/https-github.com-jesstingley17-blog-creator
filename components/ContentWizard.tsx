@@ -8,7 +8,8 @@ import {
   Wand2,
   Check,
   Star,
-  FilePlus2
+  FilePlus2,
+  Sparkles
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
@@ -23,6 +24,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
   const [content, setContent] = useState('');
   const [slug, setSlug] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   const handleAiGenerate = async () => {
     if (!topic.trim()) {
@@ -31,12 +33,15 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     }
     
     setIsGenerating(true);
+    setProgress(10);
     try {
       // 1. Generate Slug first for the URL field
+      setProgress(30);
       const generatedSlug = await geminiService.generateSlug(topic);
       setSlug(generatedSlug);
 
       // 2. Prepare context for content generation
+      setProgress(50);
       const research = await geminiService.deepResearch(topic);
       const tempBrief: ContentBrief = {
         id: Math.random().toString(36).substring(2, 15),
@@ -55,6 +60,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
       };
 
       const generatedOutline = await geminiService.generateOutline(tempBrief);
+      setProgress(70);
       
       // 3. Stream content into the Content Box (Step 2)
       let fullText = '';
@@ -64,10 +70,12 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         fullText += c.text || '';
         setContent(fullText);
       }
-
-      // Success! Optional: Auto-save or wait for user to hit next
+      
+      setProgress(100);
+      // Success - let the user see the result before they manually click "Save & Continue"
     } catch (e) {
       console.error("Generation failed", e);
+      setProgress(0);
     } finally {
       setIsGenerating(false);
     }
@@ -146,7 +154,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             {isGenerating && !content && (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-white/40 backdrop-blur-[2px] rounded-[48px]">
                 <Loader2 className="w-10 h-10 animate-spin text-[#be185d]" />
-                <p className="text-[10px] font-black text-[#be185d] uppercase tracking-[0.4em]">Synthesizing Text...</p>
+                <p className="text-[10px] font-black text-[#be185d] uppercase tracking-[0.4em]">Synthesizing {progress}%</p>
               </div>
             )}
           </div>
@@ -158,14 +166,14 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
             <div className="w-10 h-10 rounded-2xl bg-pink-50 flex items-center justify-center border border-pink-100">
               <Link2 className="w-5 h-5 text-[#be185d]" />
             </div>
-            <label className="text-sm font-black text-slate-800 uppercase tracking-[0.2em] font-heading">Step 3: URL</label>
+            <label className="text-sm font-black text-slate-800 uppercase tracking-[0.2em] font-heading">Step 3: Blog URL</label>
           </div>
           <div className="relative group">
-            <div className="absolute left-10 top-1/2 -translate-y-1/2 text-pink-400 font-bold text-lg font-heading">anchor.pro /</div>
+            <div className="absolute left-10 top-1/2 -translate-y-1/2 text-pink-400 font-bold text-lg font-heading">anchorchartpro /</div>
             <input
               type="text"
-              placeholder="url-slug-here"
-              className="w-full pl-[150px] pr-10 py-8 bg-pink-50/30 border-2 border-pink-100 focus:border-[#be185d] focus:bg-white rounded-[32px] outline-none text-xl font-bold text-[#be185d] transition-all"
+              placeholder="your-blog-url-slug"
+              className="w-full pl-[210px] pr-10 py-8 bg-pink-50/30 border-2 border-pink-100 focus:border-[#be185d] focus:bg-white rounded-[32px] outline-none text-xl font-bold text-[#be185d] transition-all"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
             />
@@ -194,7 +202,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                 content ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200' : 'text-slate-300 pointer-events-none'
               }`}
             >
-              <Check className="w-5 h-5" /> Save & Continue
+              <Check className="w-5 h-5" /> {content ? 'Lock Content' : 'Waiting for Draft'}
             </button>
             <div className="h-px flex-1 bg-pink-100" />
           </div>
