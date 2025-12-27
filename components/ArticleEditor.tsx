@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
@@ -74,6 +75,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
   const [articleImages, setArticleImages] = useState<ArticleImage[]>([]);
   const [backlinkOps, setBacklinkOps] = useState<BacklinkOpportunity[]>([]);
   const [citations, setCitations] = useState<Citation[]>([]);
+  const [showSourcesInline, setShowSourcesInline] = useState(false);
   const [isDiscoveringBacklinks, setIsDiscoveringBacklinks] = useState(false);
 
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
@@ -157,8 +159,29 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
     try {
       const stream = geminiService.streamContent(brief, localOutline);
       for await (const chunk of stream) {
-        fullText += (chunk as any).text || '';
+        const c = chunk as any;
+        fullText += c.text || '';
         setContent(fullText);
+
+        // Extract grounding metadata if present
+        const metadata = c.candidates?.[0]?.groundingMetadata;
+        if (metadata?.groundingChunks) {
+          const newSources: Citation[] = metadata.groundingChunks
+            .filter((gc: any) => gc.web)
+            .map((gc: any, idx: number) => ({
+              id: citations.length + idx + 1,
+              url: gc.web.uri,
+              title: gc.web.title || 'Referenced Source'
+            }));
+
+          if (newSources.length > 0) {
+            setCitations(prev => {
+              const existingUrls = new Set(prev.map(p => p.url));
+              const uniqueNew = newSources.filter(ns => !existingUrls.has(ns.url));
+              return [...prev, ...uniqueNew];
+            });
+          }
+        }
       }
       performAnalysis(fullText);
       
@@ -306,8 +329,9 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
             </div>
           ) : (
             <div className="max-w-4xl mx-auto space-y-10 pb-32">
+              {/* About the Author Section with Refined Photo Placeholder */}
               <div className="p-10 bg-slate-50 rounded-[48px] border border-gray-100 flex items-center gap-10 shadow-sm">
-                <div className="w-24 h-24 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-4 border-white overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                <div className="w-24 h-24 rounded-[32px] bg-white shadow-xl flex items-center justify-center shrink-0 border-4 border-white overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100 relative group">
                   {brief.author.photoUrl ? (
                     <img 
                       src={brief.author.photoUrl} 
@@ -315,7 +339,10 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                       className="w-full h-full object-cover animate-in fade-in duration-300" 
                     />
                   ) : (
-                    <User className="w-12 h-12 text-slate-200" />
+                    <div className="flex flex-col items-center">
+                      <User className="w-10 h-10 text-slate-200" />
+                      <div className="absolute inset-0 bg-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   )}
                 </div>
                 <div className="space-y-2">
@@ -346,13 +373,62 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                   placeholder="Drafting Workspace Active..."
                 />
               )}
+
+              {/* Cite Sources Button below generated content */}
+              {hasStarted && (
+                <div className="mt-16 pt-16 border-t border-gray-100">
+                  <button 
+                    onClick={() => setShowSourcesInline(!showSourcesInline)}
+                    className="flex items-center gap-3 px-8 py-4 bg-white border border-gray-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:bg-gray-50 hover:text-indigo-600 transition-all shadow-sm group active:scale-95"
+                  >
+                    <Link2 className={`w-5 h-5 transition-transform duration-500 ${showSourcesInline ? 'text-indigo-600 rotate-45' : 'group-hover:rotate-12'}`} />
+                    {showSourcesInline ? 'Hide Bibliography' : 'Cite Sources'}
+                    {citations.length > 0 && (
+                      <span className="ml-2 bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-lg border border-indigo-100">
+                        {citations.length}
+                      </span>
+                    )}
+                  </button>
+
+                  {showSourcesInline && (
+                    <div className="mt-8 animate-in slide-in-from-top-4 duration-500 space-y-4">
+                      {citations.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {citations.map((c) => (
+                            <div key={c.id} className="p-8 bg-gray-50 rounded-[40px] border border-gray-100 group hover:border-indigo-100 hover:bg-white transition-all shadow-sm">
+                              <div className="flex items-center justify-between mb-4">
+                                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest px-3 py-1 bg-white border border-indigo-50 rounded-xl">Node {c.id}</span>
+                                <a 
+                                  href={c.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="p-3 bg-white rounded-2xl shadow-sm text-gray-300 hover:text-indigo-600 transition-all active:scale-90"
+                                >
+                                  <ExternalLink className="w-5 h-5" />
+                                </a>
+                              </div>
+                              <h4 className="font-black text-gray-900 text-lg italic tracking-tight line-clamp-2 leading-tight">{c.title}</h4>
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-2 truncate italic">{c.url}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-16 text-center bg-gray-50 rounded-[48px] border-2 border-dashed border-gray-200">
+                           <Info className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                           <p className="text-xs font-black text-gray-400 uppercase tracking-widest italic">No verified citations were linked in this synthesis pass.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {isOptimizing && (
           <div className="absolute inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-8">
-            <div className="bg-slate-900 w-full max-md rounded-[40px] p-10 space-y-6 shadow-2xl border border-slate-800 animate-in zoom-in-95 duration-500">
+            <div className="bg-slate-900 w-full max-w-md rounded-[40px] p-10 space-y-6 shadow-2xl border border-slate-800 animate-in zoom-in-95 duration-500">
                <div className="flex items-center gap-4 text-white border-b border-slate-800 pb-6">
                  <Loader2 className="w-8 h-8 animate-spin text-indigo-400" />
                  <div>
@@ -388,16 +464,16 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
           </button>
         </div>
 
-        {/* Cite Sources (Bibliography) Section */}
+        {/* Cited Sources Sidebar Section */}
         <div className="bg-white rounded-[40px] border border-gray-100 shadow-xl p-8 space-y-6">
           <div className="flex items-center justify-between">
             <h3 className="font-black text-gray-900 text-sm uppercase tracking-widest flex items-center gap-2">
-              <Quote className="w-4 h-4 text-purple-600" /> Cited Sources
+              <Quote className="w-4 h-4 text-purple-600" /> Bibliography
             </h3>
             <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{citations.length} Nodes</span>
           </div>
           <div className="space-y-3">
-            {citations.length > 0 ? citations.map((cite) => (
+            {citations.length > 0 ? citations.slice(0, 3).map((cite) => (
               <div key={cite.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-100 group transition-all">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-[8px] font-black text-indigo-600 uppercase tracking-widest">Source [{cite.id}]</span>
@@ -409,6 +485,14 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
               <div className="py-8 text-center border-2 border-dashed border-gray-100 rounded-[32px]">
                 <p className="text-[10px] font-black text-gray-300 uppercase tracking-widest italic">No citations yet.</p>
               </div>
+            )}
+            {citations.length > 3 && (
+              <button 
+                onClick={() => { setShowSourcesInline(true); document.querySelector('.mt-16')?.scrollIntoView({ behavior: 'smooth' }); }} 
+                className="w-full text-[10px] font-black uppercase text-indigo-600 hover:underline"
+              >
+                View {citations.length - 3} more...
+              </button>
             )}
           </div>
         </div>
@@ -490,7 +574,7 @@ const ArticleEditor: React.FC<ArticleEditorProps> = ({ brief, outline: initialOu
                 </div>
                 <div>
                   <h3 className="font-black text-3xl uppercase italic tracking-tighter text-slate-900 leading-none">The Refinement Forge</h3>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Paste raw notes for AI re-synthesis</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Paste raw nodes for AI re-synthesis</p>
                 </div>
               </div>
               <button onClick={() => setShowForge(false)} className="p-4 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors border"><X className="w-6 h-6 text-slate-400" /></button>
