@@ -140,5 +140,7 @@ export enum AppRoute {
   PLANNER = 'planner',
   INTEGRATIONS = 'integrations',
   SHARED = 'shared',
-  PROMPTS = 'prompts'
+  PROMPTS = 'prompts',
+  SETTINGS = 'settings',
+  STATS = 'stats'
 }

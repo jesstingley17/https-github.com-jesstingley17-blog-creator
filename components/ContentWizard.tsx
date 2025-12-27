@@ -1,28 +1,18 @@
 
 import React, { useState } from 'react';
 import { 
-  ArrowRight, 
   Loader2, 
   Sparkles, 
   RefreshCw, 
   Globe, 
-  Zap,
-  Info,
-  Scale,
-  FileText,
-  Wand2,
-  X,
-  Check,
-  Save,
-  Link as LinkIcon,
-  Heart,
-  Star,
-  Anchor,
+  Scale, 
+  Star, 
+  Anchor, 
   PenTool
 } from 'lucide-react';
 import { geminiService } from '../geminiService';
 import { storageService } from '../storageService';
-import { ContentBrief, ContentOutline, SavedPrompt } from '../types';
+import { ContentBrief, ContentOutline } from '../types';
 
 interface ContentWizardProps {
   onComplete: (brief: ContentBrief, outline: ContentOutline) => void;
@@ -47,11 +37,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
     length: 'medium',
     detailLevel: 'standard',
     status: 'draft',
-    author: {
-      name: 'Anchor Admin',
-      title: 'Head of Charts',
-      bio: 'Professional magic user specializing in nautical authority synthesis.'
-    },
+    author: storageService.getAuthor(),
     createdAt: Date.now()
   });
 
@@ -112,22 +98,22 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
           <div className="space-y-12 animate-in zoom-in-95">
             <div className="text-center space-y-4">
               <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-inner relative">
-                <Anchor className="w-10 h-10 text-pink-500" />
+                <Anchor className="w-10 h-10 text-[#be185d]" />
                 <PenTool className="w-4 h-4 text-pink-300 absolute bottom-3 right-3" />
               </div>
-              <h2 className="text-5xl font-black text-slate-800 tracking-tighter italic uppercase cursive leading-none">Anchor Research</h2>
-              <p className="text-pink-300 font-bold uppercase tracking-[0.3em] text-[11px]">Chart your course through the digital ocean.</p>
+              <h2 className="text-5xl font-black text-slate-900 tracking-tighter uppercase font-heading leading-none">Anchor Research</h2>
+              <p className="text-pink-700 font-bold uppercase tracking-[0.3em] text-[11px]">Chart your course through the digital ocean.</p>
             </div>
 
             <div className="space-y-8">
               <div className="relative group">
-                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-pink-200 group-focus-within:text-pink-500 transition-colors">
+                <div className="absolute left-8 top-1/2 -translate-y-1/2 text-pink-300 group-focus-within:text-[#be185d] transition-colors">
                   <Globe className="w-7 h-7" />
                 </div>
                 <input
                   type="text"
                   placeholder="Drop anchor on a topic..."
-                  className="w-full pl-20 pr-10 py-8 bg-pink-50/30 border-4 border-transparent focus:border-pink-200 focus:bg-white rounded-[40px] outline-none text-xl transition-all font-black text-slate-700 placeholder:text-pink-100 italic"
+                  className="w-full pl-20 pr-10 py-8 bg-pink-50/30 border-4 border-transparent focus:border-pink-200 focus:bg-white rounded-[40px] outline-none text-xl transition-all font-black text-slate-700 placeholder:text-pink-200"
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleDeepResearch()}
@@ -150,7 +136,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                   </div>
                 </div>
               ) : (
-                <button onClick={handleDeepResearch} disabled={!topic.trim()} className="w-full py-7 girly-gradient hover:opacity-90 disabled:opacity-50 text-white rounded-[32px] font-black text-lg flex items-center justify-center gap-4 shadow-2xl shadow-pink-100 transition-all active:scale-95 group">
+                <button onClick={handleDeepResearch} disabled={!topic.trim()} className="w-full py-7 girly-gradient hover:opacity-90 disabled:opacity-50 text-white rounded-[32px] font-black text-lg flex items-center justify-center gap-4 shadow-2xl shadow-pink-200 transition-all active:scale-95 group">
                   <Star className="w-6 h-6 group-hover:rotate-45 transition-transform" /> Deploy Probe
                 </button>
               )}
@@ -161,7 +147,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
         {step === 2 && (
           <div className="space-y-12 animate-in slide-in-from-right-12 duration-700">
             <div className="flex items-center justify-between border-b border-pink-50 pb-8">
-               <h2 className="text-3xl font-black text-slate-800 italic cursive">Ship's Manifesto</h2>
+               <h2 className="text-3xl font-black text-slate-900 font-heading">Ship's Manifesto</h2>
                <button onClick={() => setStep(1)} className="p-3 bg-pink-50 rounded-2xl border border-pink-100 text-pink-400 hover:text-pink-600 transition-all"><RefreshCw className="w-5 h-5" /></button>
             </div>
 
@@ -169,7 +155,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                <div className="space-y-10">
                   <div className="p-8 bg-pink-50/50 rounded-[40px] border border-pink-100 space-y-8">
                     <div className="space-y-4">
-                      <div className="flex items-center gap-3 text-[10px] font-black text-pink-300 uppercase tracking-widest">
+                      <div className="flex items-center gap-3 text-[10px] font-black text-pink-700 uppercase tracking-widest font-heading">
                         <Scale className="w-4 h-4" /> Voyage Length
                       </div>
                       <div className="flex bg-white p-2 rounded-2xl border border-pink-100 shadow-sm">
@@ -178,7 +164,7 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
                             key={val}
                             onClick={() => setBrief({ ...brief, length: val as any })}
                             className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                              brief.length === val ? 'bg-pink-600 text-white shadow-lg' : 'text-pink-200 hover:bg-pink-50'
+                              brief.length === val ? 'bg-[#be185d] text-white shadow-lg' : 'text-pink-300 hover:bg-pink-50'
                             }`}
                           >
                             {val}
@@ -191,16 +177,16 @@ const ContentWizard: React.FC<ContentWizardProps> = ({ onComplete }) => {
 
                <div className="space-y-8">
                   <div className="space-y-4">
-                     <label className="text-[10px] font-black text-pink-300 uppercase tracking-[0.3em] ml-3">Anchor Captain</label>
+                     <label className="text-[10px] font-black text-pink-700 uppercase tracking-[0.3em] ml-3 font-heading">Anchor Captain</label>
                      <div className="space-y-3">
-                        <input className="w-full px-8 py-5 rounded-[28px] border-2 border-pink-50 font-black text-sm bg-white focus:border-pink-300 transition-all outline-none" placeholder="Captain Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
-                        <input className="w-full px-8 py-5 rounded-[28px] border-2 border-pink-50 font-black text-sm bg-white focus:border-pink-300 transition-all outline-none" placeholder="Vessel Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
+                        <input className="w-full px-8 py-5 rounded-[28px] border-2 border-pink-100 font-bold text-sm bg-white focus:border-pink-300 transition-all outline-none" placeholder="Captain Name" value={brief.author?.name} onChange={e => setBrief({...brief, author: {...brief.author!, name: e.target.value}})} />
+                        <input className="w-full px-8 py-5 rounded-[28px] border-2 border-pink-100 font-bold text-sm bg-white focus:border-pink-300 transition-all outline-none" placeholder="Vessel Title" value={brief.author?.title} onChange={e => setBrief({...brief, author: {...brief.author!, title: e.target.value}})} />
                      </div>
                   </div>
                </div>
             </div>
 
-            <button onClick={() => onComplete(brief as ContentBrief, outline!)} className="w-full py-8 girly-gradient text-white rounded-[32px] font-black text-xl flex items-center justify-center gap-4 shadow-2xl shadow-pink-100 hover:opacity-90 active:scale-95 transition-all group">
+            <button onClick={() => onComplete(brief as ContentBrief, outline!)} className="w-full py-8 girly-gradient text-white rounded-[32px] font-black text-xl flex items-center justify-center gap-4 shadow-2xl shadow-pink-200 hover:opacity-90 active:scale-95 transition-all group font-heading">
               Forging Authority <Sparkles className="w-7 h-7 group-hover:animate-spin" />
             </button>
           </div>

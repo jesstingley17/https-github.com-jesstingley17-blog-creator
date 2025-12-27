@@ -8,6 +8,8 @@ import Planner from './components/Planner';
 import Integrations from './components/Integrations';
 import PublicArticle from './components/PublicArticle';
 import PromptLibrary from './components/PromptLibrary';
+import Settings from './components/Settings';
+import Stats from './components/Stats';
 import { storageService } from './storageService';
 import { AppRoute, ContentBrief, ContentOutline, ScheduledPost } from './types';
 import { Key, Sparkles, ShieldCheck, Loader2 } from 'lucide-react';
@@ -85,7 +87,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+          <Loader2 className="w-10 h-10 animate-spin text-[#be185d]" />
           <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Initializing Environment</p>
         </div>
       </div>
@@ -96,16 +98,16 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
         <div className="bg-white rounded-[40px] shadow-2xl p-12 max-w-xl w-full text-center space-y-8">
-          <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center mx-auto">
-            <Key className="w-10 h-10 text-indigo-600" />
+          <div className="w-20 h-20 bg-pink-50 rounded-3xl flex items-center justify-center mx-auto">
+            <Key className="w-10 h-10 text-[#be185d]" />
           </div>
           <div className="space-y-4">
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">API Access Required</h1>
-            <p className="text-slate-500 font-medium">Please select a project with Gemini API enabled to continue using the content suite.</p>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight font-heading">API Access Required</h1>
+            <p className="text-slate-500 font-medium">Please select a project with Gemini API enabled to continue using AnchorChartPRO.</p>
           </div>
           <button 
             onClick={handleOpenKeySelector}
-            className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black text-xl shadow-xl shadow-indigo-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
+            className="w-full py-5 girly-gradient text-white rounded-2xl font-black text-xl shadow-xl shadow-pink-200 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3"
           >
             <Sparkles className="w-6 h-6" /> Select API Key
           </button>
@@ -140,15 +142,17 @@ const App: React.FC = () => {
         return <Planner scheduledPosts={scheduledPosts} setScheduledPosts={setScheduledPosts} />;
       case AppRoute.INTEGRATIONS:
         return <Integrations />;
+      case AppRoute.SETTINGS:
+        return <Settings />;
+      case AppRoute.STATS:
+        return <Stats />;
       case AppRoute.PROMPTS:
         return <PromptLibrary onUsePrompt={(text) => {
           setRoute(AppRoute.CREATE);
-          // Small delay to let ContentWizard mount
           setTimeout(() => {
-            const input = document.querySelector('input[placeholder*="Enter topic"]') as HTMLInputElement;
+            const input = document.querySelector('input[placeholder*="Drop anchor"]') as HTMLInputElement;
             if (input) {
               input.value = text;
-              // Trigger a react state update by dispatching an event
               const event = new Event('input', { bubbles: true });
               input.dispatchEvent(event);
             }
@@ -162,10 +166,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex overflow-hidden">
+    <div className="min-h-screen bg-[#fff1f2] flex overflow-hidden">
       <Sidebar currentRoute={currentRoute} setRoute={setRoute} />
       <main className="flex-1 ml-64 p-8 h-screen overflow-y-auto custom-scrollbar">
-        {renderContent()}
+        <div className="max-w-[1600px] mx-auto">
+          {renderContent()}
+        </div>
       </main>
     </div>
   );

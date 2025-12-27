@@ -82,11 +82,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentRoute, setRoute }) => {
         </div>
         
         <div className="space-y-1">
-          <button className="w-full flex items-center gap-4 px-5 py-3 text-pink-400 hover:text-pink-600 transition-all">
+          <button 
+            onClick={() => setRoute(AppRoute.STATS)}
+            className={`w-full flex items-center gap-4 px-5 py-3 transition-all ${currentRoute === AppRoute.STATS ? 'text-pink-700 bg-pink-50 rounded-2xl' : 'text-pink-400 hover:text-pink-600'}`}
+          >
             <BarChart3 className="w-4 h-4" />
             <span className="font-bold text-[10px] uppercase tracking-[0.2em]">Voyage Stats</span>
           </button>
-          <button className="w-full flex items-center gap-4 px-5 py-3 text-pink-400 hover:text-pink-600 transition-all">
+          <button 
+            onClick={() => setRoute(AppRoute.SETTINGS)}
+            className={`w-full flex items-center gap-4 px-5 py-3 transition-all ${currentRoute === AppRoute.SETTINGS ? 'text-pink-700 bg-pink-50 rounded-2xl' : 'text-pink-400 hover:text-pink-600'}`}
+          >
             <Settings className="w-4 h-4" />
             <span className="font-bold text-[10px] uppercase tracking-[0.2em]">Ship Settings</span>
           </button>

@@ -1,12 +1,34 @@
 
 import { supabase, isSupabaseConfigured } from './supabase';
-import { GeneratedContent, ArticleMetadata, SavedPrompt } from './types';
+import { GeneratedContent, ArticleMetadata, SavedPrompt, Author } from './types';
 
 const REGISTRY_KEY = 'zr_registry';
 const ARTICLE_PREFIX = 'zr_article_';
 const PROMPT_LIBRARY_KEY = 'zr_prompt_library';
+const AUTHOR_KEY = 'zr_author_settings';
 
 export const storageService = {
+  // --- Author Settings ---
+  saveAuthor(author: Author): void {
+    localStorage.setItem(AUTHOR_KEY, JSON.stringify(author));
+  },
+
+  getAuthor(): Author {
+    const saved = localStorage.getItem(AUTHOR_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse author", e);
+      }
+    }
+    return {
+      name: 'Anchor Admin',
+      title: 'Head of Charts',
+      bio: 'Professional magic user specializing in nautical authority synthesis.'
+    };
+  },
+
   // --- Article Storage ---
   async upsertArticle(article: GeneratedContent): Promise<void> {
     const metadata: ArticleMetadata = {
